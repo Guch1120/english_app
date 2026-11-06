@@ -5,7 +5,8 @@ import LearningPersistence
 import LLMCore
 import ModelManagement
 
-final class CoreTests: XCTestCase {
+// Stateless test case; individual async tests own their actor-confined fixtures.
+final class CoreTests: XCTestCase, @unchecked Sendable {
     func testAlignmentSubstitutionDeletionInsertionAndNormalization() {
         let r = WordAlignment.compare(expected: "Could you reschedule the meeting for Thursday?", recognized: "could you schedule the meeting for thursday")
         XCTAssertEqual(r.tokens.filter { $0.kind == .substitution }.map(\.expected), ["reschedule"])
