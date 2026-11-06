@@ -1,0 +1,42 @@
+# TestFlight distribution
+
+USB development installation and TestFlight are independent. The existing `ios-development` environment remains for direct device builds; development signing files are not used for TestFlight.
+
+## Apple and GitHub setup
+
+1. Create an App Store Connect app record for `jp.guch1120.EnglishTrainer`. Its User Access setting affects your team, not public distribution. Pick an unused app name and your own SKU.
+2. Create GitHub Environment `ios-testflight`, restrict deployment branches to main, and add:
+
+| Secret | Value |
+|---|---|
+| APPSTORE_ISSUER_ID | Issuer ID for the team API key |
+| APPSTORE_API_KEY_ID | Key ID |
+| APPSTORE_API_PRIVATE_KEY | Entire `.p8` PEM text, including header/footer and real newlines; not base64 |
+| APPLE_TEAM_ID | The same Developer Program Team ID as the app |
+
+Do not commit or paste a private key into a PR/chat. An API key's upload permission and its ability to cloud-sign are separate concerns. The workflow follows the existing app's automatic signing route. Apple must grant the API identity permission to use cloud-managed Apple Distribution signing. An authorization error must be resolved explicitly; do not silently broaden a role or use someone else's credentials. Team API keys may access multiple apps according to their role; the app record's User Access choice does not make a team key app-specific.
+
+3. Merge the reviewed PR into main. Actions → TestFlight → Run workflow → main. The workflow never runs on PRs or push, uses only `ios-testflight` secrets, and rejects uploads from any branch other than main.
+4. The macOS 26 runner selects Xcode 26.5 explicitly, runs Package tests, archives unsigned, then cloud-signs for `app-store-connect` and uploads via `xcodebuild -exportArchive`. No distribution p12 is required if cloud signing is authorized. Build numbers use `(workflow run number + 100).attempt`, so a rerun has a fresh build number. No IPA or signing-material artifacts are published.
+5. After Apple processing completes, open the app's TestFlight tab, create an internal testing group, add yourself and select the build. Install through the TestFlight app. Upload success alone does not establish processing success or tester availability. External testing/public links are not enabled by this workflow.
+
+## Validation and limitations
+
+PR CI requires no signing secrets. It builds/analyzes the Simulator app and runs `Scripts/testflight.sh --archive-only` to verify the unsigned device archive and compiled icon. This does not test cloud-signing permissions or App Store Connect upload validation.
+
+The app now has a code-generated opaque 1024×1024 icon. Regenerate it with Python's standard library inside Docker (e.g. the device debug image):
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" english-trainer-device-debug python3 /workspace/Scripts/generate-app-icon.py
+```
+
+`ITSAppUsesNonExemptEncryption` is false because the current app and its linked libraries do not implement non-exempt encryption. This must be reviewed when dependencies or cryptographic features change. OpenSSL used by development scripts is not shipped in the app. Export-compliance declarations do not replace Apple's other requirements.
+
+App implementation is still Phase 1. This distribution change does not implement neural TTS, ASR, LLM inference, model downloads or enhancement.
+
+Sources checked 2026-11-06:
+- [Apple upload requirements](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds)
+- [App icons](https://developer.apple.com/documentation/xcode/configuring-your-app-icon)
+- [Encryption declaration](https://developer.apple.com/documentation/Security/complying-with-encryption-export-regulations)
+- [Cloud-managed signing](https://developer.apple.com/help/account/certificates/cloud-managed-certificates/)
+- [API keys and team-key scope](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api)
