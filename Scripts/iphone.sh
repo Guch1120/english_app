@@ -5,7 +5,11 @@ cd "$(dirname "$0")/.."
 operation=${1:-check}
 case "$operation" in
   check|installed) ;;
-  install) test -n "${2:-}" && test -f "$2" || { echo 'Usage: bash Scripts/iphone.sh install /absolute/path/to/app.ipa' >&2; exit 2; } ;;
+  install)
+    if [ -z "${2:-}" ] || [ ! -f "$2" ]; then
+      echo 'Usage: bash Scripts/iphone.sh install /absolute/path/to/app.ipa' >&2
+      exit 2
+    fi ;;
   *) echo 'Usage: bash Scripts/iphone.sh {check|installed|install IPA}' >&2; exit 2 ;;
 esac
 socket=${USBMUXD_SOCKET_PATH:-/var/run/usbmuxd}

@@ -1,7 +1,6 @@
 name: Validate
 on:
   pull_request:
-    paths-ignore: ['Docs/**', '**.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -9,22 +8,43 @@ concurrency:
   group: validate-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      build: ${{ steps.changes.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Select required build checks
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 Scripts/ci/changes.py
+      - name: Check workflow policy, shell scripts and credential leaks in Docker
+        run: bash Scripts/quality.sh
   core:
+    needs: quality
+    if: needs.quality.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: bash Scripts/test.sh
   ios:
-    needs: core
+    needs: [quality, core]
+    if: needs.quality.outputs.build == 'true'
     runs-on: macos-26
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Package tests on macOS
@@ -34,6 +54,35 @@ jobs:
           xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build analyze
-
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
+  review-gate:
+    if: always()
+    needs: [quality, core, ios]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Summarize and require every applicable check
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          BUILD_REQUIRED: ${{ needs.quality.outputs.build }}
+          CORE: ${{ needs.core.result }}
+          IOS: ${{ needs.ios.result }}
+        run: |
+          {
+            printf '## Automated PR checks\n\n'
+            printf '| Check | Result |\n|---|---|\n'
+            printf '| Security policy, linters, secret scan | %s |\n' "$QUALITY"
+            printf '| Swift tests | %s |\n' "$CORE"
+            printf '| Simulator + unsigned archive | %s |\n' "$IOS"
+            printf '\nThis gate does not certify model behavior, audio quality, device UX or cloud-signing permissions.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$QUALITY" = success
+          if [ "$BUILD_REQUIRED" = true ]; then
+            test "$CORE" = success
+            test "$IOS" = success
+          else
+            test "$BUILD_REQUIRED" = false
+            test "$CORE" = skipped
+            test "$IOS" = skipped
+          fi
