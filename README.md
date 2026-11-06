@@ -2,7 +2,7 @@
 
 iPhone向けローカル英語学習アプリと、交換可能な音声AI基盤。SwiftUI / iOS 18以降。
 
-Phase 1の初期実装です。英文追加、Apple TTS再生、英文・訳の表示切替、苦手単語/文章のSQLite保存、間隔反復、手入力文字起こしの単語比較を実装しています。Kokoro／Pocket TTSの初期接続、検証付きモデル取得、生成音声キャッシュと比較画面を追加しています。実機でのニューラルTTS検証は未完了です。ASR録音・Gemma・RE-USE・任意モデル検索は未実装です。
+Phase 1基盤とPhase 2のKokoro／Pocket TTSを実装済みです。Phase 3のParakeet ASR（録音、端末内文字起こし、教材文との比較）はレビュー中で、実機でのASR検証は未完了です。Gemma・RE-USE・任意モデル検索は未実装です。
 
 ## Dockerで検証
 
@@ -28,3 +28,4 @@ TestFlight配布は[専用手順](Docs/TestFlight.md)を参照してください
 PRの自動チェックは[チェック範囲と結果の見方](Docs/Automated-Checks.md)を参照してください。`review-gate`に結果を集約し、ドキュメントだけの変更でも軽量な安全性チェックは実行します。自動承認・自動マージは有効化していません。
 
 音声モデルの構成・ライセンス・検証範囲は[TTS統合](Docs/TTS.md)を参照してください。
+ASRモデルの構成・録音データの扱い・実機検証項目は[ASR統合](Docs/ASR.md)を参照してください。

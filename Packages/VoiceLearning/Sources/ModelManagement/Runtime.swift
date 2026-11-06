@@ -13,6 +13,7 @@ public struct ModelDescriptor: Codable, Sendable, Identifiable {
 public enum RuntimeError: Error { case busy }
 /// One large-model lease at a time. Hold the lease across load, inference and unload.
 public actor ModelRuntimeCoordinator {
+    public static let shared = ModelRuntimeCoordinator()
     private var active: UUID?
     public init() {}
     public func withExclusiveModel<T: Sendable>(_ operation: @Sendable () async throws -> T) async throws -> T {

@@ -1,0 +1,6 @@
+NVIDIA Parakeet TDT-CTC 110M, converted to Core ML by FluidInference.
+Model and converted files: CC BY 4.0.
+Attribution: NVIDIA NeMo; FluidInference conversion and packaging.
+Source model card: https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml
+Source revision: 9bc92ead6e8f17eca92a869fd578ae76842b82ba
+The app downloads only the explicitly manifested Core ML components and vocabulary.
