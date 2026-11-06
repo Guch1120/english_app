@@ -7,7 +7,7 @@ Every PR runs the `Validate` workflow without signing secrets. No automatic appr
 | ShellCheck | Shell syntax and common argument/error-handling mistakes |
 | actionlint 1.7.12 | GitHub Actions expressions, job references and embedded shell |
 | Gitleaks 8.30.1 | Committed Git history for recognized credential patterns, with values redacted in logs |
-| CI policy + negative tests | Full-SHA action pins; read-only token permissions; no PR secret references or deployment environment; manual-only/main-only deployment jobs; no tracked signing/credential files |
+| CI policy + negative/gate tests | Full-SHA action pins; read-only token permissions; no PR secret references or deployment environment; manual-only/main-only deployment jobs; no tracked signing/credential files |
 | Swift tests | Learning, persistence, alignment and coordinator behavior covered by tests |
 | macOS/Xcode | Simulator build/analyze and unsigned device archive/icon validation |
 
