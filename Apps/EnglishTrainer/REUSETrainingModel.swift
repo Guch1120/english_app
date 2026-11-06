@@ -47,8 +47,6 @@ import DeviceDiagnostics
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil; status = "" }
-            let startedAt = Date()
-            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .started, thermalState: .current))
             do {
                 storage = try await service.storageStatus()
                 installed = storage?.isInstalled == true
@@ -64,6 +62,8 @@ import DeviceDiagnostics
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil; status = "" }
+            let startedAt = Date()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .started, thermalState: .current))
             do {
                 try await service.download { [weak self] value in
                     Task { @MainActor in self?.progress = value }
@@ -90,13 +90,17 @@ import DeviceDiagnostics
             guard let self else { return }
             defer { busy = false; operation = nil; status = "" }
             let startedAt = Date()
-            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .inference, model: .reuse, outcome: .started, thermalState: .current))
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDelete, model: .reuse, outcome: .started, thermalState: .current))
             do {
                 try await service.removeModel(); storage = try await service.storageStatus()
                 installed = false; verified = false; lastMetrics = nil
                 UserDefaults.standard.removeObject(forKey: REUSEAudioEnhancement.verificationKey)
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDelete, model: .reuse, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
             }
-            catch { self.error = "RE-USEモデルを削除できませんでした。" }
+            catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDelete, model: .reuse, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "RE-USEモデルを削除できませんでした。"
+            }
         }
     }
 
@@ -106,6 +110,8 @@ import DeviceDiagnostics
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil; status = "" }
+            let startedAt = Date()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .inference, model: .reuse, outcome: .started, thermalState: .current))
             do {
                 let measured = service
                 let result = try await coordinator.withExclusiveModel {

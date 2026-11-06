@@ -13,6 +13,7 @@ public enum DiagnosticAction: String, Codable, Sendable {
     case modelDownload
     case modelLoad
     case modelUnload
+    case modelDelete
     case inference
     case recording
     case transcription
