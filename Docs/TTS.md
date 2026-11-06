@@ -38,4 +38,13 @@ Comparison text and its comparison-group ID persist locally. Results include voi
 - Manual `Validate` workflow with input `tts_smoke=true` downloads the pinned models and synthesizes the fixed public sentence `Please confirm your reservation.` for both engines on Apple Silicon. WAV files and timing JSON are retained as a three-day artifact. This establishes model execution on that runner, not iPhone compatibility, pronunciation accuracy or usability. No user text/recordings are used in this test.
 - Physical iPhone tests must check model install/cancel/retry, offline synthesis, playback rate/loop/pause, interruptions, sequential engine changes, memory/thermal behavior and cache reuse. Keep Apple as the default until this is measured.
 
-At initial implementation commit: Linux 13 tests and quality checks pass. macOS build, real-model smoke run and physical neural inference are pending verification; update the PR with actual results.
+Verified code commit `e638898` on 2026-11-06:
+
+- Docker: 14 tests passed; quality/policy/vendor integrity/secret scan passed.
+- [Manual native validation run](https://github.com/Guch1120/english_app/actions/runs/42220026354): 15 macOS tests passed, including both actual model executions; iOS Simulator build and static analysis passed; unsigned distribution archive passed.
+- [PR validation run](https://github.com/Guch1120/english_app/actions/runs/42220033799): all required checks passed.
+- Apple Silicon runner, first synthesis of the fixed sentence: Kokoro 3.135 s generation / 2.45 s audio (RTF 1.279); Pocket 3.089 s generation / 1.84 s audio (RTF 1.679). Model loading is excluded. These are single-run observations, not iPhone benchmarks or audio-quality ratings.
+- SDK layout mapping: the verified Kokoro frontend is copied into the SDK's shared `Models/kokoro` directory; Pocket's manifest explicitly selects `Models/pocket-tts`. Storage folder overrides are validated against path traversal.
+- Full learning-data deletion also clears generated audio, local comparison text and measurement history; downloaded models remain available.
+
+Physical iPhone neural inference, offline execution, interruptions and perceptual audio quality remain unverified. This PR has not yet been distributed through TestFlight.
