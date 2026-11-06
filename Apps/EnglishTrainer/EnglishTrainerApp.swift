@@ -311,8 +311,17 @@ struct ReviewView: View {
 struct SettingsView: View {
     let model: AppModel
     @State private var confirmDelete = false
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "不明"
+        let build = info["CFBundleVersion"] as? String ?? "不明"
+        return "\(version) (\(build))"
+    }
     var body: some View {
         Form {
+            Section("アプリ") {
+                LabeledContent("バージョン", value: appVersion)
+            }
             Section("音声とAI") {
                 LabeledContent("TTS", value: NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語")
                 NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
