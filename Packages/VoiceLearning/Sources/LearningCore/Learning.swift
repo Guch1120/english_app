@@ -61,10 +61,32 @@ public struct WordAlignment: Sendable, Equatable {
     }
     public let tokens: [Token]
     public let wordErrorRate: Double
+
+    private static let contractions: [String: String] = [
+        "can't": "can not", "cannot": "can not", "won't": "will not", "shan't": "shall not",
+        "don't": "do not", "doesn't": "does not", "didn't": "did not",
+        "isn't": "is not", "aren't": "are not", "wasn't": "was not", "weren't": "were not",
+        "haven't": "have not", "hasn't": "has not", "hadn't": "had not",
+        "couldn't": "could not", "wouldn't": "would not", "shouldn't": "should not", "mustn't": "must not",
+        "i'm": "i am", "you're": "you are", "he's": "he is", "she's": "she is", "it's": "it is",
+        "we're": "we are", "they're": "they are", "that's": "that is", "what's": "what is",
+        "there's": "there is", "here's": "here is", "who's": "who is",
+        "i've": "i have", "you've": "you have", "we've": "we have", "they've": "they have",
+        "i'll": "i will", "you'll": "you will", "he'll": "he will", "she'll": "she will",
+        "we'll": "we will", "they'll": "they will", "it'll": "it will",
+        "i'd": "i would", "you'd": "you would", "he'd": "he would", "she'd": "she would",
+        "we'd": "we would", "they'd": "they would", "let's": "let us"
+    ]
+
     public static func compare(expected: String, recognized: String) -> WordAlignment {
         func words(_ text: String) -> [String] {
-            text.lowercased().replacingOccurrences(of: "’", with: "'")
-                .split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "'" }).map(String.init)
+            let expandedNumbers = expandNumbers(text.lowercased().replacingOccurrences(of: "’", with: "'"))
+            return expandedNumbers
+                .split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "'" })
+                .flatMap { token in
+                    let word = String(token)
+                    return (contractions[word] ?? word).split(separator: " ").map(String.init)
+                }
         }
         let a = words(expected), b = words(recognized)
         var d = Array(repeating: Array(repeating: 0, count: b.count + 1), count: a.count + 1)
@@ -86,5 +108,70 @@ public struct WordAlignment: Sendable, Equatable {
             }
         }
         return WordAlignment(tokens: result.reversed(), wordErrorRate: Double(d[a.count][b.count]) / Double(max(1, a.count)))
+    }
+
+    private static func expandNumbers(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: #"\b\d[\d,]*(?:\.\d+)?\b"#) else { return text }
+        let mutable = NSMutableString(string: text)
+        let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        for match in matches.reversed() {
+            let source = mutable.substring(with: match.range)
+            let replacement = spokenNumber(source)
+            mutable.replaceCharacters(in: match.range, with: " \(replacement) ")
+        }
+        return mutable as String
+    }
+
+    private static func spokenNumber(_ source: String) -> String {
+        let parts = source.replacingOccurrences(of: ",", with: "").split(separator: ".", omittingEmptySubsequences: false)
+        guard let integer = parts.first.flatMap({ UInt64(String($0)) }) else { return source }
+        var result = cardinalWords(integer)
+        if parts.count == 2 {
+            result.append("point")
+            result += parts[1].compactMap { $0.wholeNumberValue }.map { smallNumberWords[$0] }
+        }
+        return result.joined(separator: " ")
+    }
+
+    private static let smallNumberWords = [
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
+    ]
+    private static let tensWords = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+
+    private static func cardinalWords(_ number: UInt64) -> [String] {
+        guard number > 0 else { return ["zero"] }
+        let scales = ["", "thousand", "million", "billion"]
+        var remainder = number
+        var groups: [[String]] = []
+        while remainder > 0 && groups.count < scales.count {
+            let group = Int(remainder % 1_000)
+            if group > 0 {
+                var words = tripletWords(group)
+                let scale = scales[groups.count]
+                if !scale.isEmpty { words.append(scale) }
+                groups.append(words)
+            } else {
+                groups.append([])
+            }
+            remainder /= 1_000
+        }
+        if remainder > 0 { return String(number).compactMap(\.wholeNumberValue).map { smallNumberWords[$0] } }
+        return groups.reversed().flatMap { $0 }
+    }
+
+    private static func tripletWords(_ number: Int) -> [String] {
+        var remainder = number
+        var words: [String] = []
+        if remainder >= 100 {
+            words.append(smallNumberWords[remainder / 100]); words.append("hundred")
+            remainder %= 100
+        }
+        if remainder >= 20 {
+            words.append(tensWords[remainder / 10])
+            remainder %= 10
+        }
+        if remainder > 0 { words.append(smallNumberWords[remainder]) }
+        return words
     }
 }

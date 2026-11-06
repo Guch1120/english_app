@@ -1,6 +1,6 @@
-# Parakeet ASR / Phase 3 initial implementation
+# Phase 3 ASR and speaking practice
 
-The first ASR path adds a single Parakeet English model to the reusable `ASRService` contract. The speaking screen downloads and verifies the model, records a spoken practice sentence, transcribes the saved WAV on device, and aligns recognized words with the lesson text.
+The speaking screen offers two English recognition engines and saves one protected recording for playback or repeat transcription. Both engines run on device: Parakeet TDT-CTC 110M (downloaded and verified) and Apple Speech (available only when the device reports on-device support). The engine choice persists across launches. WhisperKit remains an optional comparison engine if real-device quality or latency measurements show a need.
 
 ## Model and licensing
 
@@ -14,10 +14,10 @@ Source: [Parakeet TDT-CTC 110M Core ML model card](https://huggingface.co/FluidI
 
 ## Recording and comparison
 
-The first use requires microphone permission and an explicit model download. Recording is 16 kHz mono PCM WAV in the app's protected, backup-excluded `Application Support/NeuralSpeech/Recordings/latest.wav` location. A new recording replaces the previous one. Users can delete it in the speaking screen or with Settings → delete all learning data. A saved recording remains available for retry after a transcription error and for a second transcription. Transcripts and metrics are shown in memory and are not added to the learning database.
+The first use requires microphone permission; Apple Speech also asks for speech-recognition permission. Apple Speech is selected only when `supportsOnDeviceRecognition` is true and each request sets `requiresOnDeviceRecognition`, so it cannot silently fall back to network recognition. Parakeet requires an explicit model download. Recording is 16 kHz mono PCM WAV in the app's protected, backup-excluded `Application Support/NeuralSpeech/Recordings/latest.wav` location. The app restores the latest recording after restart; a new recording replaces it. Users can replay or delete it in the speaking screen, or delete it with Settings → delete all learning data. A saved recording can be re-recognized with either selected engine. Transcripts and metrics are shown in memory and are not added to the learning database.
 
-The model runs after recording completes. Recognition time excludes model load. The result screen shows word alignment and word error rate; it describes transcript similarity and does not score pronunciation. A single runtime lease covers model loading, inference and cleanup, and is shared with TTS to avoid overlapping large models. Cancellation waits for the Core ML operation to return before model cleanup.
+The model runs after recording completes. Recognition time excludes model load. The result screen shows word alignment and word error rate, allows registering the lesson for speaking review, and reports a rough word pace plus metered silence/pause estimates. Metering uses a fixed -42 dB threshold and is presented as an estimate. The screen can play the reference TTS and the saved recording. Transcript similarity is not a pronunciation score. A single runtime lease covers model loading, inference and cleanup, and is shared with TTS to avoid overlapping large models. Cancellation waits for the active inference operation to return before cleanup.
 
 ## Verification limits
 
-GitHub CI compiles the iOS app and runs Package tests. The app needs an iPhone run to verify microphone permission, recording signal and format, model load, transcript quality, stop/cancel behavior, and offline recognition. The initial PR does not claim physical-device ASR success or pronunciation evaluation. Long recordings are processed as offline batches; streaming/VAD, WhisperKit comparison and audio enhancement are later work.
+GitHub CI compiles the iOS app and runs Package tests. iPhone verification covers each engine's model/permission path, microphone signal and format, transcript quality, model switching and repeat transcription, stop/cancel behavior, playback, and offline recognition. Batch recognition is sufficient for this phase; streaming/VAD, pronunciation scoring and audio enhancement remain later work.

@@ -15,6 +15,8 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(WordAlignment.compare(expected: "a", recognized: "a b").tokens.last?.kind, .insertion)
         XCTAssertEqual(WordAlignment.compare(expected: "", recognized: "").wordErrorRate, 0)
         XCTAssertEqual(WordAlignment.compare(expected: "Hello, WORLD!", recognized: "hello world").wordErrorRate, 0)
+        XCTAssertEqual(WordAlignment.compare(expected: "I can't pay $25 today", recognized: "I cannot pay twenty-five today").wordErrorRate, 0)
+        XCTAssertEqual(WordAlignment.compare(expected: "It's 2.5 miles", recognized: "It is two point five miles").wordErrorRate, 0)
     }
     func testReviewSchedule() {
         let now = Date(timeIntervalSince1970: 1000)

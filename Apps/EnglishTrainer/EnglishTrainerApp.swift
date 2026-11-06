@@ -184,32 +184,45 @@ struct LessonView: View {
                 }
             }
             Section {
-                NavigationLink("スピーキング練習・文字起こし") { SpeakingPreview(item: item, model: model.speaking) }
+                NavigationLink("スピーキング練習・文字起こし") { SpeakingPreview(item: item, appModel: model, model: model.speaking) }
             }
         }.navigationTitle("リスニング").onDisappear { model.stop() }
     }
 }
 struct SpeakingPreview: View {
     let item: LearningItem
-    let model: SpeakingTrainingModel
+    let appModel: AppModel
+    @Bindable var model: SpeakingTrainingModel
     @State private var confirmDownload = false
     @State private var confirmModelRemoval = false
     var body: some View {
         Form {
-            Section("お手本") { Text(item.text) }
-            Section("Parakeet モデル") {
-                Text("\(ParakeetModel.title) · 約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file)) · \(ParakeetModel.license)")
-                    .font(.caption)
-                Text("初回にモデルをダウンロードします。音声は端末内で処理し、送信しません。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Link("モデルの出典・ライセンス（CC BY 4.0）", destination: URL(string: "https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml")!)
-                    .font(.caption)
-                if model.installed {
-                    Label("モデルのファイルを検証済み", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                    Button("モデルを削除", role: .destructive) { confirmModelRemoval = true }
-                        .disabled(model.busy || model.recording)
+            Section("お手本") {
+                Text(item.text)
+                Button("お手本を聞く", systemImage: "play.circle") { appModel.speak(item.text, speed: 1) }
+            }
+            Section("音声認識モデル") {
+                Picker("モデル", selection: $model.selectedEngine) {
+                    ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
+                }.pickerStyle(.menu)
+                if model.selectedEngine == .parakeet {
+                    Text("\(ParakeetModel.title) · 約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file)) · \(ParakeetModel.license)")
+                        .font(.caption)
+                    Link("モデルの出典・ライセンス（CC BY 4.0）", destination: URL(string: "https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml")!)
+                        .font(.caption)
+                    if model.installed {
+                        Label("モデルのファイルを検証済み", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                        Button("モデルを削除", role: .destructive) { confirmModelRemoval = true }
+                            .disabled(model.busy || model.recording)
+                    } else {
+                        Button("Parakeetモデルをダウンロード") { confirmDownload = true }.disabled(model.busy)
+                    }
+                } else if model.recognitionAvailable {
+                    Text("Apple Speechの英語認識を端末内限定で使います。音声は端末外へ送信しません。")
+                        .font(.caption).foregroundStyle(.secondary)
                 } else {
-                    Button("モデルをダウンロード") { confirmDownload = true }.disabled(model.busy)
+                    Text("この端末では英語の端末内認識を利用できません。Parakeetを選択してください。")
+                        .font(.caption).foregroundStyle(.orange)
                 }
                 if model.busy {
                     if model.progress > 0 { ProgressView(value: model.progress) } else { ProgressView() }
@@ -222,14 +235,17 @@ struct SpeakingPreview: View {
                     Label("録音中 · 発話後に停止してください", systemImage: "record.circle").foregroundStyle(.red)
                     Button("録音を停止", systemImage: "stop.circle.fill") { model.stopRecording() }
                 } else {
-                    Button("録音を開始", systemImage: "mic.circle.fill") { model.startRecording() }
-                        .disabled(!model.installed || model.busy)
+                    Button("録音を開始", systemImage: "mic.circle.fill") { appModel.stop(); model.startRecording() }
+                        .disabled(!model.recognitionAvailable || model.busy)
                 }
                 if model.busy { Text(model.status).font(.caption) }
                 if model.audioDuration > 0 {
                     LabeledContent("録音時間", value: model.audioDuration.formatted(.number.precision(.fractionLength(1))) + "秒")
+                    Button(model.playingRecording ? "録音の再生中" : "自分の録音を聞く", systemImage: model.playingRecording ? "speaker.wave.2.fill" : "play.circle") {
+                        if model.playingRecording { model.stopRecordingPlayback() } else { model.playRecording() }
+                    }.disabled(model.busy || model.recording)
                     Button("もう一度文字起こし", systemImage: "text.magnifyingglass") { model.transcribe() }
-                        .disabled(model.busy || model.recording || !model.installed)
+                        .disabled(model.busy || model.recording || !model.recognitionAvailable)
                     Button("録音を削除", systemImage: "trash", role: .destructive) { model.deleteRecording() }
                         .disabled(model.busy || model.recording)
                 }
@@ -242,6 +258,19 @@ struct SpeakingPreview: View {
                     if let seconds = model.processingSeconds {
                         Text("認識時間：\(seconds, specifier: "%.2f")秒 · 録音時間：\(model.audioDuration, specifier: "%.1f")秒")
                             .font(.caption).foregroundStyle(.secondary)
+                        let wordCount = model.transcript.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).count
+                        if model.audioDuration > 0 {
+                            let speakingTime = max(0.1, model.audioDuration - (model.silenceMetricsAvailable ? model.silenceDuration : 0))
+                            Text("発話ペースの目安：\(Double(wordCount) / speakingTime * 60, specifier: "%.0f")語/分")
+                                .font(.caption).foregroundStyle(.secondary)
+                            if model.silenceMetricsAvailable {
+                                Text("無音の目安：\(model.silenceDuration, specifier: "%.1f")秒 · 0.4秒以上の間：\(model.pauseCount)回 · 最長：\(model.longestPause, specifier: "%.1f")秒")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else {
+                                Text("録音時間全体から求めた概算です。短い間も含みます。")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
                 Section("単語の差分") {
@@ -254,6 +283,11 @@ struct SpeakingPreview: View {
                     }
                     Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
                     Text("文字起こしの一致度です。発音の正確さを採点するものではありません。").font(.caption)
+                    if result.tokens.contains(where: { $0.kind != .match }) {
+                        Button("この英文をスピーキングの復習に登録", systemImage: "bookmark") {
+                            appModel.mark(item, text: item.text, reason: .speaking)
+                        }
+                    }
                 }
             }
             Section {
@@ -270,7 +304,10 @@ struct SpeakingPreview: View {
         .confirmationDialog("保存したParakeetモデルを削除しますか？", isPresented: $confirmModelRemoval, titleVisibility: .visible) {
             Button("モデルを削除", role: .destructive) { model.removeModel() }
         }
-        .onDisappear { if model.recording { model.stopRecording() } }
+        .onDisappear {
+            if model.recording { model.stopRecording() }
+            model.stopRecordingPlayback(); appModel.stop()
+        }
     }
 }
 struct ReviewView: View {
