@@ -18,13 +18,31 @@ let litertDependencies: [Target.Dependency] = [
     .product(name: "LiteRTLM", package: "LiteRT-LM", condition: .when(platforms: [.iOS]))
 ]
 #endif
+let reusePackages: [Package.Dependency] = {
+    #if os(Linux)
+    []
+    #else
+    [.package(url: "https://github.com/Corvelis/RE-USE-MLX-CoreML.git", exact: "0.2.0")]
+    #endif
+}()
+let reuseDependencies: [Target.Dependency] = {
+    #if os(Linux)
+    ["SpeechCore", "ModelManagement"]
+    #else
+    [
+        "SpeechCore", "ModelManagement",
+        .product(name: "ReuseKit", package: "re-use-mlx-coreml", condition: .when(platforms: [.iOS])),
+        .product(name: "ReuseModelAssets", package: "re-use-mlx-coreml", condition: .when(platforms: [.iOS]))
+    ]
+    #endif
+}()
 let package = Package(
     name: "VoiceLearning",
     platforms: [.iOS(.v18), .macOS(.v14)],
-    products: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "NeuralASRBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend", "DeviceDiagnostics"].map {
+    products: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "NeuralASRBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend", "AudioEnhancementBackends", "DeviceDiagnostics"].map {
         .library(name: $0, targets: [$0])
     },
-    dependencies: neuralPackages + litertPackages,
+    dependencies: neuralPackages + litertPackages + reusePackages,
     targets: [
         .systemLibrary(name: "CSQLite", pkgConfig: "sqlite3", providers: [.apt(["libsqlite3-dev"])]),
         .target(name: "LearningCore"),
@@ -36,7 +54,8 @@ let package = Package(
         .target(name: "LLMCore", dependencies: ["LearningCore"]),
         .target(name: "ModelManagement"),
         .target(name: "LiteRTLLMBackend", dependencies: litertDependencies),
+        .target(name: "AudioEnhancementBackends", dependencies: reuseDependencies, resources: [.process("Resources")]),
         .target(name: "DeviceDiagnostics"),
-        .testTarget(name: "VoiceLearningTests", dependencies: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend"])
+        .testTarget(name: "VoiceLearningTests", dependencies: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend", "AudioEnhancementBackends"])
     ]
 )

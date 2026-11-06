@@ -26,6 +26,9 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     var progress = 0.0
     var status = ""
     var transcript = ""
+    var enhancedTranscript = ""
+    var enhancedRecordingURL: URL?
+    var enhancedProcessingSeconds: Double?
     var audioDuration = 0.0
     var silenceDuration = 0.0
     var pauseCount = 0
@@ -36,6 +39,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     var selectedEngine: ASREngine = ASREngine(rawValue: UserDefaults.standard.string(forKey: "asr-engine") ?? "") ?? .parakeet {
         didSet { UserDefaults.standard.set(selectedEngine.rawValue, forKey: "asr-engine") }
     }
+    var reuse = REUSETrainingModel()
     var playingRecording = false
 
     private let recorder = RecorderBox()
@@ -67,6 +71,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true,
                 attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
             recordingURL = folder.appendingPathComponent("latest.wav")
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent("reuse-latest.wav"))
             store = NeuralASRRuntime.modelStore(root: root)
             if let recordingURL, FileManager.default.fileExists(atPath: recordingURL.path),
                let audio = try? AVAudioFile(forReading: recordingURL) {
@@ -130,12 +135,13 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 if selectedEngine == .appleSpeech { try await appleSpeech.load() }
                 try Task.checkCancellation()
                 stopRecordingPlayback()
+                removeEnhancedRecording()
                 let session = AVAudioSession.sharedInstance()
                 try session.setCategory(.record, mode: .measurement)
                 try session.setActive(true)
                 try? FileManager.default.removeItem(at: recordingURL)
                 guard try recorder.start(url: recordingURL) else { throw ParakeetASRError.invalidAudio }
-                transcript = ""; processingSeconds = nil; audioDuration = 0
+                transcript = ""; enhancedTranscript = ""; processingSeconds = nil; audioDuration = 0
                 silenceDuration = 0; pauseCount = 0; longestPause = 0; currentPause = 0
                 silenceMetricsAvailable = false
                 recording = true; status = "録音中です。英文を話したら停止してください。"
@@ -171,30 +177,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             guard let self else { return }
             defer { busy = false; operation = nil }
             do {
-                let backend: any ASRService
-                if engine == .parakeet {
-                    guard let store else { throw ParakeetASRError.modelUnavailable }
-                    let manifest = try ParakeetModel.manifest()
-                    guard let storageFolder = manifest.storageFolder else { throw ParakeetASRError.modelUnavailable }
-                    let directory = try await store.directory(manifest)
-                        .appendingPathComponent("Models").appendingPathComponent(storageFolder)
-                    backend = NeuralASRRuntime.backend(directory: directory)
-                } else {
-                    backend = appleSpeech
-                }
-                let duration = audioDuration
-                let recognition = try await coordinator.withExclusiveModel { [backend] in
-                    try await backend.load()
-                    do {
-                        try Task.checkCancellation()
-                        let start = ContinuousClock().now
-                        let audio = AudioAsset(url: recordingURL, duration: duration, sampleRate: 16_000)
-                        let result = try await backend.transcribe(audio)
-                        let duration = start.duration(to: ContinuousClock().now).components
-                        await backend.unload()
-                        return (result, Double(duration.seconds) + Double(duration.attoseconds) / 1e18)
-                    } catch { await backend.unload(); throw error }
-                }
+                let recognition = try await recognize(url: recordingURL, duration: audioDuration, engine: engine)
                 transcript = recognition.0
                 processingSeconds = recognition.1
                 status = transcript.isEmpty ? "音声を認識できませんでした。もう一度録音してください。" : "文字起こしが完了しました"
@@ -204,16 +187,81 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    func compareWithREUSE() {
+        guard !busy, !recording, audioDuration <= 300, recognitionAvailable, reuse.enabled,
+              reuse.installed, reuse.verified,
+              let recordingURL else { return }
+        let selected = selectedEngine
+        let duration = audioDuration
+        busy = true; status = "RE-USEなしの音声を文字起こししています"
+        transcript = ""; enhancedTranscript = ""; processingSeconds = nil; enhancedProcessingSeconds = nil
+        reuse.lastMetrics = nil
+        operation = Task { [weak self] in
+            guard let self else { return }
+            defer { busy = false; operation = nil }
+            do {
+                let plain = try await recognize(url: recordingURL, duration: duration, engine: selected)
+                transcript = plain.0; processingSeconds = plain.1
+                try Task.checkCancellation()
+                status = "RE-USEで音声を強調しています"
+                let source = AudioAsset(url: recordingURL, duration: duration, sampleRate: 16_000)
+                let enhanced = try await reuse.enhance(source)
+                enhancedRecordingURL = enhanced.url
+                try Task.checkCancellation()
+                status = "RE-USEありの音声を文字起こししています"
+                let result = try await recognize(url: enhanced.url, duration: enhanced.duration, engine: selected)
+                enhancedTranscript = result.0
+                enhancedProcessingSeconds = result.1
+                status = "RE-USEなし／ありの比較が完了しました"
+            } catch is CancellationError { status = "音声比較を中断しました" }
+            catch { self.error = "RE-USE比較に失敗しました。元の録音は保持されています。" }
+        }
+    }
+
+    private func recognize(url: URL, duration: Double, engine: ASREngine) async throws -> (String, Double) {
+        let backend: any ASRService
+        if engine == .parakeet {
+            guard let store else { throw ParakeetASRError.modelUnavailable }
+            let manifest = try ParakeetModel.manifest()
+            guard let storageFolder = manifest.storageFolder else { throw ParakeetASRError.modelUnavailable }
+            let directory = try await store.directory(manifest)
+                .appendingPathComponent("Models").appendingPathComponent(storageFolder)
+            backend = NeuralASRRuntime.backend(directory: directory)
+        } else {
+            backend = appleSpeech
+        }
+        return try await coordinator.withExclusiveModel { [backend] in
+            try await backend.load()
+            do {
+                try Task.checkCancellation()
+                let start = ContinuousClock().now
+                let asset = AudioAsset(url: url, duration: duration, sampleRate: 16_000)
+                let result = try await backend.transcribe(asset)
+                let elapsed = start.duration(to: .now).components
+                await backend.unload()
+                return (result, Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18)
+            } catch { await backend.unload(); throw error }
+        }
+    }
+
     func cancel() {
         operation?.cancel()
         Task { await appleSpeech.cancel() }
+        reuse.cancelInference()
         status = "処理を中断しています"
     }
     func playRecording() {
         guard !recording, !busy, let recordingURL else { return }
+        playAudio(at: recordingURL)
+    }
+    func playEnhancedRecording() {
+        guard !recording, !busy, let enhancedRecordingURL else { return }
+        playAudio(at: enhancedRecordingURL)
+    }
+    private func playAudio(at url: URL) {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-            recordingPlayer = try AVAudioPlayer(contentsOf: recordingURL)
+            recordingPlayer = try AVAudioPlayer(contentsOf: url)
             recordingPlayer?.prepareToPlay()
             guard recordingPlayer?.play() == true else { throw ParakeetASRError.invalidAudio }
             playingRecording = true
@@ -262,9 +310,20 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         do {
             stopRecordingPlayback()
             if FileManager.default.fileExists(atPath: recordingURL.path) { try FileManager.default.removeItem(at: recordingURL) }
-            transcript = ""; audioDuration = 0; silenceDuration = 0; pauseCount = 0; longestPause = 0
+            removeEnhancedRecording()
+            transcript = ""; enhancedTranscript = ""; enhancedProcessingSeconds = nil
+            audioDuration = 0; silenceDuration = 0; pauseCount = 0; longestPause = 0
             silenceMetricsAvailable = false; processingSeconds = nil; status = "録音を削除しました"
         } catch { self.error = "録音を削除できませんでした。" }
+    }
+
+    private func removeEnhancedRecording() {
+        if let enhancedRecordingURL { try? FileManager.default.removeItem(at: enhancedRecordingURL) }
+        if let recordingURL {
+            let current = recordingURL.deletingLastPathComponent().appendingPathComponent("reuse-latest.wav")
+            try? FileManager.default.removeItem(at: current)
+        }
+        enhancedRecordingURL = nil
     }
 
     func handleBackground() {

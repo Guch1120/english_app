@@ -96,9 +96,9 @@ struct RootView: View {
             NavigationStack { SettingsView(model: model) }.tabItem { Label("設定", systemImage: "gearshape") }
         }
         .tint(.teal)
-        .alert("処理できませんでした", isPresented: Binding(get: { model.error != nil || model.speech.error != nil || model.speaking.error != nil }, set: { if !$0 { model.error = nil; model.speech.error = nil; model.speaking.error = nil } })) {
-            Button("閉じる") { model.error = nil; model.speech.error = nil; model.speaking.error = nil }
-        } message: { Text(model.error ?? model.speech.error ?? model.speaking.error ?? "") }
+        .alert("処理できませんでした", isPresented: Binding(get: { model.error != nil || model.speech.error != nil || model.speaking.error != nil || model.speaking.reuse.error != nil }, set: { if !$0 { model.error = nil; model.speech.error = nil; model.speaking.error = nil; model.speaking.reuse.error = nil } })) {
+            Button("閉じる") { model.error = nil; model.speech.error = nil; model.speaking.error = nil; model.speaking.reuse.error = nil }
+        } message: { Text(model.error ?? model.speech.error ?? model.speaking.error ?? model.speaking.reuse.error ?? "") }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { model.speech.cancelWork(); model.speaking.handleBackground() }
         }
@@ -279,6 +279,36 @@ struct SpeakingPreview: View {
                 }
                 if !model.status.isEmpty && !model.busy { Text(model.status).font(.caption) }
             }
+            Section("音声強調の比較") {
+                Toggle("RE-USEを使う", isOn: $model.reuse.enabled)
+                Text("同じ録音を、音声強調なし／ありで同じASRにかけて比較します。発話音声と学習文は端末内で処理します。")
+                    .font(.caption).foregroundStyle(.secondary)
+                if model.reuse.installed && !model.reuse.verified {
+                    Text("この端末で固定音声の動作確認を完了すると比較を利用できます。")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+                Button("録音をRE-USEなし／ありで比較", systemImage: "waveform.badge.mic") {
+                    model.compareWithREUSE()
+                }.disabled(model.busy || model.recording || !model.reuse.enabled || !model.reuse.installed ||
+                           !model.reuse.verified || !model.recognitionAvailable || model.audioDuration > 300)
+                NavigationLink("RE-USEモデルと端末確認の設定") { REUSESettingsView(model: model.reuse) }
+                if model.audioDuration > 300 {
+                    Text("RE-USEは5分以内の録音に対応します。通常の文字起こしは引き続き利用できます。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if let metrics = model.reuse.lastMetrics {
+                    LabeledContent("RE-USE処理", value: "\(metrics.processingSeconds.formatted(.number.precision(.fractionLength(2))))秒 · RTF \(metrics.realTimeFactor.formatted(.number.precision(.fractionLength(3))))")
+                    LabeledContent("モデル読み込み", value: "\(metrics.modelLoadSeconds.formatted(.number.precision(.fractionLength(2))))秒")
+                    if let memory = metrics.peakMemoryBytes {
+                        LabeledContent("MLXピークメモリ", value: ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))
+                    }
+                }
+                if let enhancedURL = model.enhancedRecordingURL {
+                    Button("RE-USE処理後の音声を聞く", systemImage: "play.circle") { model.playEnhancedRecording() }
+                        .disabled(model.busy || model.recording || model.playingRecording)
+                    Text(enhancedURL.lastPathComponent).font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
             if !model.transcript.isEmpty {
                 let result = WordAlignment.compare(expected: item.text, recognized: model.transcript)
                 Section("文字起こし") {
@@ -316,6 +346,19 @@ struct SpeakingPreview: View {
                             appModel.mark(item, text: item.text, reason: .speaking)
                         }
                     }
+                }
+            }
+            if !model.enhancedTranscript.isEmpty {
+                let enhancedResult = WordAlignment.compare(expected: item.text, recognized: model.enhancedTranscript)
+                Section("RE-USEありの文字起こし") {
+                    Text(model.enhancedTranscript).textSelection(.enabled)
+                    Text("単語誤り率：\(enhancedResult.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
+                    if let seconds = model.enhancedProcessingSeconds {
+                        Text("認識時間：\(seconds, specifier: "%.2f")秒 · RE-USEなし：\(model.processingSeconds ?? 0, specifier: "%.2f")秒")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("RE-USEなし／ありの両結果は同じ録音・同じASR・同じ英文で比較しています。")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             Section {
@@ -472,7 +515,8 @@ struct SettingsView: View {
                 NavigationLink("LLM教材生成・モデル管理") {
                     LLMLessonGenerationView(model: model.llm, lessons: model.generatedLessons, save: model.saveGenerated)
                 }
-                Text("Kokoro / Pocket TTS と Parakeet ASR を利用できます。Gemma / RE-USE は未接続です。")
+                NavigationLink("RE-USE音声強調モデル") { REUSESettingsView(model: model.speaking.reuse) }
+                Text("Kokoro / Pocket TTS、Parakeet ASR、LiteRT-LM、RE-USEを端末内で使用します。")
                 Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
             }
             Section("端末") {
