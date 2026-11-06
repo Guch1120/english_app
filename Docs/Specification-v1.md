@@ -1239,23 +1239,23 @@ iPhone 16実機で以下を検証する。
 
 ## 23. 参考リポジトリ・資料
 
-- 既存iPhone LLMアプリ  
+- 既存iPhone LLMアプリ
   https://github.com/Guch1120/Local_LLM_by_using_MobilePhone
-- FluidAudio  
+- FluidAudio
   https://github.com/FluidInference/FluidAudio
-- WhisperKit / Argmax  
+- WhisperKit / Argmax
   https://github.com/argmaxinc/argmax-oss-swift
-- Swift TTS  
+- Swift TTS
   https://github.com/arraypress/swift-tts
-- Irodori iPhone実装  
+- Irodori iPhone実装
   https://github.com/Corvelis/irodori-tts-iphone
-- RE-USE iPhone実装  
+- RE-USE iPhone実装
   https://github.com/Corvelis/RE-USE-MLX-CoreML
-- NVIDIA RE-USE  
+- NVIDIA RE-USE
   https://huggingface.co/nvidia/NVIDIA-NemotronLabs-RE-USE
-- Gemma 4 LiteRT-LM  
+- Gemma 4 LiteRT-LM
   https://developers.google.com/edge/litert-lm/models/gemma-4
-- Apple AVFoundation  
+- Apple AVFoundation
   https://developer.apple.com/documentation/avfoundation
-- Apple Speech  
+- Apple Speech
   https://developer.apple.com/documentation/speech

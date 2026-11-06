@@ -27,7 +27,7 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(good.successes, 1)
         XCTAssertEqual(scheduler.schedule(good, grade: .good, now: now).intervalDays, 4)
     }
-    @MainActor func testSQLiteRoundTripReviewHistoryAndDeletion() throws {
+    @MainActor func testSQLiteRoundTripReviewHistoryAndDeletion() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }
         let item = LearningItem(text: "It's a meeting; DROP TABLE learning_items;", translation: "会議")
@@ -57,5 +57,38 @@ final class CoreTests: XCTestCase {
         do { let _: Int = try await coordinator.withExclusiveModel { throw Failure.expected }; XCTFail() } catch {}
         let value = try await coordinator.withExclusiveModel { 42 }
         XCTAssertEqual(value, 42)
+    }
+}
+
+private actor RuntimeGate {
+    private var entered = false
+    private var held: CheckedContinuation<Void, Never>?
+    private var listeners: [CheckedContinuation<Void, Never>] = []
+    func hold() async {
+        await withCheckedContinuation { continuation in
+            held = continuation; entered = true
+            for listener in listeners { listener.resume() }
+            listeners.removeAll()
+        }
+    }
+    func waitUntilEntered() async {
+        if entered { return }
+        await withCheckedContinuation { listeners.append($0) }
+    }
+    func release() { held?.resume(); held = nil }
+}
+extension CoreTests {
+    func testCoordinatorRejectsConcurrentModel() async throws {
+        let coordinator = ModelRuntimeCoordinator()
+        let gate = RuntimeGate()
+        let first = Task { try await coordinator.withExclusiveModel { await gate.hold(); return 1 } }
+        await gate.waitUntilEntered()
+        do {
+            _ = try await coordinator.withExclusiveModel { 2 }
+            XCTFail("Overlapping model operation was admitted")
+        } catch RuntimeError.busy { }
+        await gate.release()
+        let result = try await first.value
+        XCTAssertEqual(result, 1)
     }
 }

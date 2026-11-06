@@ -20,7 +20,7 @@ Primary sources inspected on 2026-11-06:
 - [swift-tts manifest](https://github.com/arraypress/swift-tts/blob/main/Package.swift): Swift 6, iOS 17; separate Kokoro/Pocket products; manifest pins FluidAudio 0.15.2 but other dependencies use version ranges. This is upstream's dependency, not a version installed here.
 - [Argmax manifest](https://github.com/argmaxinc/argmax-oss-swift/blob/main/Package.swift): tools 5.10, iOS 16, WhisperKit product. Repository lists MIT SDK license; model weights require separate review.
 - [RE-USE conversion](https://github.com/Corvelis/RE-USE-MLX-CoreML) and [NVIDIA weights](https://huggingface.co/nvidia/NVIDIA-NemotronLabs-RE-USE): candidates only; conversion API, license and memory not verified. No integration or weights downloaded.
-- [Gemma 4 runtime documentation](https://developers.google.com/edge/litert-lm/models/gemma-4): designated candidate from specification; integration/version/model size/license remain pending verification.
+- [Gemma 4 runtime documentation](https://developers.google.com/edge/litert-lm/models/gemma-4): designated candidate from specification; Google documents E2B/E4B LiteRT-LM support and Apache-2.0 licensing, with E2B size 2.58 GB. These are upstream specifications, not an iPhone measurement; exact conversion, API version and device feasibility remain pending.
 
 | Candidate | SDK / weight-license status | Current app status |
 |---|---|---|
@@ -30,6 +30,6 @@ Primary sources inspected on 2026-11-06:
 | Parakeet | FluidAudio integration candidate; SDK license and selected model card audit pending | No dependency, no weights |
 | WhisperKit | MIT SDK per repository; selected weights separate | No dependency, no weights |
 | Gemma E2B/E4B | Runtime compatibility, terms, tokenizer bundle and exact revision pending | Contract/mock only |
-| RE-USE | SDK and weight terms pending | Contract only, disabled |
+| RE-USE | NVIDIA card declares OpenMDW-1.1; full terms and converted artifacts still require review | Contract only, disabled |
 
 No third-party SDK/weights were added. No iPhone model load, latency, memory or thermal results have been measured. Future integrations must record immutable revisions, exact model files, SHA-256, dependencies, disk sizes, license/NOTICE and real-device results. This table does not certify deployability or commercial use. Full Phase 0 engine feasibility remains open while Phase 1 permits independent UI/data development.
