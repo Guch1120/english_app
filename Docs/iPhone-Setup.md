@@ -21,7 +21,23 @@ base64は暗号化ではありません。エンコード結果もチャット�
 6. PRをレビューしてmainへマージ。Settings→Rules→Rulesetsでmainへの直接pushを禁止し、PRレビュー・Validateのcore/iosを必須化（リポジトリ設定への適用はまだ行っていません）。Actions→Device build→Run workflow→main。署名は手動実行のみです。
 7. 成功後、暗号化artifactを取得し、リポジトリ外の非公開ディレクトリで復号する。入力を画面表示しない `read -rs DEV_IPA_PASSWORD; export DEV_IPA_PASSWORD` の後、OpenSSLで `openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in EnglishTrainer.ipa.enc -out EnglishTrainer.ipa -pass env:DEV_IPA_PASSWORD`。作業後 `unset DEV_IPA_PASSWORD`。OpenSSLや端末操作ツールもDocker内で実行すること。
 8. iPhoneの設定→プライバシーとセキュリティ→デベロッパモードをONにし再起動。既存の信頼済みUSB接続を維持する。
-9. Docker内のpymobiledevice3またはlibimobiledeviceのIPAインストール機能を使う。既存PCのusbmuxdを利用する場合はソケットを明示的にマウントし、ホストへ新規パッケージを入れない。USBツール用イメージとバージョン固定・実機インストールは未実装のため、最初の署名ビルド時に端末接続方式を確認して追加する。ホストのusbmuxd再起動・設定変更は行わない。
+9. Docker内で復号・USBインストールする（既存usbmuxdを利用。ホストへのパッケージ追加やサービス再起動はしない）。
+
+```bash
+bash Scripts/download-ipa.sh RUN_ID /path/to/private-signing-directory
+bash Scripts/iphone.sh check
+bash Scripts/iphone.sh install /path/to/private-signing-directory/builds/RUN_ID/EnglishTrainer.ipa
+bash Scripts/iphone.sh installed
+# オプション：iOS 17.4+の実機スクリーンショット
+bash Scripts/capture-iphone.sh /path/to/private-signing-directory
+```
+
+`download-ipa.sh`は指定ディレクトリ内の`dev-ipa-password.txt`を読み、成果物を同じ場所の`builds/RUN_ID`へ保存する。`iphone.sh`はUSB端末1台を自動選択し、複数台では`IPHONE_UDID`で明示する。ソケット変更は`USBMUXD_SOCKET_PATH`で指定する。スクリーンショットもリポジトリ外へ保存する。DeveloperDiskImageの初回準備にはダウンロードとAppleへのデバイス用パーソナライズ要求が発生する。
+
+開発用CLIはideviceinstaller 1.1.1（GPL-2.0）/libimobiledevice 1.3.0（LGPL-2.1）、オプションのpymobiledevice3 11.50.0（GPL-3.0）。アプリへリンク・同梱せずDocker内の開発ツールとして使う。
+
+この手順はDevelopment署名IPAのUSB直接配布。TestFlightは別途App Store Connectのアプリレコード、配布用署名、アップロード用認証とCIが必要。
+
 
 ## 実機確認チェック
 

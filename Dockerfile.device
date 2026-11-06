@@ -1,0 +1,5 @@
+# Development-only CLI tools; no dependency is added to the iOS app.
+FROM english-trainer-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ideviceinstaller=1.1.1-1build1 libimobiledevice-utils=1.3.0-6build3 \
+    && rm -rf /var/lib/apt/lists/*

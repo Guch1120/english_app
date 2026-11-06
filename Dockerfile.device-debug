@@ -1,0 +1,4 @@
+# Optional development-only screenshot tooling. Nothing is linked into the app.
+FROM english-trainer-device
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip && rm -rf /var/lib/apt/lists/*
+RUN python3 -m pip install --no-cache-dir pymobiledevice3==11.50.0
