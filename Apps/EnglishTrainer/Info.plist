@@ -10,6 +10,7 @@
 <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
 <key>ITSAppUsesNonExemptEncryption</key><false/>
 <key>NSMicrophoneUsageDescription</key><string>英語の発話を端末内で文字起こしし、教材文と比べるためにマイクを使います。録音は端末内に保存し、送信しません。</string>
+<key>NSSpeechRecognitionUsageDescription</key><string>選択した場合にApple Speechの端末内英語音声認識を使って発話を文字起こしします。音声は端末外へ送信しません。</string>
 <key>LSRequiresIPhoneOS</key><true/>
 <key>UILaunchScreen</key><dict/>
 <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
