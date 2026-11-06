@@ -2,7 +2,7 @@
 
 iPhone向けローカル英語学習アプリと、交換可能な音声AI基盤。SwiftUI / iOS 18以降。
 
-Phase 1基盤、Phase 2のKokoro／Pocket TTS、Phase 3のオンデバイスASR・スピーキング練習、Phase 4の復習・学習履歴は実装済みです。Phase 4はPR #10でマージされ、TestFlightへ0.1.0 (106.1)をアップロードしました。接続中のiPhoneは105.1です。Phase 5ではLiteRT-LMモデル検索・管理とGemma教材生成を実装中です。iPhone上のASRおよびGemma推論は未検証です。RE-USEは未実装です。
+Phase 1〜6（共通基盤、TTS、ASR、復習・履歴、端末内Gemma教材生成、RE-USE音声強調）はmainへマージ済みです。TestFlightビルド0.1.0 (108.1)はアップロードされましたが、iPhoneの起動時クラッシュログで`CLiteRTLM.framework`欠落が確認されました。Phase 7の[PR #13](https://github.com/Guch1120/english_app/pull/13)に同frameworkの埋め込み修正とアーカイブ検証を追加し、mainをベースにCI検証中です。USBで確認できたインストール済み版は0.1.0 (108.1)です。機内モードでの各モデル動作と、音声・割り込み時の実機確認も必要です。
 
 ## Dockerで検証
 
@@ -21,7 +21,7 @@ iOSは `.github/workflows/validate.yml` のmacOSランナーで署名なしSimul
 - [構成と実装上の制約](Docs/Architecture.md)
 - [新規App ID・Secrets登録とiPhone検証手順](Docs/iPhone-Setup.md)
 
-実装状況は [Status](Docs/Status.md) 参照。ローカルテストの成功はiOSでの動作確認を意味しません。個人データ・モデル重み・署名ファイルはGitへ登録しないでください。
+実装状況は [Status](Docs/Status.md) 参照。モデルの端末内準備、オフライン動作、ライセンス、制約は各機能ドキュメントを参照してください。ローカルテストの成功はiOSでの動作確認を意味しません。個人データ・モデル重み・署名ファイルはGitへ登録しないでください。
 
 TestFlight配布は[専用手順](Docs/TestFlight.md)を参照してください。`ios-testflight` EnvironmentへAPIキーを登録すると、mainへのマージ後に自動で配布を開始します。Actionsからの手動実行もできます。USB用Development署名とは別の配布経路です。
 
@@ -31,3 +31,5 @@ PRの自動チェックは[チェック範囲と結果の見方](Docs/Automated-
 ASRモデルの構成・録音データの扱い・実機検証項目は[ASR統合](Docs/ASR.md)を参照してください。
 復習予定、習熟度、学習履歴は[復習システム](Docs/Review.md)を参照してください。
 モデル検索、オンデバイスLLM、教材の保存・検証は[LLM統合](Docs/LLM.md)を参照してください。
+RE-USEのモデル管理、端末確認、比較とライセンスは[音声強調](Docs/REUSE.md)を参照してください。
+安定化フェーズの完了条件と機内モード確認は[Phase 7](Docs/Phase7.md)を参照してください。

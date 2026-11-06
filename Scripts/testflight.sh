@@ -31,6 +31,17 @@ xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer -configurati
 app="$work/EnglishTrainer.xcarchive/Products/Applications/EnglishTrainer.app"
 /usr/libexec/PlistBuddy -c 'Print CFBundleIconName' "$app/Info.plist" >/dev/null 2>&1 || \
   /usr/libexec/PlistBuddy -c 'Print CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' "$app/Info.plist" >/dev/null
+if [ ! -f "$app/Frameworks/CLiteRTLM.framework/CLiteRTLM" ]; then
+  echo 'CLiteRTLM.framework is missing from the archived app; the TestFlight build would crash at launch.' >&2
+  exit 1
+fi
+while IFS= read -r dependency; do
+  relative_framework=${dependency#@rpath/}
+  if [ ! -f "$app/Frameworks/$relative_framework" ]; then
+    echo "Dynamic framework dependency is missing from the archive: $relative_framework" >&2
+    exit 1
+  fi
+done < <(otool -L "$app/EnglishTrainer" | awk 'NR > 1 && $1 ~ /^@rpath\/[^ ]+\.framework\/[^/]+$/ { print $1 }')
 if [ -n "$(find "$app" \( -name 'luxtts_en_us_lexicon.tsv.zz' -o -name 'luxtts_en_us_g2p_aux.json' \) -print -quit)" ]; then
   echo 'Unused LuxTTS G2P data must not be redistributed in this app.' >&2
   exit 1

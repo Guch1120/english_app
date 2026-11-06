@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import SpeechCore
 import TTSBackends
 import LearningCore
@@ -54,7 +55,7 @@ import LLMCore
         do { try operation(store); try refresh() } catch { self.error = String(describing: error) }
     }
     func deleteAllLearningData() {
-        guard !speech.busy, !speaking.busy, !speaking.recording, let store else { return }
+        guard !speech.busy, !speaking.busy, !speaking.recording, !llm.busy, let store else { return }
         do { try store.deleteAll(); try refresh(); speech.clearPersonalData(); speaking.deleteRecording() }
         catch { self.error = String(describing: error) }
     }
@@ -84,6 +85,20 @@ import LLMCore
         speech.speak(text, speed: speed)
     }
     func stop() { speech.stop() }
+    func handleAudioInterruption() {
+        speech.stop()
+        speaking.handleAudioInterruption()
+        llm.cancelCurrentOperation()
+    }
+    func handleAudioRouteLoss() {
+        speech.stop()
+        speaking.stopRecordingPlayback()
+    }
+    func handleMemoryWarning() {
+        speech.stop()
+        speaking.handleMemoryWarning()
+        llm.cancelCurrentOperation()
+    }
 }
 
 struct RootView: View {
@@ -100,7 +115,24 @@ struct RootView: View {
             Button("閉じる") { model.error = nil; model.speech.error = nil; model.speaking.error = nil; model.speaking.reuse.error = nil }
         } message: { Text(model.error ?? model.speech.error ?? model.speaking.error ?? model.speaking.reuse.error ?? "") }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { model.speech.cancelWork(); model.speaking.handleBackground() }
+            if phase == .background {
+                model.speech.stop()
+                model.speaking.handleBackground()
+                model.llm.cancelCurrentOperation()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            model.handleMemoryWarning()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)) { notification in
+            guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+            model.handleAudioInterruption()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.routeChangeNotification)) { notification in
+            guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable else { return }
+            model.handleAudioRouteLoss()
         }
     }
 }
@@ -316,6 +348,10 @@ struct SpeakingPreview: View {
                     if let seconds = model.processingSeconds {
                         Text("認識時間：\(seconds, specifier: "%.2f")秒 · 録音時間：\(model.audioDuration, specifier: "%.1f")秒")
                             .font(.caption).foregroundStyle(.secondary)
+                        if let memory = model.processingPeakMemoryBytes {
+                            Text("認識中のプロセスRSS観測ピーク：\(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
                         let wordCount = model.transcript.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).count
                         if model.audioDuration > 0 {
                             let speakingTime = max(0.1, model.audioDuration - (model.silenceMetricsAvailable ? model.silenceDuration : 0))
@@ -357,6 +393,12 @@ struct SpeakingPreview: View {
                         Text("認識時間：\(seconds, specifier: "%.2f")秒 · RE-USEなし：\(model.processingSeconds ?? 0, specifier: "%.2f")秒")
                             .font(.caption).foregroundStyle(.secondary)
                     }
+                    if let memory = model.enhancedPeakMemoryBytes {
+                        Text("認識中のプロセスRSS観測ピーク：\(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("RSSは推論中に50ms間隔で採取したアプリ全体の観測値で、モデル単体の割当量ではありません。")
+                        .font(.caption).foregroundStyle(.secondary)
                     Text("RE-USEなし／ありの両結果は同じ録音・同じASR・同じ英文で比較しています。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -494,6 +536,62 @@ struct ReviewHistoryView: View {
         }.navigationTitle("学習・復習履歴")
     }
 }
+struct OfflineReadinessView: View {
+    let model: AppModel
+
+    private var selectedLLMReady: Bool {
+        guard let id = model.llm.selectedID,
+              let candidate = model.llm.candidates.first(where: { $0.id == id }) else { return false }
+        return model.llm.installedIDs.contains(id) && model.llm.runtimeIsVerified(candidate)
+    }
+
+    var body: some View {
+        Form {
+            Section("端末内モデルの準備状況") {
+                LabeledContent("TTS") {
+                    if model.speech.selected == "apple" {
+                        Label("iOSの音声データ状態を確認してください", systemImage: "questionmark.circle")
+                            .foregroundStyle(.orange)
+                    } else if let voice = NeuralVoice(rawValue: model.speech.selected), model.speech.installed.contains(voice) {
+                        Label("選択中の音声を準備済み", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    } else {
+                        Label("音声モデルの取得が必要", systemImage: "arrow.down.circle").foregroundStyle(.orange)
+                    }
+                }
+                if model.speech.selected == "apple" {
+                    Text("Apple音声データはiOSの音声設定で取得が必要な場合があります。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                LabeledContent("ASR") {
+                    let ready = model.speaking.recognitionAvailable
+                    Label(ready ? "選択中の認識エンジンを利用可能" : "モデルの取得または端末確認が必要", systemImage: ready ? "checkmark.circle.fill" : "arrow.down.circle")
+                        .foregroundStyle(ready ? .green : .orange)
+                }
+                LabeledContent("LLM") {
+                    Label(selectedLLMReady ? "モデル取得・端末確認済み" : "モデル取得・端末確認が必要", systemImage: selectedLLMReady ? "checkmark.circle.fill" : "arrow.down.circle")
+                        .foregroundStyle(selectedLLMReady ? .green : .orange)
+                }
+                LabeledContent("RE-USE") {
+                    let ready = model.speaking.reuse.installed && model.speaking.reuse.verified
+                    Label(ready ? "モデル取得・端末確認済み" : "任意機能・未準備", systemImage: ready ? "checkmark.circle.fill" : "minus.circle")
+                        .foregroundStyle(ready ? .green : .secondary)
+                }
+                Text("表示は端末内の保存状態を使った目安です。Apple音声の取得状態や、各機能の実際のオフライン動作は機内モードで確認してください。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("機内モードでの確認") {
+                Text("1. Wi-Fiとモバイル通信がある状態で、使うモデルをダウンロードし、端末動作確認を完了します。")
+                Text("2. 機内モードを有効にしてアプリを再起動します。")
+                Text("3. 教材の表示、TTS再生、録音とASR、保存済み教材、復習履歴を順に確認します。")
+                Text("4. LLM教材生成とRE-USE比較は、各モデルの固定音声／固定プロンプト確認済み表示がある場合に試します。")
+                Text("モデル検索や初回ダウンロードはインターネット接続が必要です。学習文と録音音声は送信しません。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("オフライン準備")
+    }
+}
+
 struct SettingsView: View {
     let model: AppModel
     @State private var confirmDelete = false
@@ -516,6 +614,7 @@ struct SettingsView: View {
                     LLMLessonGenerationView(model: model.llm, lessons: model.generatedLessons, save: model.saveGenerated)
                 }
                 NavigationLink("RE-USE音声強調モデル") { REUSESettingsView(model: model.speaking.reuse) }
+                NavigationLink("オフライン利用の準備") { OfflineReadinessView(model: model) }
                 Text("Kokoro / Pocket TTS、Parakeet ASR、LiteRT-LM、RE-USEを端末内で使用します。")
                 Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
             }
@@ -527,7 +626,7 @@ struct SettingsView: View {
             Section("データ") {
                 Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
                 Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
-                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording)
+                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
             }
         }.navigationTitle("設定")
         .confirmationDialog("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {

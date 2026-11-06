@@ -4,6 +4,7 @@ import Observation
 import SpeechCore
 import ModelManagement
 import NeuralASRBackends
+import DeviceDiagnostics
 @preconcurrency import Speech
 
 enum ASREngine: String, CaseIterable, Identifiable, Hashable {
@@ -35,6 +36,8 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     var longestPause = 0.0
     var silenceMetricsAvailable = false
     var processingSeconds: Double?
+    var processingPeakMemoryBytes: UInt64?
+    var enhancedPeakMemoryBytes: UInt64?
     var error: String?
     var selectedEngine: ASREngine = ASREngine(rawValue: UserDefaults.standard.string(forKey: "asr-engine") ?? "") ?? .parakeet {
         didSet { UserDefaults.standard.set(selectedEngine.rawValue, forKey: "asr-engine") }
@@ -141,7 +144,8 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 try session.setActive(true)
                 try? FileManager.default.removeItem(at: recordingURL)
                 guard try recorder.start(url: recordingURL) else { throw ParakeetASRError.invalidAudio }
-                transcript = ""; enhancedTranscript = ""; processingSeconds = nil; audioDuration = 0
+                transcript = ""; enhancedTranscript = ""; processingSeconds = nil
+                processingPeakMemoryBytes = nil; enhancedPeakMemoryBytes = nil; audioDuration = 0
                 silenceDuration = 0; pauseCount = 0; longestPause = 0; currentPause = 0
                 silenceMetricsAvailable = false
                 recording = true; status = "録音中です。英文を話したら停止してください。"
@@ -180,6 +184,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 let recognition = try await recognize(url: recordingURL, duration: audioDuration, engine: engine)
                 transcript = recognition.0
                 processingSeconds = recognition.1
+                processingPeakMemoryBytes = recognition.2
                 status = transcript.isEmpty ? "音声を認識できませんでした。もう一度録音してください。" : "文字起こしが完了しました"
             } catch is CancellationError { status = "文字起こしを中断しました" }
             catch let error as AppleSpeechASRError { self.error = error.localizedDescription }
@@ -194,7 +199,8 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         let selected = selectedEngine
         let duration = audioDuration
         busy = true; status = "RE-USEなしの音声を文字起こししています"
-        transcript = ""; enhancedTranscript = ""; processingSeconds = nil; enhancedProcessingSeconds = nil
+        transcript = ""; enhancedTranscript = ""; processingSeconds = nil; processingPeakMemoryBytes = nil
+        enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil
         reuse.lastMetrics = nil
         operation = Task { [weak self] in
             guard let self else { return }
@@ -202,6 +208,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             do {
                 let plain = try await recognize(url: recordingURL, duration: duration, engine: selected)
                 transcript = plain.0; processingSeconds = plain.1
+                processingPeakMemoryBytes = plain.2
                 try Task.checkCancellation()
                 status = "RE-USEで音声を強調しています"
                 let source = AudioAsset(url: recordingURL, duration: duration, sampleRate: 16_000)
@@ -212,13 +219,14 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 let result = try await recognize(url: enhanced.url, duration: enhanced.duration, engine: selected)
                 enhancedTranscript = result.0
                 enhancedProcessingSeconds = result.1
+                enhancedPeakMemoryBytes = result.2
                 status = "RE-USEなし／ありの比較が完了しました"
             } catch is CancellationError { status = "音声比較を中断しました" }
             catch { self.error = "RE-USE比較に失敗しました。元の録音は保持されています。" }
         }
     }
 
-    private func recognize(url: URL, duration: Double, engine: ASREngine) async throws -> (String, Double) {
+    private func recognize(url: URL, duration: Double, engine: ASREngine) async throws -> (String, Double, UInt64?) {
         let backend: any ASRService
         if engine == .parakeet {
             guard let store else { throw ParakeetASRError.modelUnavailable }
@@ -231,16 +239,19 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             backend = appleSpeech
         }
         return try await coordinator.withExclusiveModel { [backend] in
-            try await backend.load()
+            let memory = ProcessMemorySampler()
+            await memory.start()
             do {
+                try await backend.load()
                 try Task.checkCancellation()
                 let start = ContinuousClock().now
                 let asset = AudioAsset(url: url, duration: duration, sampleRate: 16_000)
                 let result = try await backend.transcribe(asset)
                 let elapsed = start.duration(to: .now).components
                 await backend.unload()
-                return (result, Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18)
-            } catch { await backend.unload(); throw error }
+                let peak = await memory.stop()
+                return (result, Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18, peak)
+            } catch { await backend.unload(); _ = await memory.stop(); throw error }
         }
     }
 
@@ -311,7 +322,8 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             stopRecordingPlayback()
             if FileManager.default.fileExists(atPath: recordingURL.path) { try FileManager.default.removeItem(at: recordingURL) }
             removeEnhancedRecording()
-            transcript = ""; enhancedTranscript = ""; enhancedProcessingSeconds = nil
+            transcript = ""; enhancedTranscript = ""; processingPeakMemoryBytes = nil
+            enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil
             audioDuration = 0; silenceDuration = 0; pauseCount = 0; longestPause = 0
             silenceMetricsAvailable = false; processingSeconds = nil; status = "録音を削除しました"
         } catch { self.error = "録音を削除できませんでした。" }
@@ -329,6 +341,21 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     func handleBackground() {
         if recording { stopRecording() }
         if busy { cancel() }
+        if reuse.busy { reuse.cancel() }
+        stopRecordingPlayback()
+    }
+
+    func handleAudioInterruption() {
+        if recording { stopRecording() }
+        if busy { cancel() }
+        if reuse.busy { reuse.cancel() }
+        stopRecordingPlayback()
+    }
+
+    func handleMemoryWarning() {
+        if recording { stopRecording() }
+        if busy { cancel() }
+        if reuse.busy { reuse.cancel() }
         stopRecordingPlayback()
     }
 }
