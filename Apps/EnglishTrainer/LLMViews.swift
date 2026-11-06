@@ -34,6 +34,11 @@ struct LLMModelsView: View {
                             if model.installedIDs.contains(candidate.id) {
                                 Button(model.selectedID == candidate.id ? "使用中" : "使用する") { model.select(candidate) }
                                     .buttonStyle(.borderedProminent).disabled(model.selectedID == candidate.id || model.busy)
+                                if model.runtimeIsVerified(candidate) {
+                                    Label("端末確認済み", systemImage: "checkmark.seal.fill").font(.caption).foregroundStyle(.green)
+                                } else {
+                                    Button("端末で動作確認") { model.verifyRuntime(candidate) }.disabled(model.busy)
+                                }
                                 Spacer()
                                 Button("削除", role: .destructive) { confirmRemoval = candidate }.disabled(model.busy)
                             } else {
@@ -102,7 +107,11 @@ struct LLMLessonGenerationView: View {
                 } label: {
                     if model.busy { ProgressView(model.status) }
                     else { Label("端末内で教材を生成", systemImage: "sparkles") }
-                }.disabled(model.busy || topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }.disabled(model.busy || topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.selectedRuntimeIsVerified)
+                if !model.selectedRuntimeIsVerified {
+                    Text("未確認のLLMは教材生成に使えません。モデルを準備してから、端末上の固定テストを実行してください。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 NavigationLink("モデル検索・管理") { LLMModelsView(model: model) }
             }
             if let lesson {

@@ -126,11 +126,54 @@ import LearningPersistence
         selectedID = candidate.id; UserDefaults.standard.set(candidate.id, forKey: "selected-llm-model")
     }
 
+    func runtimeIsVerified(_ candidate: HostedModelCandidate) -> Bool {
+        UserDefaults.standard.bool(forKey: "llm-runtime-verified-\(candidate.id)-\(candidate.revision)")
+    }
+
+    var selectedRuntimeIsVerified: Bool {
+        guard let candidate = candidates.first(where: { $0.id == selectedID }) else { return false }
+        return installedIDs.contains(candidate.id) && runtimeIsVerified(candidate)
+    }
+
+    func verifyRuntime(_ candidate: HostedModelCandidate) {
+        guard !busy, installedIDs.contains(candidate.id) else { return }
+        select(candidate)
+        busy = true; error = nil; status = "固定テストでモデルを読み込み、端末内推論を確認しています…"
+        operation = Task {
+            do {
+                let directory = try await store.directory(candidate.manifest)
+                let modelURL = directory.appendingPathComponent("Models")
+                    .appendingPathComponent(candidate.manifest.storageFolder ?? candidate.id)
+                    .appendingPathComponent(candidate.filePath)
+                let metrics = try await coordinator.withExclusiveModel { [service] in
+                    try await service.load(modelURL: modelURL)
+                    do {
+                        let output = try await service.generate("Return one short English sentence confirming that the on-device language model is ready. No JSON or explanation.")
+                        guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ContentError.invalidJSON }
+                        let metrics = await service.inferenceMetrics()
+                        await service.unload()
+                        return metrics
+                    } catch {
+                        await service.unload()
+                        throw error
+                    }
+                }
+                UserDefaults.standard.set(true, forKey: "llm-runtime-verified-\(candidate.id)-\(candidate.revision)")
+                latestMetrics = metrics
+                status = "この端末でモデルの読み込みと推論を確認しました。教材生成を利用できます。"
+            } catch { self.error = "端末上のモデル確認に失敗しました: \(error.localizedDescription)" }
+            busy = false; operation = nil
+        }
+    }
+
     func generate(topic: String, difficulty: Int, phrases: [String], kind: String,
                   save: @escaping @MainActor (GeneratedLesson) -> Void) {
         guard !busy else { return }
         guard let candidate = candidates.first(where: { $0.id == selectedID }), installedIDs.contains(candidate.id) else {
             error = "先にモデルを検索・ダウンロードし、使用するモデルを選択してください。"; return
+        }
+        guard runtimeIsVerified(candidate) else {
+            error = "教材を生成する前に、この端末でモデル動作確認を完了してください。"; return
         }
         let request = LessonGenerationRequest(topic: topic, difficulty: difficulty, targetPhrases: phrases, kind: kind)
         busy = true; error = nil; status = "モデルを読み込んで教材を生成しています…"
@@ -138,7 +181,7 @@ import LearningPersistence
             do {
                 let directory = try await store.directory(candidate.manifest)
                 let modelURL = directory.appendingPathComponent("Models")
-                    .appendingPathComponent(candidate.manifest.storageFolder!)
+                    .appendingPathComponent(candidate.manifest.storageFolder ?? candidate.id)
                     .appendingPathComponent(candidate.filePath)
                 let lesson = try await coordinator.withExclusiveModel { [service] in
                     try await service.load(modelURL: modelURL)
