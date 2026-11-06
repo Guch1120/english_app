@@ -11,7 +11,7 @@ Every PR runs the `Validate` workflow without signing secrets. No automatic appr
 | Swift tests | Learning, persistence, alignment and coordinator behavior covered by tests |
 | macOS/Xcode | Simulator build/analyze and unsigned device archive/icon validation |
 
-Documentation-only or USB-tool-only PRs still get all quality/security checks but skip Swift/macOS builds. App/package/Xcode project changes, build scripts or the validation workflow itself require the full build path. Workflow dispatch runs all build checks. `review-gate` fails if a required check fails, is cancelled or unexpectedly skips; a skipped build passes only when change selection explicitly says it was unnecessary.
+Documentation-only or USB-tool-only PRs still get all quality/security checks but skip Swift/macOS builds. App/package/Xcode project changes, build scripts or any workflow require the full build path. Workflow dispatch runs all build checks. `review-gate` fails if a required check fails, is cancelled or unexpectedly skips; a skipped build passes only when change selection explicitly says it was unnecessary.
 
 Run local quality checks in Docker:
 
