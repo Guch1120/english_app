@@ -39,7 +39,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     var selectedEngine: ASREngine = ASREngine(rawValue: UserDefaults.standard.string(forKey: "asr-engine") ?? "") ?? .parakeet {
         didSet { UserDefaults.standard.set(selectedEngine.rawValue, forKey: "asr-engine") }
     }
-    let reuse = REUSETrainingModel()
+    var reuse = REUSETrainingModel()
     var playingRecording = false
 
     private let recorder = RecorderBox()
