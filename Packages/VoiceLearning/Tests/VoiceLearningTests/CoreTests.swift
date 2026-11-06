@@ -5,9 +5,38 @@ import LearningPersistence
 import LLMCore
 import ModelManagement
 import AudioEnhancementBackends
+import DeviceDiagnostics
 
 // Stateless test case; individual async tests own their actor-confined fixtures.
 final class CoreTests: XCTestCase, @unchecked Sendable {
+    func testDiagnosticEventLogPersistsOnlyBoundedFixedFieldsAndCanClear() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let file = root.appendingPathComponent("diagnostics.json")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let log = DiagnosticEventLog(fileURL: file, maximumEvents: 2)
+        for _ in 0..<3 {
+            await log.record(DiagnosticEvent(subsystem: .tts, action: .inference, model: .kokoro,
+                                             outcome: .succeeded, elapsedMilliseconds: 1250,
+                                             peakMemoryBytes: 1024, cacheBytes: 2048,
+                                             thermalState: .nominal))
+        }
+        let recent = await log.recentEvents(limit: 10)
+        XCTAssertEqual(recent.count, 2)
+        XCTAssertEqual(recent.first?.elapsedMilliseconds, 1250)
+        XCTAssertEqual(recent.first?.peakMemoryBytes, 1024)
+        XCTAssertEqual(recent.first?.thermalState, .nominal)
+        let encoded = try String(contentsOf: file, encoding: .utf8)
+        XCTAssertFalse(encoded.contains("transcript"))
+        XCTAssertFalse(encoded.contains("prompt"))
+
+        let restored = DiagnosticEventLog(fileURL: file, maximumEvents: 2)
+        let restoredEvents = await restored.recentEvents(limit: 10)
+        XCTAssertEqual(restoredEvents, recent)
+        await restored.clear()
+        let afterClear = await restored.recentEvents()
+        XCTAssertTrue(afterClear.isEmpty)
+    }
+
     func testAlignmentSubstitutionDeletionInsertionAndNormalization() {
         let r = WordAlignment.compare(expected: "Could you reschedule the meeting for Thursday?", recognized: "could you schedule the meeting for thursday")
         XCTAssertEqual(r.tokens.filter { $0.kind == .substitution }.map(\.expected), ["reschedule"])

@@ -101,13 +101,22 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil; status = "" }
+            let startedAt = Date()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .started, thermalState: .current))
             do {
-                try await store.install(ParakeetModel.manifest()) { [weak self] fraction in
+                let manifest = try ParakeetModel.manifest()
+                try await store.install(manifest) { [weak self] fraction in
                     await self?.updateProgress(fraction)
                 }
                 installed = true; status = "モデルの準備ができました"
-            } catch is CancellationError { status = "モデル取得を中断しました" }
-            catch { self.error = "モデル取得に失敗しました。通信状態を確認して再試行してください。" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "モデル取得を中断しました"
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "モデル取得に失敗しました。通信状態を確認して再試行してください。"
+            }
         }
     }
 
@@ -130,6 +139,8 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             guard let self else { return }
             busy = true
             defer { busy = false; operation = nil }
+            let diagnosticModel: DiagnosticModel = selectedEngine == .parakeet ? .parakeet : .appleSpeech
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .started, thermalState: .current))
             guard await AVAudioApplication.requestRecordPermission() else {
                 status = "マイクの使用が許可されていません。iPhoneの設定で許可してください。"
                 return
@@ -170,6 +181,10 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             let audio = try AVAudioFile(forReading: recordingURL)
             audioDuration = Double(audio.length) / audio.processingFormat.sampleRate
             status = "録音を保存しました。選択中の音声認識モデルで文字起こしできます。"
+            let diagnosticModel: DiagnosticModel = selectedEngine == .parakeet ? .parakeet : .appleSpeech
+            Task {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(audioDuration * 1000), thermalState: .current))
+            }
         } catch { self.error = "録音ファイルを保存できませんでした。" }
     }
 
@@ -180,15 +195,26 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil }
+            let startedAt = Date()
+            let diagnosticModel: DiagnosticModel = engine == .parakeet ? .parakeet : .appleSpeech
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .transcription, model: diagnosticModel, outcome: .started, thermalState: .current))
             do {
                 let recognition = try await recognize(url: recordingURL, duration: audioDuration, engine: engine)
                 transcript = recognition.0
                 processingSeconds = recognition.1
                 processingPeakMemoryBytes = recognition.2
                 status = transcript.isEmpty ? "音声を認識できませんでした。もう一度録音してください。" : "文字起こしが完了しました"
-            } catch is CancellationError { status = "文字起こしを中断しました" }
-            catch let error as AppleSpeechASRError { self.error = error.localizedDescription }
-            catch { self.error = "文字起こしに失敗しました。録音を残したまま再試行できます。" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .transcription, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), peakMemoryBytes: recognition.2, thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .transcription, model: diagnosticModel, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "文字起こしを中断しました"
+            } catch let error as AppleSpeechASRError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .transcription, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = error.localizedDescription
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .transcription, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "文字起こしに失敗しました。録音を残したまま再試行できます。"
+            }
         }
     }
 
@@ -228,30 +254,46 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
 
     private func recognize(url: URL, duration: Double, engine: ASREngine) async throws -> (String, Double, UInt64?) {
         let backend: any ASRService
+        let diagnosticModel: DiagnosticModel
+        let modelBytes: UInt64?
         if engine == .parakeet {
             guard let store else { throw ParakeetASRError.modelUnavailable }
             let manifest = try ParakeetModel.manifest()
+            diagnosticModel = .parakeet
+            modelBytes = UInt64(max(0, manifest.sizeBytes))
             guard let storageFolder = manifest.storageFolder else { throw ParakeetASRError.modelUnavailable }
             let directory = try await store.directory(manifest)
                 .appendingPathComponent("Models").appendingPathComponent(storageFolder)
             backend = NeuralASRRuntime.backend(directory: directory)
         } else {
             backend = appleSpeech
+            diagnosticModel = .appleSpeech
+            modelBytes = nil
         }
         return try await coordinator.withExclusiveModel { [backend] in
             let memory = ProcessMemorySampler()
             await memory.start()
+            let loadStartedAt = Date()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelLoad, model: diagnosticModel, outcome: .started, modelBytes: modelBytes, thermalState: .current))
             do {
                 try await backend.load()
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelLoad, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(loadStartedAt) * 1000), modelBytes: modelBytes, thermalState: .current))
                 try Task.checkCancellation()
                 let start = ContinuousClock().now
                 let asset = AudioAsset(url: url, duration: duration, sampleRate: 16_000)
                 let result = try await backend.transcribe(asset)
                 let elapsed = start.duration(to: .now).components
+                let unloadStartedAt = Date()
                 await backend.unload()
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelUnload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(unloadStartedAt) * 1000), modelBytes: modelBytes, thermalState: .current))
                 let peak = await memory.stop()
                 return (result, Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18, peak)
-            } catch { await backend.unload(); _ = await memory.stop(); throw error }
+            } catch {
+                await backend.unload()
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelUnload, model: diagnosticModel, outcome: .observed, modelBytes: modelBytes, thermalState: .current))
+                _ = await memory.stop()
+                throw error
+            }
         }
     }
 

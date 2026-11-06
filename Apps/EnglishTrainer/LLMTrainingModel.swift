@@ -6,6 +6,7 @@ import ModelManagement
 import LiteRTLLMBackend
 import LearningCore
 import LearningPersistence
+import DeviceDiagnostics
 
 @MainActor @Observable final class LLMTrainingModel {
     private static let cachedCandidatesKey = "llm-known-model-candidates-v1"
@@ -147,6 +148,9 @@ import LearningPersistence
         guard let store, let modelRoot else { error = "モデル保存領域を利用できません。設定を確認してください。"; return }
         busy = true; progress = 0; error = nil; status = "モデルのダウンロードを開始しています…"
         operation = Task {
+            let startedAt = Date()
+            let diagnosticModel: DiagnosticModel = candidate.repository.contains("gemma-4-E2B") ? .gemmaE2B : .system
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelDownload, model: diagnosticModel, outcome: .started, thermalState: .current))
             do {
                 let values = try modelRoot.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
                 if let available = values.volumeAvailableCapacityForImportantUsage,
@@ -161,8 +165,13 @@ import LearningPersistence
                 installedIDs.insert(candidate.id); select(candidate)
                 persistInstalledIDs()
                 status = "モデルのダウンロードとSHA-256検証が完了しました。"
-            } catch is CancellationError { status = "モデル取得を中断しました。検証済みファイルは再試行時に再利用します。" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelDownload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelDownload, model: diagnosticModel, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "モデル取得を中断しました。検証済みファイルは再試行時に再利用します。"
+            }
             catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelDownload, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 if Task.isCancelled { status = "モデル取得を中断しました。検証済みファイルは再試行時に再利用します。" }
                 else { self.error = "モデルを準備できませんでした: \(error.localizedDescription)" }
             }
@@ -256,20 +265,29 @@ import LearningPersistence
         let request = LessonGenerationRequest(topic: topic, difficulty: difficulty, targetPhrases: phrases, kind: kind)
         busy = true; error = nil; status = "モデルを読み込んで教材を生成しています…"
         operation = Task {
+            let startedAt = Date()
+            let diagnosticModel: DiagnosticModel = candidate.repository.contains("gemma-4-E2B") ? .gemmaE2B : .system
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .inference, model: diagnosticModel, outcome: .started, thermalState: .current))
             do {
                 let directory = try await store.directory(candidate.manifest)
                 let modelURL = directory.appendingPathComponent("Models")
                     .appendingPathComponent(candidate.manifest.storageFolder ?? candidate.id)
                     .appendingPathComponent(candidate.filePath)
                 let lesson = try await coordinator.withExclusiveModel { [service] in
+                    let loadStartedAt = Date()
+                    await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelLoad, model: diagnosticModel, outcome: .started, modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
                     try await service.load(modelURL: modelURL)
+                    await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelLoad, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(loadStartedAt) * 1000), modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
                     do {
                         let generated = try await LessonGenerator(service: service).generate(request)
                             .attributing(modelID: candidate.id)
+                        let unloadStartedAt = Date()
                         await service.unload()
+                        await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelUnload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(unloadStartedAt) * 1000), modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
                         return generated
                     } catch {
                         await service.unload()
+                        await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelUnload, model: diagnosticModel, outcome: .observed, modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
                         throw error
                     }
                 }
@@ -277,8 +295,13 @@ import LearningPersistence
                 latestMetrics = await service.inferenceMetrics()
                 save(lesson)
                 status = "教材を保存しました。"
-            } catch is CancellationError { status = "教材生成を中断しました。" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .inference, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), peakMemoryBytes: latestMetrics?.peakProcessMemoryBytes, thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .inference, model: diagnosticModel, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "教材生成を中断しました。"
+            }
             catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .inference, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 if Task.isCancelled { status = "教材生成を中断しました。" }
                 else { self.error = "教材の生成に失敗しました: \(error.localizedDescription)" }
             }

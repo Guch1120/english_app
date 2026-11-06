@@ -63,6 +63,9 @@ import DeviceDiagnostics
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil }
+            let startedAt = Date()
+            let diagnosticModel: DiagnosticModel = voice == .kokoro ? .kokoro : .pocket
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelDownload, model: diagnosticModel, outcome: .started, thermalState: .current))
             do {
                 let manifest = try voice.manifest()
                 try await store.install(manifest) { [weak self] fraction in
@@ -70,8 +73,14 @@ import DeviceDiagnostics
                 }
                 try Task.checkCancellation()
                 await refreshModels(); status = "モデルの準備が完了しました"
-            } catch is CancellationError { status = "取得を中断しました。再試行時は検証済みファイルを再利用します。" }
-            catch { self.error = "モデルを取得・検証できませんでした。通信と空き容量を確認して再試行してください。"; status = "準備に失敗しました" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelDownload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelDownload, model: diagnosticModel, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "取得を中断しました。再試行時は検証済みファイルを再利用します。"
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelDownload, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "モデルを取得・検証できませんでした。通信と空き容量を確認して再試行してください。"; status = "準備に失敗しました"
+            }
         }
     }
     func remove(_ voice: NeuralVoice) {
@@ -79,11 +88,18 @@ import DeviceDiagnostics
         busy = true; stopPlayback()
         operation = Task {
             defer { busy = false; operation = nil }
+            let startedAt = Date()
+            let diagnosticModel: DiagnosticModel = voice == .kokoro ? .kokoro : .pocket
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelUnload, model: diagnosticModel, outcome: .started, thermalState: .current))
             do {
                 try await store.remove(voice.manifest()); installed.remove(voice)
                 if selected == voice.id { selected = "apple"; UserDefaults.standard.set(selected, forKey: "tts-engine") }
                 status = "モデルを削除しました"
-            } catch { self.error = "モデルを削除できませんでした。" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelUnload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelUnload, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "モデルを削除できませんでした。"
+            }
         }
     }
     private func stopPlayback() { speaker.stop(); player.stop() }
@@ -103,6 +119,9 @@ import DeviceDiagnostics
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil }
+            let startedAt = Date()
+            let diagnosticModel: DiagnosticModel = voice == .kokoro ? .kokoro : .pocket
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .inference, model: diagnosticModel, outcome: .started, cacheBytes: UInt64(max(0, cacheBytes)), thermalState: .current))
             do {
                 let manifest = try voice.manifest()
                 let key = TTSCacheKey(text: text, engine: voice.id, modelRevision: "FluidAudio-0.18.2/" + manifest.revision, voice: voice.speaker)
@@ -117,8 +136,11 @@ import DeviceDiagnostics
                     let backend = NeuralRuntime.backend(voice: voice, directory: directory)
                     let result: (Data, Double, UInt64?) = try await coordinator.withExclusiveModel {
                         let monitor = ProcessMemorySampler(); await monitor.start()
+                        let loadStartedAt = Date()
+                        await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelLoad, model: diagnosticModel, outcome: .started, modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
                         do {
                             try await backend.load()
+                            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelLoad, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(loadStartedAt) * 1000), modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
                             try Task.checkCancellation()
                             let clock = ContinuousClock(), start = clock.now
                             let generated = try await backend.synthesize(SpeechRequest(text: key.text, voiceID: voice.speaker))
@@ -126,9 +148,16 @@ import DeviceDiagnostics
                             let data = try Data(contentsOf: generated.url)
                             let components = start.duration(to: clock.now).components
                             let seconds = Double(components.seconds) + Double(components.attoseconds) / 1e18
+                            let unloadStartedAt = Date()
                             await backend.unload()
+                            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelUnload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(unloadStartedAt) * 1000), modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
                             return (data,seconds,await monitor.stop())
-                        } catch { await backend.unload(); _ = await monitor.stop(); throw error }
+                        } catch {
+                            await backend.unload()
+                            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelUnload, model: diagnosticModel, outcome: .observed, modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
+                            _ = await monitor.stop()
+                            throw error
+                        }
                     }
                     try Task.checkCancellation()
                     asset = try await cache.store(result.0, key: key)
@@ -143,8 +172,14 @@ import DeviceDiagnostics
                 }
                 cacheBytes = (try? await cache.sizeBytes()) ?? 0
                 status = measurement.cacheHit ? "保存済み音声を再生しています" : "生成音声を再生しています"
-            } catch is CancellationError { status = "音声生成を中断しました" }
-            catch { self.error = "音声を生成・再生できませんでした。モデルの再準備や短い英文での再試行をお試しください。"; status = "音声処理に失敗しました" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .inference, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), peakMemoryBytes: measurement.peakProcessRSS, cacheBytes: UInt64(max(0, cacheBytes)), thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .inference, model: diagnosticModel, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "音声生成を中断しました"
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .inference, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "音声を生成・再生できませんでした。モデルの再準備や短い英文での再試行をお試しください。"; status = "音声処理に失敗しました"
+            }
         }
     }
     func cancelWork() { if busy { operation?.cancel(); status = "処理の停止を待っています" } }
