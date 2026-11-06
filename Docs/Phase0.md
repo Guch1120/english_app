@@ -33,3 +33,9 @@ Primary sources inspected on 2026-11-06:
 | RE-USE | NVIDIA card declares OpenMDW-1.1; full terms and converted artifacts still require review | Contract only, disabled |
 
 No third-party SDK/weights were added. No iPhone model load, latency, memory or thermal results have been measured. Future integrations must record immutable revisions, exact model files, SHA-256, dependencies, disk sizes, license/NOTICE and real-device results. This table does not certify deployability or commercial use. Full Phase 0 engine feasibility remains open while Phase 1 permits independent UI/data development.
+
+## Additional backend observations
+
+Inspected `LiteRTGemmaBackend.loadModel`: enforces `.litertlm`, constructs EngineConfig, initializes Engine, probes conversation creation, and records load time. It changes process-wide experimental flags and attempts GPU/CPU configurations, so extraction must preserve exclusive access. Its comments report LiteRT-LM 0.17.1 iOS vision issues; these are upstream observations, not independently reproduced here, and vision is unnecessary for the initial learning app.
+
+`LlamaCppBackend.loadModel` enforces `.gguf`, unloads the prior runtime, and uses a detached task to construct the runtime (model mapping and Metal compilation). Configuration includes optional projector/adapter fields. Cancellation propagation and cleanup of that detached load require explicit review before reuse. `InferenceService` checks a thermal policy before accepting inference. The new app has not copied these implementations or enabled either runtime.
