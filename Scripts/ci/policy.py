@@ -42,7 +42,12 @@ def workflow_errors(name, text):
             if re.search(r'\$\{\{\s*(github\.event\.(?:pull_request|issue|comment)|inputs\.)', step.get('run','')):
                 fail(f'{job_name}: pass event text through env, not inline shell expressions')
         if job.get('environment'):
-            if set(events) != {'workflow_dispatch'}: fail(f'{job_name}: deployment must be manual-only')
+            if 'workflow_dispatch' not in events or set(events) - {'workflow_dispatch', 'push'}:
+                fail(f'{job_name}: deployment may only run manually or on main pushes')
+            if 'push' in events:
+                push = events['push']
+                if not isinstance(push, dict) or push.get('branches') != ['main']:
+                    fail(f'{job_name}: deployment push trigger must be restricted to main')
             condition = job.get('if', '').strip()
             if condition.startswith('${{') and condition.endswith('}}'): condition = condition[3:-2].strip()
             if condition != "github.ref == 'refs/heads/main'": fail(f'{job_name}: deployment requires an explicit main-only guard')

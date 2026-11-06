@@ -23,7 +23,7 @@ iOSは `.github/workflows/validate.yml` のmacOSランナーで署名なしSimul
 
 実装状況は [Status](Docs/Status.md) 参照。ローカルテストの成功はiOSでの動作確認を意味しません。個人データ・モデル重み・署名ファイルはGitへ登録しないでください。
 
-TestFlight配布は[専用手順](Docs/TestFlight.md)を参照してください。`ios-testflight` EnvironmentへAPIキーを登録し、mainから手動で実行する方式です。USB用Development署名とは別の配布経路です。
+TestFlight配布は[専用手順](Docs/TestFlight.md)を参照してください。`ios-testflight` EnvironmentへAPIキーを登録すると、mainへのマージ後に自動で配布を開始します。Actionsからの手動実行もできます。USB用Development署名とは別の配布経路です。
 
 PRの自動チェックは[チェック範囲と結果の見方](Docs/Automated-Checks.md)を参照してください。`review-gate`に結果を集約し、ドキュメントだけの変更でも軽量な安全性チェックは実行します。自動承認・自動マージは有効化していません。
 
