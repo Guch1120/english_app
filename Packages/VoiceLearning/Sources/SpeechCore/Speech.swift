@@ -14,6 +14,19 @@ public protocol ModelLifecycle: Sendable {
 public protocol TTSService: ModelLifecycle { func synthesize(_ request: SpeechRequest) async throws -> AudioAsset }
 public protocol ASRService: ModelLifecycle { func transcribe(_ audio: AudioAsset) async throws -> String }
 public protocol AudioEnhancementService: ModelLifecycle { func enhance(_ audio: AudioAsset) async throws -> AudioAsset }
+public struct AudioEnhancementMetrics: Sendable, Equatable {
+    public let modelLoadSeconds: Double
+    public let processingSeconds: Double
+    public let realTimeFactor: Double
+    public let peakMemoryBytes: Int?
+    public init(modelLoadSeconds: Double, processingSeconds: Double, realTimeFactor: Double, peakMemoryBytes: Int?) {
+        self.modelLoadSeconds = modelLoadSeconds; self.processingSeconds = processingSeconds
+        self.realTimeFactor = realTimeFactor; self.peakMemoryBytes = peakMemoryBytes
+    }
+}
+public protocol MeasuredAudioEnhancementService: AudioEnhancementService {
+    func enhancementMetrics() async -> AudioEnhancementMetrics?
+}
 public actor MockASR: ASRService {
     public nonisolated let modelID = "mock-asr"
     public init() {}

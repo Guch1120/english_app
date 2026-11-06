@@ -4,6 +4,7 @@ import XCTest
 import LearningPersistence
 import LLMCore
 import ModelManagement
+import AudioEnhancementBackends
 
 // Stateless test case; individual async tests own their actor-confined fixtures.
 final class CoreTests: XCTestCase, @unchecked Sendable {
@@ -18,6 +19,18 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(WordAlignment.compare(expected: "I can't pay $25 today", recognized: "I cannot pay twenty-five today").wordErrorRate, 0)
         XCTAssertEqual(WordAlignment.compare(expected: "It's 2.5 miles", recognized: "It is two point five miles").wordErrorRate, 0)
     }
+
+    #if !canImport(ReuseKit)
+    func testREUSEBackendStaysUnavailableOutsideSupportedAppleRuntime() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let backend = try REUSEAudioEnhancement(applicationSupportDirectory: root, cachesDirectory: root)
+        do {
+            try await backend.load()
+            XCTFail("A host stub must never claim that real RE-USE inference is available")
+        } catch REUSEError.unavailable { }
+    }
+    #endif
     func testReviewSchedule() {
         let now = Date(timeIntervalSince1970: 1000)
         let point = WeakPoint(itemID: UUID(), text: "meeting", reason: .listening, now: now)
