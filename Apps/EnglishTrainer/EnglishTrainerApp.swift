@@ -37,6 +37,11 @@ import NeuralTTSBackends
         guard let store else { error = "保存領域を開けませんでした。アプリを再起動してください。"; return }
         do { try operation(store); try refresh() } catch { self.error = String(describing: error) }
     }
+    func deleteAllLearningData() {
+        guard !speech.busy, let store else { return }
+        do { try store.deleteAll(); try refresh(); speech.clearPersonalData() }
+        catch { self.error = String(describing: error) }
+    }
     func save(text: String, translation: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -238,11 +243,11 @@ struct SettingsView: View {
             }
             Section("データ") {
                 Text("学習データは端末内SQLiteへ保存します。OSバックアップの対象です。録音・クラウド同期はまだありません。")
-                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
+                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }.disabled(model.speech.busy)
             }
         }.navigationTitle("設定")
-        .confirmationDialog("教材・復習・履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("削除", role: .destructive) { model.perform { try $0.deleteAll() } }
+        .confirmationDialog("教材・復習・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("削除", role: .destructive) { model.deleteAllLearningData() }
         }
     }
 }

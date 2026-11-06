@@ -137,7 +137,10 @@ import DeviceDiagnostics
                 try Task.checkCancellation()
                 try player.play(asset, rate: speed, repeating: repeats)
                 measurements.insert(measurement, at: 0); measurements = Array(measurements.prefix(100))
-                if let historyURL { try JSONEncoder().encode(measurements).write(to: historyURL, options: .atomic) }
+                if let historyURL {
+                    do { try JSONEncoder().encode(measurements).write(to: historyURL, options: .atomic) }
+                    catch { self.error = "音声は再生できますが、測定履歴を保存できませんでした。" }
+                }
                 cacheBytes = (try? await cache.sizeBytes()) ?? 0
                 status = measurement.cacheHit ? "保存済み音声を再生しています" : "生成音声を再生しています"
             } catch is CancellationError { status = "音声生成を中断しました" }
@@ -156,6 +159,23 @@ import DeviceDiagnostics
             defer { busy = false; operation = nil }
             do { try await cache.clear(); cacheBytes = 0; status = "音声キャッシュを削除しました" }
             catch { self.error = "キャッシュを削除できませんでした。" }
+        }
+    }
+    func clearPersonalData() {
+        guard !busy else { return }
+        stopPlayback(); busy = true
+        operation = Task {
+            defer { busy = false; operation = nil }
+            do {
+                try await cache?.clear(); cacheBytes = 0
+                if let historyURL, FileManager.default.fileExists(atPath: historyURL.path) {
+                    try FileManager.default.removeItem(at: historyURL)
+                }
+                measurements = []
+                UserDefaults.standard.removeObject(forKey: "tts-comparison-text")
+                UserDefaults.standard.removeObject(forKey: "tts-comparison-group")
+                status = "音声と測定履歴を削除しました"
+            } catch { self.error = "音声データをすべて削除できませんでした。再度削除してください。" }
         }
     }
     func setCacheLimit(megabytes: Int) {
