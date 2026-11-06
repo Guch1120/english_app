@@ -24,3 +24,9 @@ public actor MockASR: ASRService {
         try Task.checkCancellation(); return "Could you schedule the meeting for Thursday?"
     }
 }
+
+/// Playback-only system fallback; neural TTS engines produce AudioAsset separately.
+@MainActor public protocol SpeechPlayback: AnyObject {
+    func speak(_ text: String, speed: Double) throws
+    func stop()
+}

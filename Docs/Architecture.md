@@ -1,9 +1,9 @@
 # Architecture / Phase 1
 
 `Apps/EnglishTrainer` → local Swift package `Packages/VoiceLearning`.
-One package exposes six independently importable libraries: LearningCore (models, scheduling, alignment), LearningPersistence (SQLite), SpeechCore (TTS/ASR/enhancement contracts), LLMCore (generation contract and validation), ModelManagement (exclusive runtime lease), DeviceDiagnostics (measurement types). Keeping related targets in a single package avoids cyclic package dependencies; another app can select individual products.
+One package exposes seven independently importable libraries: LearningCore (models, scheduling, alignment), LearningPersistence (SQLite), SpeechCore (TTS/ASR/enhancement contracts), TTSBackends (Apple system playback adapter), LLMCore (generation contract and validation), ModelManagement (exclusive runtime lease), DeviceDiagnostics (measurement types). Keeping related targets in a single package avoids cyclic package dependencies; another app can select individual products.
 
-UI calls no third-party inference SDK. Apple speech playback is currently an app adapter; model-generated audio adapters will implement SpeechCore. Apple utterance rate is synthesis speed, not pitch-preserving cached playback. No generated-audio cache exists yet.
+UI calls no third-party inference SDK. Apple speech playback lives in TTSBackends and is injected through SpeechPlayback at the composition root; model-generated audio adapters will implement SpeechCore. Apple utterance rate is synthesis speed, not pitch-preserving cached playback. No generated-audio cache exists yet.
 
 SQLite uses system libsqlite3 and bound statements. GRDB is deferred until its version/license and Linux test compatibility are reviewed; no external Swift dependencies are currently required. Schema v1 stores typed JSON payloads in keyed learning/weak-point tables and transactional review history. Future schema changes must add actual ordered migration steps. All DB access is MainActor-confined for this small initial dataset; move heavy queries off UI before scaling. Data is under Application Support with iOS file protection, included in OS backup. No recording files exist in this phase.
 

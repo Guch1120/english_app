@@ -1,5 +1,6 @@
 import SwiftUI
-import AVFoundation
+import SpeechCore
+import TTSBackends
 import LearningCore
 import LearningPersistence
 
@@ -12,8 +13,9 @@ import LearningPersistence
     var error: String?
     var ready = false
     private var store: LearningStore?
-    private let speaker = AVSpeechSynthesizer()
-    init() {
+    private let speaker: any SpeechPlayback
+    init(playback: any SpeechPlayback) {
+        self.speaker = playback
         do {
             let folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
@@ -47,21 +49,14 @@ import LearningPersistence
         perform { _ = try $0.review(point, grade: grade, now: Date()) }
     }
     func speak(_ text: String, speed: Double) {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-            try AVAudioSession.sharedInstance().setActive(true)
-            speaker.stopSpeaking(at: .immediate)
-            let utterance = AVSpeechUtterance(string: text)
-            guard let voice = AVSpeechSynthesisVoice(language: "en-US") else { error = "英語のシステム音声を端末に追加してください。"; return }
-            utterance.voice = voice
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(speed)
-            speaker.speak(utterance)
-        } catch { self.error = String(describing: error) }
+        do { try speaker.speak(text, speed: speed) }
+        catch { self.error = String(describing: error) }
     }
-    func stop() { speaker.stopSpeaking(at: .immediate) }
+    func stop() { speaker.stop() }
 }
+
 struct RootView: View {
-    @State private var model = AppModel()
+    @State private var model = AppModel(playback: AppleSpeechPlayback())
     var body: some View {
         TabView {
             NavigationStack { HomeView(model: model) }.tabItem { Label("学習", systemImage: "headphones") }

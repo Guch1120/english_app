@@ -33,3 +33,30 @@ base64は暗号化ではありません。エンコード結果もチャット�
 - VoiceOver、文字サイズ、ダークモード、音声割り込み、ロック画面再生を確認。
 
 LinuxでのSwiftテストとiOSビルド/実機確認は別です。CI成功とiPhoneでの確認が済むまでは実機動作済みとは扱いません。
+
+## Macなしで新しい証明書用CSRを作る例
+
+以下はユーザーが署名登録を行う段階で実行します。先に `bash Scripts/test.sh` でDockerイメージを作っておきます。保存先はリポジトリの外です。
+
+```bash
+mkdir -p -m 700 "$HOME/.config/english-trainer-signing"
+docker run --rm -it --user "$(id -u):$(id -g)" \
+  -v "$HOME/.config/english-trainer-signing:/signing" english-trainer-dev \
+  openssl req -new -newkey rsa:2048 \
+  -keyout /signing/development.key -out /signing/development.csr \
+  -subj '/CN=English Trainer Development'
+```
+
+表示される秘密鍵パスワードを設定・保管します。PortalのApple Development証明書作成画面へ `development.csr` だけをアップロードし、取得した証明書を同じフォルダーの `development.cer` として保存します。
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$HOME/.config/english-trainer-signing:/signing" english-trainer-dev \
+  openssl x509 -inform DER -in /signing/development.cer -out /signing/development.pem
+docker run --rm -it --user "$(id -u):$(id -g)" \
+  -v "$HOME/.config/english-trainer-signing:/signing" english-trainer-dev \
+  openssl pkcs12 -export -inkey /signing/development.key -in /signing/development.pem \
+  -out /signing/development.p12 -name 'English Trainer Development'
+```
+
+後者で秘密鍵のパスワードと、出力p12のパスワードを入力します。**p12のパスワード**を `IOS_CERTIFICATE_PASSWORD` に設定します。証明書チェーンに関する署名エラーが出た場合は対応するApple WWDR中間証明書の確認が必要です。証明書生成・署名そのものは本実装時点で未実行です。
