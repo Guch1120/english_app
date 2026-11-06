@@ -12,6 +12,8 @@ import NeuralASRBackends
 @MainActor @Observable final class AppModel {
     var items: [LearningItem] = []
     var points: [WeakPoint] = []
+    var reviewHistory: [ReviewEvent] = []
+    var activityHistory: [LearningActivityEvent] = []
     var error: String?
     var ready = false
     private var store: LearningStore?
@@ -35,7 +37,13 @@ import NeuralASRBackends
             try refresh(); ready = true
         } catch { self.error = String(describing: error) }
     }
-    func refresh() throws { items = try store!.items(); points = try store!.weakPoints() }
+    var progress: LearningProgress { LearningProgress(events: reviewHistory, activities: activityHistory, weakPoints: points) }
+    func refresh() throws {
+        items = try store!.items(); points = try store!.weakPoints()
+        reviewHistory = try store!.reviewHistory()
+        activityHistory = try store!.activityHistory()
+    }
+    func item(for point: WeakPoint) -> LearningItem? { items.first { $0.id == point.itemID } }
     func perform(_ operation: (LearningStore) throws -> Void) {
         guard let store else { error = "保存領域を開けませんでした。アプリを再起動してください。"; return }
         do { try operation(store); try refresh() } catch { self.error = String(describing: error) }
@@ -51,13 +59,22 @@ import NeuralASRBackends
         perform { try $0.save(LearningItem(text: trimmed, translation: translation)) }
     }
     func mark(_ item: LearningItem, text: String, reason: WeakReason) {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        perform { try $0.save(WeakPoint(itemID: item.id, text: text, reason: reason)) }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              !points.contains(where: { $0.itemID == item.id && $0.text.caseInsensitiveCompare(trimmed) == .orderedSame && $0.reason == reason }) else { return }
+        perform { try $0.save(WeakPoint(itemID: item.id, text: trimmed, reason: reason)) }
     }
     func review(_ point: WeakPoint, grade: ReviewGrade) {
         perform { _ = try $0.review(point, grade: grade, now: Date()) }
     }
-    func speak(_ text: String, speed: Double) { speech.speak(text, speed: speed) }
+    func delete(_ point: WeakPoint) { perform { try $0.delete(point) } }
+    func recordActivity(_ activity: LearningActivity, item: LearningItem) {
+        perform { try $0.recordActivity(activity, itemID: item.id) }
+    }
+    func speak(_ text: String, speed: Double, item: LearningItem? = nil) {
+        if let item { recordActivity(.listening, item: item) }
+        speech.speak(text, speed: speed)
+    }
     func stop() { speech.stop() }
 }
 
@@ -126,7 +143,7 @@ struct LessonView: View {
         Form {
             Section("まずは聞いてみましょう") {
                 TTSEnginePicker(speech: model.speech)
-                Button { model.speak(item.text, speed: speed) } label: {
+                Button { model.speak(item.text, speed: speed, item: item) } label: {
                     Label("お手本を再生", systemImage: "play.circle.fill").font(.title2).frame(maxWidth: .infinity, minHeight: 70)
                 }
                 .disabled(model.speech.busy)
@@ -199,7 +216,7 @@ struct SpeakingPreview: View {
         Form {
             Section("お手本") {
                 Text(item.text)
-                Button("お手本を聞く", systemImage: "play.circle") { appModel.speak(item.text, speed: 1) }
+                Button("お手本を聞く", systemImage: "play.circle") { appModel.speak(item.text, speed: 1, item: item) }
             }
             Section("音声認識モデル") {
                 Picker("モデル", selection: $model.selectedEngine) {
@@ -235,7 +252,10 @@ struct SpeakingPreview: View {
                     Label("録音中 · 発話後に停止してください", systemImage: "record.circle").foregroundStyle(.red)
                     Button("録音を停止", systemImage: "stop.circle.fill") { model.stopRecording() }
                 } else {
-                    Button("録音を開始", systemImage: "mic.circle.fill") { appModel.stop(); model.startRecording() }
+                    Button("録音を開始", systemImage: "mic.circle.fill") {
+                        appModel.stop(); model.startRecording()
+                        if model.recording { appModel.recordActivity(.speaking, item: item) }
+                    }
                         .disabled(!model.recognitionAvailable || model.busy)
                 }
                 if model.busy { Text(model.status).font(.caption) }
@@ -312,15 +332,29 @@ struct SpeakingPreview: View {
 }
 struct ReviewView: View {
     let model: AppModel
+    @State private var pointToDelete: WeakPoint?
     var body: some View {
         List {
-            let due = model.points.filter { $0.nextReviewAt <= Date() }
+            let due = model.points.filter { $0.nextReviewAt <= Date() }.sorted { $0.nextReviewAt < $1.nextReviewAt }
+            Section("学習の記録") {
+                LabeledContent("累計復習", value: "\(model.progress.totalReviews)回")
+                LabeledContent("学習した日", value: "\(model.progress.activeDays)日")
+                LabeledContent("連続学習日数", value: "\(model.progress.currentStreak)日")
+                LabeledContent("定着した項目", value: "\(model.progress.masteredCount)件")
+                LabeledContent("リスニング", value: "\(model.activityHistory.filter { $0.activity == .listening }.count)回")
+                LabeledContent("スピーキング", value: "\(model.activityHistory.filter { $0.activity == .speaking }.count)回")
+                NavigationLink("復習履歴を表示") { ReviewHistoryView(model: model) }
+            }
             Section("今日の復習・\(due.count)件") {
                 ForEach(due) { point in
                     VStack(alignment: .leading, spacing: 12) {
                         Text(point.text).font(.headline)
                         Text(point.reason.rawValue).font(.caption).foregroundStyle(.secondary)
-                        Button("聞く", systemImage: "play.circle") { model.speak(point.text, speed: 1) }
+                        Button("聞く", systemImage: "play.circle") { model.speak(point.text, speed: 1, item: model.item(for: point)) }
+                            .disabled(model.speech.busy)
+                        if let item = model.item(for: point) {
+                            NavigationLink("元の教材とスピーキング練習") { LessonView(model: model, item: item) }
+                        }
                         ViewThatFits {
                             HStack { grades(point) }
                             VStack(alignment: .leading) { grades(point) }
@@ -330,19 +364,83 @@ struct ReviewView: View {
                 if due.isEmpty { ContentUnavailableView("今日の復習は完了です", systemImage: "checkmark.circle", description: Text("聞き取れない表現を教材から登録できます。")) }
             }
             Section("保存済み・\(model.points.count)件") {
-                ForEach(model.points) { point in
+                ForEach(model.points.sorted { $0.registeredAt > $1.registeredAt }) { point in
                     VStack(alignment: .leading) {
                         Text(point.text)
-                        Text("次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary)
+                        Text("登録日：\(point.registeredAt.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text(point.reason.rawValue + " · 復習\(point.reviews)回 · 成功\(point.successes) / 失敗\(point.failures)")
+                            .font(.caption).foregroundStyle(.secondary)
+                        if let mastery = point.mastery {
+                            ProgressView(value: mastery) { Text("習熟度") }
+                            Text("\(mastery, format: .percent.precision(.fractionLength(0))) · 次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text("未復習 · 次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        if let item = model.item(for: point) {
+                            NavigationLink("元の教材を開く") { LessonView(model: model, item: item) }
+                        }
+                        Button("復習項目を削除", systemImage: "trash", role: .destructive) { pointToDelete = point }
                     }
+                    .padding(.vertical, 5)
                 }
+                if model.points.isEmpty { ContentUnavailableView("復習項目はありません", systemImage: "bookmark", description: Text("リスニングやスピーキングから苦手な表現を登録できます。")) }
             }
-        }.navigationTitle("復習").onDisappear { model.stop() }
+        }
+        .navigationTitle("復習")
+        .onDisappear { model.stop() }
+        .confirmationDialog("復習項目と履歴を削除しますか？", isPresented: Binding(
+            get: { pointToDelete != nil },
+            set: { if !$0 { pointToDelete = nil } }
+        ), titleVisibility: .visible) {
+            Button("復習項目を削除", role: .destructive) {
+                if let pointToDelete { model.delete(pointToDelete) }
+                pointToDelete = nil
+            }
+        } message: {
+            Text("関連する復習履歴も削除されます。この操作は取り消せません。")
+        }
     }
     @ViewBuilder func grades(_ point: WeakPoint) -> some View {
         ForEach(ReviewGrade.allCases, id: \.self) { grade in
             Button(grade.rawValue) { model.review(point, grade: grade) }.buttonStyle(.bordered)
         }
+    }
+}
+struct ReviewHistoryView: View {
+    let model: AppModel
+    var body: some View {
+        List {
+            if model.reviewHistory.isEmpty {
+                ContentUnavailableView("復習履歴はありません", systemImage: "clock", description: Text("復習項目に回答するとここに記録されます。"))
+            } else {
+                ForEach(model.reviewHistory) { event in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(model.points.first { $0.id == event.weakPointID }?.text ?? "削除済みの復習項目")
+                            .font(.headline)
+                        Text("\(event.grade.rawValue) · \(event.reviewedAt.formatted(date: .abbreviated, time: .shortened))")
+                        Text("次回：\(event.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }.padding(.vertical, 4)
+                }
+            }
+            Section("リスニング・スピーキング") {
+                if model.activityHistory.isEmpty {
+                    Text("練習履歴はありません。")
+                } else {
+                    ForEach(model.activityHistory) { event in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(event.activity == .listening ? "リスニング" : "スピーキング").font(.headline)
+                            Text(model.items.first { $0.id == event.itemID }?.text ?? "教材なし")
+                            Text(event.occurredAt.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }.padding(.vertical, 4)
+                    }
+                }
+            }
+        }.navigationTitle("学習・復習履歴")
     }
 }
 struct SettingsView: View {

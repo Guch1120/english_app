@@ -30,6 +30,29 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(good.successes, 1)
         XCTAssertEqual(scheduler.schedule(good, grade: .good, now: now).intervalDays, 4)
     }
+    func testLearningProgressAndLegacyWeakPointDates() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-01-03T12:00:00Z")!
+        let itemID = UUID()
+        var point = WeakPoint(itemID: itemID, text: "meeting", reason: .speaking, now: now)
+        point.reviews = 3; point.successes = 3; point.failures = 0
+        let dates = ["2026-01-01T10:00:00Z", "2026-01-03T10:00:00Z"].compactMap(ISO8601DateFormatter().date(from:))
+        let events = dates.map { ReviewEvent(weakPointID: point.id, grade: .good, reviewedAt: $0, nextReviewAt: now) }
+        let practiceDay = ISO8601DateFormatter().date(from: "2026-01-02T10:00:00Z")!
+        let activities = [LearningActivityEvent(itemID: itemID, activity: .speaking, occurredAt: practiceDay)]
+        let progress = LearningProgress(events: events, activities: activities, weakPoints: [point], now: now, calendar: calendar)
+        XCTAssertEqual(progress.totalReviews, 2)
+        XCTAssertEqual(progress.activeDays, 3)
+        XCTAssertEqual(progress.currentStreak, 3)
+        XCTAssertEqual(progress.masteredCount, 1)
+        XCTAssertEqual(point.mastery, 1)
+
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(point)) as? [String: Any])
+        legacy.removeValue(forKey: "registeredAt")
+        let restored = try JSONDecoder().decode(WeakPoint.self, from: JSONSerialization.data(withJSONObject: legacy))
+        XCTAssertEqual(restored.registeredAt, restored.updatedAt)
+    }
     @MainActor func testSQLiteRoundTripReviewHistoryAndDeletion() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }
@@ -38,16 +61,38 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         do {
             let store = try LearningStore(path: url.path)
             try store.save(item); try store.save(point)
-            _ = try store.review(point, grade: .easy, now: Date(timeIntervalSince1970: 0))
+            let first = try store.review(point, grade: .easy, now: Date(timeIntervalSince1970: 0))
+            _ = try store.review(first, grade: .good, now: Date(timeIntervalSince1970: 86_400))
+            try store.recordActivity(.listening, itemID: item.id, at: Date(timeIntervalSince1970: 123))
+            try store.recordActivity(.speaking, itemID: nil, at: Date(timeIntervalSince1970: 456))
         }
         let reopened = try LearningStore(path: url.path)
         XCTAssertEqual(try reopened.items(), [item])
-        XCTAssertEqual(try reopened.weakPoints().first?.reviews, 1)
-        XCTAssertEqual(try reopened.weakPoints().first?.intervalDays, 4)
+        XCTAssertEqual(try reopened.weakPoints().first?.reviews, 2)
+        XCTAssertEqual(try reopened.weakPoints().first?.intervalDays, 8)
+        XCTAssertEqual(try reopened.reviewHistory().count, 2)
+        XCTAssertEqual(try reopened.reviewHistory(weakPointID: point.id).map(\.grade), [.good, .easy])
+        XCTAssertEqual(try reopened.activityHistory().map(\.activity), [.speaking, .listening])
+        XCTAssertEqual(try reopened.activityHistory().last?.itemID, item.id)
+        XCTAssertNil(try reopened.activityHistory().first?.itemID)
         XCTAssertThrowsError(try reopened.save(WeakPoint(itemID: UUID(), text: "orphan", reason: .other)))
         try reopened.deleteAll()
         XCTAssertTrue(try reopened.items().isEmpty)
         XCTAssertTrue(try reopened.weakPoints().isEmpty)
+        XCTAssertTrue(try reopened.reviewHistory().isEmpty)
+        XCTAssertTrue(try reopened.activityHistory().isEmpty)
+    }
+    @MainActor func testLearningStoreAcceptsReplacementScheduler() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = try LearningStore(path: url.path, scheduler: FixedSevenDayScheduler())
+        let item = LearningItem(text: "Please call me back.", translation: "折り返し電話をください")
+        let point = WeakPoint(itemID: item.id, text: "call me back", reason: .listening)
+        try store.save(item); try store.save(point)
+        let now = Date(timeIntervalSince1970: 1_000)
+        let scheduled = try store.review(point, grade: .good, now: now)
+        XCTAssertEqual(scheduled.intervalDays, 7)
+        XCTAssertEqual(scheduled.algorithmVersion, 77)
     }
     func testGeneratedContentRejectsInvalidAnswer() throws {
         let data = Data(#"{"text":"Hello","translation":"こんにちは","choices":["a","b"],"answerIndex":4}"#.utf8)
@@ -60,6 +105,16 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         do { let _: Int = try await coordinator.withExclusiveModel { throw Failure.expected }; XCTFail() } catch {}
         let value = try await coordinator.withExclusiveModel { 42 }
         XCTAssertEqual(value, 42)
+    }
+}
+
+private struct FixedSevenDayScheduler: ReviewScheduling {
+    func schedule(_ point: WeakPoint, grade: ReviewGrade, now: Date) -> WeakPoint {
+        var result = point
+        result.reviews += 1; result.successes += 1; result.intervalDays = 7
+        result.algorithmVersion = 77; result.updatedAt = now
+        result.nextReviewAt = now.addingTimeInterval(7 * 86_400)
+        return result
     }
 }
 
