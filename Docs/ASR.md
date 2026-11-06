@@ -20,4 +20,4 @@ The model runs after recording completes. Recognition time excludes model load. 
 
 ## Verification limits
 
-GitHub CI compiles the iOS app and runs Package tests. iPhone verification covers each engine's model/permission path, microphone signal and format, transcript quality, model switching and repeat transcription, stop/cancel behavior, playback, and offline recognition. Batch recognition is sufficient for this phase; streaming/VAD, pronunciation scoring and audio enhancement remain later work.
+GitHub CI compiles the iOS app and runs Package tests. iPhone verification is still required for each engine's model/permission path, microphone signal and format, transcript quality, model switching and repeat transcription, stop/cancel behavior, playback, and offline recognition. Batch recognition is sufficient for this phase; streaming/VAD, pronunciation scoring and audio enhancement remain later work.

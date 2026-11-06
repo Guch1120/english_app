@@ -16,12 +16,13 @@ public struct LearningItem: Identifiable, Codable, Sendable, Equatable {
 public enum WeakReason: String, Codable, CaseIterable, Sendable {
     case listening = "聞き取れなかった", meaning = "意味がわからなかった", speaking = "発音に自信がない", remember = "覚えておきたい", other = "その他"
 }
-public enum ReviewGrade: String, CaseIterable, Sendable { case again = "もう一度", hard = "難しい", good = "普通", easy = "簡単" }
+public enum ReviewGrade: String, Codable, CaseIterable, Sendable { case again = "もう一度", hard = "難しい", good = "普通", easy = "簡単" }
 public struct WeakPoint: Identifiable, Codable, Sendable, Equatable {
     public let id: UUID
     public let itemID: UUID
     public var text: String
     public var reason: WeakReason
+    public var registeredAt: Date
     public var nextReviewAt: Date
     public var updatedAt: Date
     public var reviews: Int = 0
@@ -29,9 +30,84 @@ public struct WeakPoint: Identifiable, Codable, Sendable, Equatable {
     public var failures: Int = 0
     public var intervalDays: Double = 0
     public var algorithmVersion: Int = 1
+    public var mastery: Double? { reviews == 0 ? nil : Double(successes) / Double(reviews) }
     public init(id: UUID = UUID(), itemID: UUID, text: String, reason: WeakReason, now: Date = Date()) {
         self.id = id; self.itemID = itemID; self.text = text; self.reason = reason
-        self.nextReviewAt = now; self.updatedAt = now
+        self.registeredAt = now; self.nextReviewAt = now; self.updatedAt = now
+    }
+    private enum CodingKeys: String, CodingKey {
+        case id, itemID, text, reason, registeredAt, nextReviewAt, updatedAt, reviews, successes, failures, intervalDays, algorithmVersion
+    }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        itemID = try container.decode(UUID.self, forKey: .itemID)
+        text = try container.decode(String.self, forKey: .text)
+        reason = try container.decode(WeakReason.self, forKey: .reason)
+        nextReviewAt = try container.decode(Date.self, forKey: .nextReviewAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        registeredAt = try container.decodeIfPresent(Date.self, forKey: .registeredAt) ?? updatedAt
+        reviews = try container.decodeIfPresent(Int.self, forKey: .reviews) ?? 0
+        successes = try container.decodeIfPresent(Int.self, forKey: .successes) ?? 0
+        failures = try container.decodeIfPresent(Int.self, forKey: .failures) ?? 0
+        intervalDays = try container.decodeIfPresent(Double.self, forKey: .intervalDays) ?? 0
+        algorithmVersion = try container.decodeIfPresent(Int.self, forKey: .algorithmVersion) ?? 1
+    }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id); try container.encode(itemID, forKey: .itemID)
+        try container.encode(text, forKey: .text); try container.encode(reason, forKey: .reason)
+        try container.encode(registeredAt, forKey: .registeredAt); try container.encode(nextReviewAt, forKey: .nextReviewAt)
+        try container.encode(updatedAt, forKey: .updatedAt); try container.encode(reviews, forKey: .reviews)
+        try container.encode(successes, forKey: .successes); try container.encode(failures, forKey: .failures)
+        try container.encode(intervalDays, forKey: .intervalDays); try container.encode(algorithmVersion, forKey: .algorithmVersion)
+    }
+}
+public struct ReviewEvent: Identifiable, Codable, Sendable, Equatable {
+    public let id: UUID
+    public let weakPointID: UUID
+    public let grade: ReviewGrade
+    public let reviewedAt: Date
+    public let nextReviewAt: Date
+    public init(id: UUID = UUID(), weakPointID: UUID, grade: ReviewGrade, reviewedAt: Date, nextReviewAt: Date) {
+        self.id = id; self.weakPointID = weakPointID; self.grade = grade
+        self.reviewedAt = reviewedAt; self.nextReviewAt = nextReviewAt
+    }
+}
+public enum LearningActivity: String, Codable, CaseIterable, Sendable { case listening, speaking }
+public struct LearningActivityEvent: Identifiable, Codable, Sendable, Equatable {
+    public let id: UUID
+    public let itemID: UUID?
+    public let activity: LearningActivity
+    public let occurredAt: Date
+    public init(id: UUID = UUID(), itemID: UUID?, activity: LearningActivity, occurredAt: Date = Date()) {
+        self.id = id; self.itemID = itemID; self.activity = activity; self.occurredAt = occurredAt
+    }
+}
+public struct LearningProgress: Sendable, Equatable {
+    public let totalReviews: Int
+    public let activeDays: Int
+    public let currentStreak: Int
+    public let masteredCount: Int
+    public init(events: [ReviewEvent], activities: [LearningActivityEvent] = [], weakPoints: [WeakPoint], now: Date = Date(), calendar: Calendar = .current) {
+        totalReviews = events.count
+        let days = Set(events.map { calendar.startOfDay(for: $0.reviewedAt) } + activities.map { calendar.startOfDay(for: $0.occurredAt) })
+        activeDays = days.count
+        let today = calendar.startOfDay(for: now)
+        var streak = 0
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
+            currentStreak = 0
+            masteredCount = weakPoints.filter { ($0.mastery ?? 0) >= 0.8 && $0.reviews >= 3 }.count
+            return
+        }
+        var day = days.contains(today) ? today : yesterday
+        while days.contains(day) {
+            streak += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        currentStreak = streak
+        masteredCount = weakPoints.filter { ($0.mastery ?? 0) >= 0.8 && $0.reviews >= 3 }.count
     }
 }
 public protocol ReviewScheduling: Sendable {
