@@ -139,9 +139,11 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             guard let self else { return }
             busy = true
             defer { busy = false; operation = nil }
+            let startedAt = Date()
             let diagnosticModel: DiagnosticModel = selectedEngine == .parakeet ? .parakeet : .appleSpeech
             await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .started, thermalState: .current))
             guard await AVAudioApplication.requestRecordPermission() else {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 status = "マイクの使用が許可されていません。iPhoneの設定で許可してください。"
                 return
             }
@@ -162,10 +164,15 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 recording = true; status = "録音中です。英文を話したら停止してください。"
                 startMetering()
             } catch AppleSpeechASRError.permissionDenied {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 status = "Apple Speechの音声認識を許可してください。iPhoneの設定で変更できます。"
             } catch AppleSpeechASRError.offlineRecognitionUnavailable {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 status = "この端末ではApple Speechの端末内認識を利用できません。Parakeetを選択してください。"
-            } catch { self.error = "録音を開始できませんでした。" }
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "録音を開始できませんでした。"
+            }
         }
     }
 
