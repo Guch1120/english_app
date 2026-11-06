@@ -113,7 +113,7 @@ struct LessonView: View {
     let item: LearningItem
     @State private var showEnglish = false
     @State private var showTranslation = false
-    @State private var speed = 1.0
+    @AppStorage("listening-speed") private var speed = 1.0
     @State private var selected = ""
     @State private var reason = WeakReason.listening
     @State private var saved = false
@@ -135,9 +135,29 @@ struct LessonView: View {
                 if model.speech.selected != "apple" {
                     Toggle("生成音声を繰り返す", isOn: Binding(get: { model.speech.repeats }, set: { model.speech.repeats = $0 }))
                 }
-                Picker("読み上げ速度", selection: $speed) {
-                    Text("0.75×").tag(0.75); Text("1×").tag(1.0); Text("1.2×").tag(1.2)
-                }.onChange(of: speed) { _, value in model.speech.setRate(value) }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("読み上げ速度")
+                        Spacer()
+                        HStack(spacing: 0) {
+                            Text(speed, format: .number.precision(.fractionLength(2)))
+                            Text("×")
+                        }
+                        .monospacedDigit()
+                    }
+                    Slider(value: $speed, in: 0.5...1.5, step: 0.05)
+                        .accessibilityLabel("読み上げ速度")
+                        .accessibilityValue("\(speed.formatted(.number.precision(.fractionLength(2))))倍")
+                        .disabled(model.speech.busy)
+                    HStack {
+                        Text("0.50×")
+                        Spacer()
+                        Text("1.50×")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .onChange(of: speed) { _, value in model.speech.setRate(value) }
                 Toggle("英文を表示", isOn: $showEnglish)
                 if showEnglish { Text(item.text).font(.title3).textSelection(.enabled) }
                 Toggle("日本語訳を表示", isOn: $showTranslation)
