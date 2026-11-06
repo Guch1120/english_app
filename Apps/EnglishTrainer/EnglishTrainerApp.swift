@@ -297,8 +297,8 @@ struct SpeakingPreview: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if let metrics = model.reuse.lastMetrics {
-                    LabeledContent("RE-USE処理", value: "\(metrics.processingSeconds, specifier: "%.2f")秒 · RTF \(metrics.realTimeFactor, specifier: "%.3f")")
-                    LabeledContent("モデル読み込み", value: "\(metrics.modelLoadSeconds, specifier: "%.2f")秒")
+                    LabeledContent("RE-USE処理", value: "\(metrics.processingSeconds.formatted(.number.precision(.fractionLength(2))))秒 · RTF \(metrics.realTimeFactor.formatted(.number.precision(.fractionLength(3))))")
+                    LabeledContent("モデル読み込み", value: "\(metrics.modelLoadSeconds.formatted(.number.precision(.fractionLength(2))))秒")
                     if let memory = metrics.peakMemoryBytes {
                         LabeledContent("MLXピークメモリ", value: ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))
                     }
