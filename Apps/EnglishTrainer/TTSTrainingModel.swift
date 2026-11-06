@@ -20,7 +20,7 @@ import DeviceDiagnostics
     private let player = AudioFilePlayback()
     private var cache: TTSAudioCache?
     private var store: VerifiedModelStore?
-    private let coordinator = ModelRuntimeCoordinator()
+    private let coordinator = ModelRuntimeCoordinator.shared
     private var operation: Task<Void, Never>?
     private var historyURL: URL?
     init(speaker: any SpeechPlayback) {
@@ -170,6 +170,12 @@ import DeviceDiagnostics
                 try await cache?.clear(); cacheBytes = 0
                 if let historyURL, FileManager.default.fileExists(atPath: historyURL.path) {
                     try FileManager.default.removeItem(at: historyURL)
+                }
+                if let historyURL {
+                    let recordings = historyURL.deletingLastPathComponent().appendingPathComponent("Recordings")
+                    if FileManager.default.fileExists(atPath: recordings.path) {
+                        try FileManager.default.removeItem(at: recordings)
+                    }
                 }
                 measurements = []
                 UserDefaults.standard.removeObject(forKey: "tts-comparison-text")

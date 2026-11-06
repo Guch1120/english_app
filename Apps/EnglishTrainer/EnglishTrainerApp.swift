@@ -4,6 +4,7 @@ import TTSBackends
 import LearningCore
 import LearningPersistence
 import NeuralTTSBackends
+import NeuralASRBackends
 
 @main struct EnglishTrainerApp: App {
     var body: some Scene { WindowGroup { RootView() } }
@@ -15,8 +16,10 @@ import NeuralTTSBackends
     var ready = false
     private var store: LearningStore?
     let speech: TTSTrainingModel
+    let speaking: SpeakingTrainingModel
     init(playback: any SpeechPlayback) {
         self.speech = TTSTrainingModel(speaker: playback)
+        self.speaking = SpeakingTrainingModel()
         do {
             let folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
@@ -38,8 +41,8 @@ import NeuralTTSBackends
         do { try operation(store); try refresh() } catch { self.error = String(describing: error) }
     }
     func deleteAllLearningData() {
-        guard !speech.busy, let store else { return }
-        do { try store.deleteAll(); try refresh(); speech.clearPersonalData() }
+        guard !speech.busy, !speaking.busy, !speaking.recording, let store else { return }
+        do { try store.deleteAll(); try refresh(); speech.clearPersonalData(); speaking.deleteRecording() }
         catch { self.error = String(describing: error) }
     }
     func save(text: String, translation: String) {
@@ -68,10 +71,12 @@ struct RootView: View {
             NavigationStack { SettingsView(model: model) }.tabItem { Label("設定", systemImage: "gearshape") }
         }
         .tint(.teal)
-        .alert("処理できませんでした", isPresented: Binding(get: { model.error != nil || model.speech.error != nil }, set: { if !$0 { model.error = nil; model.speech.error = nil } })) {
-            Button("閉じる") { model.error = nil; model.speech.error = nil }
-        } message: { Text(model.error ?? model.speech.error ?? "") }
-        .onChange(of: scenePhase) { _, phase in if phase == .background { model.speech.cancelWork() } }
+        .alert("処理できませんでした", isPresented: Binding(get: { model.error != nil || model.speech.error != nil || model.speaking.error != nil }, set: { if !$0 { model.error = nil; model.speech.error = nil; model.speaking.error = nil } })) {
+            Button("閉じる") { model.error = nil; model.speech.error = nil; model.speaking.error = nil }
+        } message: { Text(model.error ?? model.speech.error ?? model.speaking.error ?? "") }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { model.speech.cancelWork(); model.speaking.handleBackground() }
+        }
     }
 }
 struct HomeView: View {
@@ -179,21 +184,66 @@ struct LessonView: View {
                 }
             }
             Section {
-                NavigationLink("文字起こし比較を試す") { SpeakingPreview(item: item) }
-                Text("Phase 1：録音・ASRは未接続です。比較画面は入力テキストで確認できます。").font(.caption).foregroundStyle(.secondary)
+                NavigationLink("スピーキング練習・文字起こし") { SpeakingPreview(item: item, model: model.speaking) }
             }
         }.navigationTitle("リスニング").onDisappear { model.stop() }
     }
 }
 struct SpeakingPreview: View {
     let item: LearningItem
-    @State private var recognized = ""
+    let model: SpeakingTrainingModel
+    @State private var confirmDownload = false
+    @State private var confirmModelRemoval = false
     var body: some View {
         Form {
             Section("お手本") { Text(item.text) }
-            Section("比較する文字起こし（手入力）") { TextField("認識結果を入力", text: $recognized, axis: .vertical) }
-            if !recognized.isEmpty {
-                let result = WordAlignment.compare(expected: item.text, recognized: recognized)
+            Section("Parakeet モデル") {
+                Text("\(ParakeetModel.title) · 約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file)) · \(ParakeetModel.license)")
+                    .font(.caption)
+                Text("初回にモデルをダウンロードします。音声は端末内で処理し、送信しません。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Link("モデルの出典・ライセンス（CC BY 4.0）", destination: URL(string: "https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml")!)
+                    .font(.caption)
+                if model.installed {
+                    Label("モデルのファイルを検証済み", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    Button("モデルを削除", role: .destructive) { confirmModelRemoval = true }
+                        .disabled(model.busy || model.recording)
+                } else {
+                    Button("モデルをダウンロード") { confirmDownload = true }.disabled(model.busy)
+                }
+                if model.busy {
+                    if model.progress > 0 { ProgressView(value: model.progress) } else { ProgressView() }
+                    Text(model.status).font(.caption)
+                    Button("処理を中断") { model.cancel() }
+                }
+            }
+            Section("録音して話す") {
+                if model.recording {
+                    Label("録音中 · 発話後に停止してください", systemImage: "record.circle").foregroundStyle(.red)
+                    Button("録音を停止", systemImage: "stop.circle.fill") { model.stopRecording() }
+                } else {
+                    Button("録音を開始", systemImage: "mic.circle.fill") { model.startRecording() }
+                        .disabled(!model.installed || model.busy)
+                }
+                if model.busy { Text(model.status).font(.caption) }
+                if model.audioDuration > 0 {
+                    LabeledContent("録音時間", value: model.audioDuration.formatted(.number.precision(.fractionLength(1))) + "秒")
+                    Button("もう一度文字起こし", systemImage: "text.magnifyingglass") { model.transcribe() }
+                        .disabled(model.busy || model.recording || !model.installed)
+                    Button("録音を削除", systemImage: "trash", role: .destructive) { model.deleteRecording() }
+                        .disabled(model.busy || model.recording)
+                }
+                if !model.status.isEmpty && !model.busy { Text(model.status).font(.caption) }
+            }
+            if !model.transcript.isEmpty {
+                let result = WordAlignment.compare(expected: item.text, recognized: model.transcript)
+                Section("文字起こし") {
+                    Text(model.transcript).textSelection(.enabled)
+                    if let seconds = model.processingSeconds {
+                        Text("認識時間：\(seconds, specifier: "%.2f")秒 · 録音時間：\(model.audioDuration, specifier: "%.1f")秒")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 Section("単語の差分") {
                     ForEach(Array(result.tokens.enumerated()), id: \.offset) { _, token in
                         HStack {
@@ -206,7 +256,21 @@ struct SpeakingPreview: View {
                     Text("文字起こしの一致度です。発音の正確さを採点するものではありません。").font(.caption)
                 }
             }
-        }.navigationTitle("文字起こし比較")
+            Section {
+                Text("一致度は文字起こしの比較です。発音の正確さを採点するものではありません。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("スピーキング練習")
+        .confirmationDialog("Parakeetモデルを準備しますか？", isPresented: $confirmDownload, titleVisibility: .visible) {
+            Button("ダウンロード開始") { model.prepareModel() }
+        } message: {
+            Text("約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file) )を端末にダウンロードし、SHA-256で検証します。録音や教材文は送信しません。")
+        }
+        .confirmationDialog("保存したParakeetモデルを削除しますか？", isPresented: $confirmModelRemoval, titleVisibility: .visible) {
+            Button("モデルを削除", role: .destructive) { model.removeModel() }
+        }
+        .onDisappear { if model.recording { model.stopRecording() } }
     }
 }
 struct ReviewView: View {
@@ -253,7 +317,7 @@ struct SettingsView: View {
                 LabeledContent("TTS", value: NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語")
                 NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
                 NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
-                Text("Kokoro / Pocket TTSは検証用です。Parakeet / Gemma / RE-USE は未接続です。")
+                Text("Kokoro / Pocket TTS と Parakeet ASR を利用できます。Gemma / RE-USE は未接続です。")
                 Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
             }
             Section("端末") {
@@ -262,11 +326,12 @@ struct SettingsView: View {
                 LabeledContent("発熱状態", value: String(describing: ProcessInfo.processInfo.thermalState))
             }
             Section("データ") {
-                Text("学習データは端末内SQLiteへ保存します。OSバックアップの対象です。録音・クラウド同期はまだありません。")
-                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }.disabled(model.speech.busy)
+                Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
+                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
+                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording)
             }
         }.navigationTitle("設定")
-        .confirmationDialog("教材・復習・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
+        .confirmationDialog("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("削除", role: .destructive) { model.deleteAllLearningData() }
         }
     }
