@@ -35,6 +35,12 @@ if [ ! -f "$app/Frameworks/CLiteRTLM.framework/CLiteRTLM" ]; then
   echo 'CLiteRTLM.framework is missing from the archived app; the TestFlight build would crash at launch.' >&2
   exit 1
 fi
+if otool -L "$app/EnglishTrainer" | awk 'NR > 1 && $1 ~ /^@rpath\/[^ ]+\.framework\/[^/]+$/ { found = 1 } END { exit !found }'; then
+  if ! otool -l "$app/EnglishTrainer" | grep -Fq 'path @executable_path/Frameworks '; then
+    echo 'The archived app has @rpath framework dependencies but no @executable_path/Frameworks runpath.' >&2
+    exit 1
+  fi
+fi
 while IFS= read -r dependency; do
   relative_framework=${dependency#@rpath/}
   if [ ! -f "$app/Frameworks/$relative_framework" ]; then
