@@ -57,8 +57,8 @@ public actor LiteRTLLMService: ManagedLLMService {
         let configuration = ConversationConfig(
             systemMessage: Message("You create original English lessons for Japanese learners. Return only the requested JSON object.", role: .system),
             samplerConfig: try SamplerConfig(topK: 40, topP: 0.9, temperature: 0.2),
-            enableResponseFormat: false,
-            thinkingConfig: ThinkingConfig(enableThinking: false, thinkingTokenBudget: 0)
+            thinkingConfig: ThinkingConfig(enableThinking: false, thinkingTokenBudget: 0),
+            enableResponseFormat: false
         )
         let active = try await engine.createConversation(with: configuration)
         conversation = active
