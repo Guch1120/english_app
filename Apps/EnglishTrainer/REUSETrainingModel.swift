@@ -155,7 +155,7 @@ struct REUSESettingsView: View {
                 Text("NVIDIA NemotronLabs RE-USE · 約\(ByteCountFormatter.string(fromByteCount: REUSEAudioEnhancement.modelSizeBytes, countStyle: .file))")
                 Text("初回ダウンロード後はオフラインで処理できます。端末にモデルを読み込むまで、推論メモリは使用しません。初回処理ではCore MLキャッシュ用に追加容量が必要です。")
                     .font(.caption).foregroundStyle(.secondary)
-                if let storage {
+                if let storage = model.storage {
                     LabeledContent("保存済みモデル", value: ByteCountFormatter.string(fromByteCount: storage.storedBytes, countStyle: .file))
                     LabeledContent("コンパイルキャッシュ", value: ByteCountFormatter.string(fromByteCount: storage.compiledBytes, countStyle: .file))
                 }
