@@ -1,6 +1,7 @@
 import Foundation
 import CSQLite
 import LearningCore
+import LLMCore
 
 public enum StoreError: Error { case sqlite(String), corruptRecord }
 /// Confined to the UI actor; statements are always bound, never interpolated.
@@ -33,8 +34,11 @@ public enum StoreError: Error { case sqlite(String), corruptRecord }
             try execute("CREATE TABLE IF NOT EXISTS review_history(id TEXT PRIMARY KEY, weak_id TEXT NOT NULL REFERENCES weak_points(id) ON DELETE CASCADE, grade TEXT NOT NULL, reviewed_at REAL NOT NULL, next_at REAL NOT NULL)")
             try execute("CREATE TABLE IF NOT EXISTS study_history(id TEXT PRIMARY KEY, item_id TEXT REFERENCES learning_items(id) ON DELETE CASCADE, activity TEXT NOT NULL, occurred_at REAL NOT NULL)")
             try execute("CREATE INDEX IF NOT EXISTS study_history_by_date ON study_history(occurred_at DESC)")
+            try execute("CREATE TABLE IF NOT EXISTS generated_content(id TEXT PRIMARY KEY, model_id TEXT NOT NULL, prompt_version TEXT NOT NULL, validation_status TEXT NOT NULL, generated_at REAL NOT NULL, payload TEXT NOT NULL)")
+            try execute("CREATE INDEX IF NOT EXISTS generated_content_by_date ON generated_content(generated_at DESC)")
             try execute("INSERT OR IGNORE INTO schema_migrations VALUES(1)")
             try execute("INSERT OR IGNORE INTO schema_migrations VALUES(2)")
+            try execute("INSERT OR IGNORE INTO schema_migrations VALUES(3)")
             try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); sqlite3_close(db); db = nil; throw error }
     }
@@ -125,6 +129,21 @@ public enum StoreError: Error { case sqlite(String), corruptRecord }
             ))
         }
     }
+    public func save(_ lesson: GeneratedLesson) throws {
+        let item = try lesson.validated()
+        try execute("BEGIN IMMEDIATE")
+        do {
+            try save(item)
+            try execute("INSERT INTO generated_content VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload", values: [
+                lesson.id.uuidString, lesson.modelID, lesson.promptVersion, "valid",
+                String(lesson.generatedAt.timeIntervalSince1970), try payload(lesson)
+            ])
+            try execute("COMMIT")
+        } catch { try? execute("ROLLBACK"); throw error }
+    }
+    public func generatedLessons() throws -> [GeneratedLesson] {
+        try load("SELECT payload FROM generated_content ORDER BY generated_at DESC")
+    }
     private func load<T: Decodable>(_ sql: String) throws -> [T] {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { throw failure() }
@@ -152,7 +171,7 @@ public enum StoreError: Error { case sqlite(String), corruptRecord }
     public func deleteAll() throws {
         try execute("BEGIN IMMEDIATE")
         do {
-            try execute("DELETE FROM review_history"); try execute("DELETE FROM study_history"); try execute("DELETE FROM weak_points"); try execute("DELETE FROM learning_items"); try execute("COMMIT")
+            try execute("DELETE FROM review_history"); try execute("DELETE FROM study_history"); try execute("DELETE FROM generated_content"); try execute("DELETE FROM weak_points"); try execute("DELETE FROM learning_items"); try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); throw error }
     }
 }

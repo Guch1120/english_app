@@ -61,7 +61,7 @@ jobs:
         run: >-
           xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer
           -destination 'generic/platform=iOS Simulator'
-          -derivedDataPath build CODE_SIGNING_ALLOWED=NO build analyze
+          -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build analyze
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
       - name: Keep public-sentence TTS smoke samples

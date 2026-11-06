@@ -8,24 +8,35 @@ let neuralPackages: [Package.Dependency] = [.package(path: "../../Vendor/FluidAu
 let neuralDependencies: [Target.Dependency] = ["SpeechCore", "ModelManagement", .product(name: "FluidAudio", package: "FluidAudio")]
 #endif
 let asrDependencies: [Target.Dependency] = neuralDependencies
+#if os(Linux)
+let litertPackages: [Package.Dependency] = []
+let litertDependencies: [Target.Dependency] = ["LLMCore", "ModelManagement", "DeviceDiagnostics"]
+#else
+let litertPackages: [Package.Dependency] = [.package(url: "https://github.com/google-ai-edge/LiteRT-LM.git", exact: "0.19.1")]
+let litertDependencies: [Target.Dependency] = [
+    "LLMCore", "ModelManagement", "DeviceDiagnostics",
+    .product(name: "LiteRTLM", package: "LiteRT-LM", condition: .when(platforms: [.iOS]))
+]
+#endif
 let package = Package(
     name: "VoiceLearning",
     platforms: [.iOS(.v18), .macOS(.v14)],
-    products: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "NeuralASRBackends", "LLMCore", "ModelManagement", "DeviceDiagnostics"].map {
+    products: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "NeuralASRBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend", "DeviceDiagnostics"].map {
         .library(name: $0, targets: [$0])
     },
-    dependencies: neuralPackages,
+    dependencies: neuralPackages + litertPackages,
     targets: [
         .systemLibrary(name: "CSQLite", pkgConfig: "sqlite3", providers: [.apt(["libsqlite3-dev"])]),
         .target(name: "LearningCore"),
-        .target(name: "LearningPersistence", dependencies: ["LearningCore", "CSQLite"]),
+        .target(name: "LearningPersistence", dependencies: ["LearningCore", "LLMCore", "CSQLite"]),
         .target(name: "SpeechCore"),
         .target(name: "TTSBackends", dependencies: ["SpeechCore"]),
         .target(name: "NeuralTTSBackends", dependencies: neuralDependencies, resources: [.process("Resources")]),
         .target(name: "NeuralASRBackends", dependencies: asrDependencies, resources: [.process("Resources")]),
         .target(name: "LLMCore", dependencies: ["LearningCore"]),
         .target(name: "ModelManagement"),
+        .target(name: "LiteRTLLMBackend", dependencies: litertDependencies),
         .target(name: "DeviceDiagnostics"),
-        .testTarget(name: "VoiceLearningTests", dependencies: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "LLMCore", "ModelManagement"])
+        .testTarget(name: "VoiceLearningTests", dependencies: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend"])
     ]
 )

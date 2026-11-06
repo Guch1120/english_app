@@ -95,9 +95,51 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(scheduled.algorithmVersion, 77)
     }
     func testGeneratedContentRejectsInvalidAnswer() throws {
-        let data = Data(#"{"text":"Hello","translation":"こんにちは","choices":["a","b"],"answerIndex":4}"#.utf8)
+        let data = Data(#"{"kind":"conversation","difficulty":2,"text":"Hello","translation":"こんにちは","targetPhrases":["hello"],"question":"Which greeting?","choices":["a","b","c","d"],"answerIndex":4,"explanation":"greeting"}"#.utf8)
         let lesson = try JSONDecoder().decode(GeneratedLesson.self, from: data)
         XCTAssertThrowsError(try lesson.validated())
+    }
+    func testGeneratedLessonValidatesAndRoundTripsWithMetadata() throws {
+        let lesson = GeneratedLesson(kind: "conversation", difficulty: 2, text: "Could you confirm the booking?",
+            translation: "予約を確認していただけますか？", targetPhrases: ["confirm the booking"],
+            question: "What should be confirmed?", choices: ["A booking", "A payment", "A report", "A schedule"],
+            answerIndex: 0, explanation: "Confirm the booking means to check the reservation.", modelID: "gemma-test")
+        XCTAssertEqual(try lesson.validated().text, lesson.text)
+        let restored = try JSONDecoder().decode(GeneratedLesson.self, from: JSONEncoder().encode(lesson))
+        XCTAssertEqual(restored.id, lesson.id)
+        XCTAssertEqual(restored.kind, lesson.kind)
+        XCTAssertEqual(restored.choices, lesson.choices)
+        XCTAssertEqual(restored.modelID, lesson.modelID)
+        XCTAssertEqual(restored.generatedAt.timeIntervalSince1970, lesson.generatedAt.timeIntervalSince1970, accuracy: 0.001)
+    }
+    func testLessonGeneratorProducesValidatedMockLesson() async throws {
+        let generator = LessonGenerator(service: MockLLM())
+        let lesson = try await generator.generate(LessonGenerationRequest(topic: "hotel reservation", difficulty: 2))
+        XCTAssertEqual(lesson.choices.count, 4)
+        XCTAssertEqual(lesson.targetPhrases, ["confirm your reservation"])
+        XCTAssertEqual(try lesson.validated().translation, "金曜日までに予約を確認してください。")
+    }
+    func testGenerationRequestRejectsOversizedPromptInput() {
+        XCTAssertThrowsError(try LessonGenerationRequest(topic: String(repeating: "x", count: 121), difficulty: 2).prompt())
+        XCTAssertThrowsError(try LessonGenerationRequest(topic: "meeting", difficulty: 6).prompt())
+    }
+    @MainActor func testGeneratedLessonStorePersistsLessonAndLearningItemAtomically() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let lesson = GeneratedLesson(kind: "conversation", difficulty: 2, text: "Please confirm the booking.",
+            translation: "予約を確認してください。", targetPhrases: ["confirm the booking"],
+            question: "What should be confirmed?", choices: ["The booking", "A payment", "A report", "A schedule"],
+            answerIndex: 0, explanation: "The reservation should be checked.", modelID: "gemma-test")
+        let store = try LearningStore(path: url.path)
+        try store.save(lesson)
+        let restored = try XCTUnwrap(store.generatedLessons().first)
+        XCTAssertEqual(restored.id, lesson.id)
+        XCTAssertEqual(restored.text, lesson.text)
+        XCTAssertEqual(restored.modelID, lesson.modelID)
+        XCTAssertEqual(restored.generatedAt.timeIntervalSince1970, lesson.generatedAt.timeIntervalSince1970, accuracy: 0.001)
+        XCTAssertEqual(try store.items().map(\.id), [lesson.id])
+        try store.deleteAll()
+        XCTAssertTrue(try store.generatedLessons().isEmpty)
     }
     func testCoordinatorReleasesAfterFailure() async throws {
         let coordinator = ModelRuntimeCoordinator()
