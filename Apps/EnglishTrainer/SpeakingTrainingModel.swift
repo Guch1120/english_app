@@ -94,7 +94,7 @@ import NeuralASRBackends
                 try session.setCategory(.record, mode: .measurement)
                 try session.setActive(true)
                 try? FileManager.default.removeItem(at: recordingURL)
-                guard recorder.start(url: recordingURL) else { throw ParakeetASRError.invalidAudio }
+                guard try recorder.start(url: recordingURL) else { throw ParakeetASRError.invalidAudio }
                 transcript = ""; processingSeconds = nil; audioDuration = 0
                 recording = true; status = "録音中です。英文を話したら停止してください。"
             } catch { self.error = "録音を開始できませんでした。" }
@@ -126,12 +126,13 @@ import NeuralASRBackends
                 let directory = try await store.directory(manifest)
                     .appendingPathComponent("Models").appendingPathComponent(storageFolder)
                 let backend = NeuralASRRuntime.backend(directory: directory)
+                let duration = audioDuration
                 let recognition = try await coordinator.withExclusiveModel { [backend] in
                     try await backend.load()
                     do {
                         try Task.checkCancellation()
                         let start = ContinuousClock().now
-                        let audio = AudioAsset(url: recordingURL, duration: audioDuration, sampleRate: 16_000)
+                        let audio = AudioAsset(url: recordingURL, duration: duration, sampleRate: 16_000)
                         let result = try await backend.transcribe(audio)
                         let duration = start.duration(to: ContinuousClock().now).components
                         await backend.unload()
@@ -152,7 +153,7 @@ import NeuralASRBackends
         do {
             if FileManager.default.fileExists(atPath: recordingURL.path) { try FileManager.default.removeItem(at: recordingURL) }
             transcript = ""; audioDuration = 0; processingSeconds = nil; status = "録音を削除しました"
-        } catch { error = "録音を削除できませんでした。" }
+        } catch { self.error = "録音を削除できませんでした。" }
     }
 
     func handleBackground() {
