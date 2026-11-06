@@ -1,0 +1,14 @@
+Kokoro-82M: original model by hexgrad, Apache-2.0. Core ML conversion by FluidInference.
+https://huggingface.co/hexgrad/Kokoro-82M
+https://huggingface.co/FluidInference/kokoro-82m-coreml
+
+Pocket TTS: original model by Kyutai, weights licensed CC BY 4.0. Core ML conversion by FluidInference.
+Alba preset: voice of Alba MacKenna, licensed CC BY 4.0. Only this preset is offered.
+https://huggingface.co/kyutai/pocket-tts
+https://huggingface.co/kyutai/tts-voices
+https://huggingface.co/FluidInference/pocket-tts-coreml
+https://creativecommons.org/licenses/by/4.0/
+
+FluidAudio source v0.18.2: Apache-2.0. Original source is unchanged; see Vendor/FluidAudio/UPSTREAM.json.
+Unused LuxTTS G2P resources are excluded from the SDK package and application. Their license note is retained here for context; the GPL/CC-BY-SA data itself is not redistributed in this app.
+Additional SDK notices follow.

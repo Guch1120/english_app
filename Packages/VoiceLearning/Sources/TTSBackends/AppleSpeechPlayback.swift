@@ -15,6 +15,8 @@ public enum AppleSpeechError: Error { case englishVoiceUnavailable }
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * Float(min(1.5, max(0.5, speed)))
         synthesizer.speak(utterance)
     }
+    public func pause() { synthesizer.pauseSpeaking(at: .word) }
+    public func resume() { synthesizer.continueSpeaking() }
     public func stop() { synthesizer.stopSpeaking(at: .immediate) }
 }
 #endif

@@ -29,4 +29,6 @@ public actor MockASR: ASRService {
 @MainActor public protocol SpeechPlayback: AnyObject {
     func speak(_ text: String, speed: Double) throws
     func stop()
+    func pause()
+    func resume()
 }

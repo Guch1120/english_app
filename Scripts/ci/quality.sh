@@ -8,6 +8,7 @@ shellcheck --external-sources "${shell_files[@]}"
 actionlint -color -shellcheck=shellcheck
 python3 -m unittest discover -s Scripts/ci -p 'test_*.py'
 python3 Scripts/ci/policy.py
+python3 Scripts/ci/vendor.py
 # Redact findings rather than printing discovered credentials in public CI logs.
 gitleaks git --no-banner --redact=100 --log-level warn .
 printf 'PASS: shellcheck, actionlint, policy tests, CI policy, redacted Git history scan\n'
