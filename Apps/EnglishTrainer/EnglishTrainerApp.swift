@@ -5,6 +5,7 @@ import LearningCore
 import LearningPersistence
 import NeuralTTSBackends
 import NeuralASRBackends
+import LLMCore
 
 @main struct EnglishTrainerApp: App {
     var body: some Scene { WindowGroup { RootView() } }
@@ -14,14 +15,17 @@ import NeuralASRBackends
     var points: [WeakPoint] = []
     var reviewHistory: [ReviewEvent] = []
     var activityHistory: [LearningActivityEvent] = []
+    var generatedLessons: [GeneratedLesson] = []
     var error: String?
     var ready = false
     private var store: LearningStore?
     let speech: TTSTrainingModel
     let speaking: SpeakingTrainingModel
+    let llm: LLMTrainingModel
     init(playback: any SpeechPlayback) {
         self.speech = TTSTrainingModel(speaker: playback)
         self.speaking = SpeakingTrainingModel()
+        self.llm = LLMTrainingModel()
         do {
             let folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
@@ -42,6 +46,7 @@ import NeuralASRBackends
         items = try store!.items(); points = try store!.weakPoints()
         reviewHistory = try store!.reviewHistory()
         activityHistory = try store!.activityHistory()
+        generatedLessons = try store!.generatedLessons()
     }
     func item(for point: WeakPoint) -> LearningItem? { items.first { $0.id == point.itemID } }
     func perform(_ operation: (LearningStore) throws -> Void) {
@@ -70,6 +75,9 @@ import NeuralASRBackends
     func delete(_ point: WeakPoint) { perform { try $0.delete(point) } }
     func recordActivity(_ activity: LearningActivity, item: LearningItem) {
         perform { try $0.recordActivity(activity, itemID: item.id) }
+    }
+    func saveGenerated(_ lesson: GeneratedLesson) {
+        perform { try $0.save(lesson) }
     }
     func speak(_ text: String, speed: Double, item: LearningItem? = nil) {
         if let item { recordActivity(.listening, item: item) }
@@ -461,6 +469,9 @@ struct SettingsView: View {
                 LabeledContent("TTS", value: NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語")
                 NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
                 NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
+                NavigationLink("LLM教材生成・モデル管理") {
+                    LLMLessonGenerationView(model: model.llm, lessons: model.generatedLessons, save: model.saveGenerated)
+                }
                 Text("Kokoro / Pocket TTS と Parakeet ASR を利用できます。Gemma / RE-USE は未接続です。")
                 Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
             }
