@@ -1,0 +1,10 @@
+.research/
+.build/
+.swiftpm/
+.DS_Store
+DerivedData/
+build/
+*.ipa
+*.p12
+*.mobileprovision
+.env

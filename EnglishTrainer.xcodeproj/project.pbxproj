@@ -1,0 +1,30 @@
+// !$*UTF8*$!
+{ archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+000000000000000000000001 = { isa = PBXProject; attributes = { LastUpgradeCheck = 1600; }; buildConfigurationList = 000000000000000000000014; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en, ja, Base); mainGroup = 000000000000000000000002; productRefGroup = 000000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (000000000000000000000004); packageReferences = (00000000000000000000000A); };
+000000000000000000000002 = { isa = PBXGroup; children = (000000000000000000000005, 00000000000000000000001E, 000000000000000000000003); sourceTree = "<group>"; };
+000000000000000000000003 = { isa = PBXGroup; children = (000000000000000000000006); name = Products; sourceTree = "<group>"; };
+000000000000000000000004 = { isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000015; buildPhases = (000000000000000000000007, 000000000000000000000008, 000000000000000000000020); buildRules = (); dependencies = (); name = EnglishTrainer; productName = EnglishTrainer; productReference = 000000000000000000000006; productType = "com.apple.product-type.application"; packageProductDependencies = (00000000000000000000000B, 00000000000000000000000C, 000000000000000000000028, 00000000000000000000002A); };
+000000000000000000000005 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Apps/EnglishTrainer/EnglishTrainerApp.swift; sourceTree = "<group>"; };
+000000000000000000000006 = { isa = PBXFileReference; explicitFileType = wrapper.application; path = EnglishTrainer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+000000000000000000000007 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000009); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000008 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (00000000000000000000000D, 00000000000000000000000E, 000000000000000000000029, 00000000000000000000002B); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000009 = { isa = PBXBuildFile; fileRef = 000000000000000000000005; };
+00000000000000000000000A = { isa = XCLocalSwiftPackageReference; relativePath = Packages/VoiceLearning; };
+00000000000000000000000B = { isa = XCSwiftPackageProductDependency; package = 00000000000000000000000A; productName = LearningCore; };
+00000000000000000000000D = { isa = PBXBuildFile; productRef = 00000000000000000000000B; };
+00000000000000000000000C = { isa = XCSwiftPackageProductDependency; package = 00000000000000000000000A; productName = LearningPersistence; };
+00000000000000000000000E = { isa = PBXBuildFile; productRef = 00000000000000000000000C; };
+000000000000000000000014 = { isa = XCConfigurationList; buildConfigurations = (000000000000000000000016, 000000000000000000000017); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+000000000000000000000015 = { isa = XCConfigurationList; buildConfigurations = (000000000000000000000018, 000000000000000000000019); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+000000000000000000000016 = { isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+000000000000000000000017 = { isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; }; name = Release; };
+000000000000000000000018 = { isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; PRODUCT_BUNDLE_IDENTIFIER = jp.guch1120.EnglishTrainer; PRODUCT_NAME = "$(TARGET_NAME)"; INFOPLIST_FILE = Apps/EnglishTrainer/Info.plist; CURRENT_PROJECT_VERSION = 1; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Manual; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+000000000000000000000019 = { isa = XCBuildConfiguration; buildSettings = { SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; PRODUCT_BUNDLE_IDENTIFIER = jp.guch1120.EnglishTrainer; PRODUCT_NAME = "$(TARGET_NAME)"; INFOPLIST_FILE = Apps/EnglishTrainer/Info.plist; CURRENT_PROJECT_VERSION = 1; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Manual; }; name = Release; };
+00000000000000000000001E = { isa = PBXFileReference; lastKnownFileType = text.xml; path = Apps/EnglishTrainer/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+00000000000000000000001F = { isa = PBXBuildFile; fileRef = 00000000000000000000001E; };
+000000000000000000000020 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (00000000000000000000001F); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000028 = { isa = XCSwiftPackageProductDependency; package = 00000000000000000000000A; productName = SpeechCore; };
+000000000000000000000029 = { isa = PBXBuildFile; productRef = 000000000000000000000028; };
+00000000000000000000002A = { isa = XCSwiftPackageProductDependency; package = 00000000000000000000000A; productName = TTSBackends; };
+00000000000000000000002B = { isa = PBXBuildFile; productRef = 00000000000000000000002A; };
+}; rootObject = 000000000000000000000001; }
