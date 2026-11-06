@@ -61,6 +61,7 @@ jobs:
         run: >-
           xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer
           -destination 'generic/platform=iOS Simulator'
+          -arch arm64
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build analyze
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
