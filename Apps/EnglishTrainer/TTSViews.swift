@@ -27,7 +27,7 @@ struct TTSModelsView: View {
                 ForEach(NeuralVoice.allCases) { voice in
                     VStack(alignment: .leading, spacing: 10) {
                         Text(voice.title).font(.headline)
-                        Text("米国英語・話者：" + voice.speaker).font(.subheadline)
+                        Text("英語・話者：" + voice.speaker).font(.subheadline)
                         Text(voice.license).font(.caption).foregroundStyle(.secondary)
                         if let manifest = try? voice.manifest() {
                             Text("初回取得：約" + ByteCountFormatter.string(fromByteCount: manifest.sizeBytes, countStyle: .file)).font(.caption)

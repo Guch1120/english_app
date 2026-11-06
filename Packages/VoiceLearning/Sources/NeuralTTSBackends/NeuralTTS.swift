@@ -78,7 +78,19 @@ public actor FluidTTSBackend: TTSService {
     public func load() async throws {
         cancelled = false; try Task.checkCancellation()
         if voice == .kokoro {
-            let manager = KokoroAneManager(directory: directory.appendingPathComponent("Models"))
+            // FluidAudio keeps the ANE chain and shared English frontend in separate
+            // repository folders. Both are copied only from the verified manifest tree.
+            let models = directory.appendingPathComponent("Models")
+            let frontend = models.appendingPathComponent("kokoro")
+            try FileManager.default.createDirectory(at: frontend, withIntermediateDirectories: true)
+            for name in ["G2PEncoder.mlmodelc", "G2PDecoder.mlmodelc", "g2p_vocab.json", "us_lexicon_cache.json"] {
+                let destination = frontend.appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: destination.path) {
+                    try FileManager.default.removeItem(at: destination)
+                }
+                try FileManager.default.copyItem(at: models.appendingPathComponent("kokoro-82m-coreml").appendingPathComponent(name), to: destination)
+            }
+            let manager = KokoroAneManager(directory: models)
             kokoro = manager
             try await manager.initialize()
         } else {
