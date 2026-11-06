@@ -10,16 +10,18 @@ public struct ModelManifest: Codable, Sendable {
     public let id: String
     public let repository: String
     public let revision: String
+    public let storageFolder: String?
     public let files: [ModelFile]
     public var sizeBytes: Int64 { files.reduce(0) { $0 + $1.size } }
-    public init(id: String, repository: String, revision: String, files: [ModelFile]) {
-        self.id = id; self.repository = repository; self.revision = revision; self.files = files
+    public init(id: String, repository: String, revision: String, files: [ModelFile], storageFolder: String? = nil) {
+        self.id = id; self.repository = repository; self.revision = revision; self.files = files; self.storageFolder = storageFolder
     }
     public func validate() throws {
         func matches(_ text: String, _ pattern: String) -> Bool { text.range(of: pattern, options: .regularExpression) != nil }
         guard matches(id,"^[a-z0-9-]+$"), matches(repository,"^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$"),
               matches(revision,"^[a-f0-9]{40}$"), !files.isEmpty,
               Set(files.map(\.path)).count == files.count else { throw ModelInstallError.invalidManifest }
+        if let storageFolder, !matches(storageFolder,"^[A-Za-z0-9][A-Za-z0-9_-]*$") { throw ModelInstallError.invalidManifest }
         for file in files {
             let components = file.path.split(separator: "/", omittingEmptySubsequences: false)
             guard file.size > 0, matches(file.sha256,"^[a-f0-9]{64}$"), !file.path.hasPrefix("/"),
@@ -52,7 +54,7 @@ public actor VerifiedModelStore {
         return root.appendingPathComponent(manifest.id + "-" + manifest.revision)
     }
     private func localURL(_ file: ModelFile, manifest: ModelManifest, directory: URL) -> URL {
-        directory.appendingPathComponent("Models").appendingPathComponent(String(manifest.repository.split(separator: "/").last!)).appendingPathComponent(file.path)
+        directory.appendingPathComponent("Models").appendingPathComponent(manifest.storageFolder ?? String(manifest.repository.split(separator: "/").last!)).appendingPathComponent(file.path)
     }
     private func valid(_ file: ModelFile, manifest: ModelManifest, in directory: URL) throws -> Bool {
         let url = localURL(file, manifest: manifest, directory: directory)

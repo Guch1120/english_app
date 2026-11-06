@@ -25,6 +25,7 @@ def build(engine,repo,entries):
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as workers:
         files=sorted(workers.map(record,entries),key=lambda f:f['path'])
     manifest={'id':engine,'repository':repo,'revision':revision,'files':files}
+    if engine == 'pocket': manifest['storageFolder']='pocket-tts'
     ROOT.mkdir(parents=True,exist_ok=True)
     (ROOT/f'{engine}.json').write_text(json.dumps(manifest,indent=2)+'\n')
     print(engine,len(files),'files',sum(f['size'] for f in files),'bytes')

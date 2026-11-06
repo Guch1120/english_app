@@ -113,5 +113,6 @@
       "sha256": "c93d182f9ad8c1042ec8302093aabb4e310d76616932dd12720e03b5d07f7c64",
       "size": 41768256
     }
-  ]
+  ],
+  "storageFolder": "pocket-tts"
 }

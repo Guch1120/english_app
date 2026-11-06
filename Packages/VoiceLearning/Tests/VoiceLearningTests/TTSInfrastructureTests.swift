@@ -60,6 +60,7 @@ final class TTSInfrastructureTests: XCTestCase, @unchecked Sendable {
             }
         }
         let pocket = try NeuralVoice.pocket.manifest()
+        XCTAssertEqual(pocket.storageFolder, "pocket-tts")
         XCTAssertEqual(pocket.files.filter { $0.path.hasSuffix(".safetensors") }.map(\.path),["v2.1/english/constants_bin/alba.safetensors"])
     }
     func testUntrustedManifestCannotEscapeStorageOrChooseAnotherHost() {
@@ -67,6 +68,13 @@ final class TTSInfrastructureTests: XCTestCase, @unchecked Sendable {
             let manifest = ModelManifest(id:"test",repository:"a/b",revision:String(repeating:"a",count:40),
                                          files:[ModelFile(path:path,sha256:String(repeating:"b",count:64),size:1)])
             XCTAssertThrowsError(try manifest.validate(),path)
+        }
+    }
+    func testStorageFolderCannotEscapeModelRoot() {
+        for folder in ["..", "../escape", "/absolute", "x/y", "x%2fy", "x\\y"] {
+            let manifest = ModelManifest(id: "test", repository: "a/b", revision: String(repeating: "a", count: 40),
+                files: [ModelFile(path: "model.bin", sha256: String(repeating: "b", count: 64), size: 1)], storageFolder: folder)
+            XCTAssertThrowsError(try manifest.validate())
         }
     }
     func testModelStoreRejectsBadDigestAndKeepsOnlyVerifiedFiles() async throws {
