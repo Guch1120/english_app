@@ -8,6 +8,7 @@ public actor ProcessMemorySampler {
     private var maximum: UInt64?
     private var task: Task<Void, Never>?
     public init() {}
+    public nonisolated static func currentResidentBytes() -> UInt64? { residentBytes() }
     deinit { task?.cancel() }
     public func start() {
         task?.cancel(); maximum = Self.residentBytes()

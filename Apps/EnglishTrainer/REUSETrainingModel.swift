@@ -4,6 +4,7 @@ import SwiftUI
 import AudioEnhancementBackends
 import ModelManagement
 import SpeechCore
+import DeviceDiagnostics
 
 @MainActor @Observable final class REUSETrainingModel {
     var enabled = UserDefaults.standard.bool(forKey: "reuse-enabled") {
@@ -46,6 +47,8 @@ import SpeechCore
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil; status = "" }
+            let startedAt = Date()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .started, thermalState: .current))
             do {
                 storage = try await service.storageStatus()
                 installed = storage?.isInstalled == true
@@ -69,8 +72,14 @@ import SpeechCore
                 installed = storage?.isInstalled == true
                 verified = installed && UserDefaults.standard.bool(forKey: REUSEAudioEnhancement.verificationKey)
                 status = "RE-USEモデルの準備ができました"
-            } catch is CancellationError { status = "モデル取得を中断しました" }
-            catch { self.error = "モデルを取得できませんでした。通信状態と空き容量を確認してください。" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(REUSEAudioEnhancement.modelSizeBytes), cacheBytes: UInt64(max(0, storage?.compiledBytes ?? 0)), thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "モデル取得を中断しました"
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "モデルを取得できませんでした。通信状態と空き容量を確認してください。"
+            }
         }
     }
 
@@ -80,6 +89,8 @@ import SpeechCore
         operation = Task { [weak self] in
             guard let self else { return }
             defer { busy = false; operation = nil; status = "" }
+            let startedAt = Date()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .inference, model: .reuse, outcome: .started, thermalState: .current))
             do {
                 try await service.removeModel(); storage = try await service.storageStatus()
                 installed = false; verified = false; lastMetrics = nil
@@ -104,8 +115,14 @@ import SpeechCore
                 verified = true
                 UserDefaults.standard.set(true, forKey: REUSEAudioEnhancement.verificationKey)
                 status = "この端末でRE-USEの動作を確認しました"
-            } catch is CancellationError { status = "端末確認を中断しました" }
-            catch { self.error = "固定音声の端末内処理に失敗しました。機種と空き容量を確認してください。" }
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .inference, model: .reuse, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), peakMemoryBytes: result.peakMemoryBytes.map { UInt64(max(0, $0)) }, thermalState: .current))
+            } catch is CancellationError {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .inference, model: .reuse, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                status = "端末確認を中断しました"
+            } catch {
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .inference, model: .reuse, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                self.error = "固定音声の端末内処理に失敗しました。機種と空き容量を確認してください。"
+            }
         }
     }
 
@@ -113,14 +130,20 @@ import SpeechCore
         guard installed, verified, let service else { throw REUSEError.modelMissing }
         let measuredService = service
         let result = try await coordinator.withExclusiveModel {
+            let loadStartedAt = Date()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelLoad, model: .reuse, outcome: .started, modelBytes: UInt64(REUSEAudioEnhancement.modelSizeBytes), thermalState: .current))
             try await measuredService.load()
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelLoad, model: .reuse, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(loadStartedAt) * 1000), modelBytes: UInt64(REUSEAudioEnhancement.modelSizeBytes), thermalState: .current))
             do {
                 let enhanced = try await measuredService.enhance(audio)
                 let metrics = await measuredService.enhancementMetrics()
+                let unloadStartedAt = Date()
                 await measuredService.unload()
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelUnload, model: .reuse, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(unloadStartedAt) * 1000), modelBytes: UInt64(REUSEAudioEnhancement.modelSizeBytes), thermalState: .current))
                 return (enhanced, metrics)
             } catch {
                 await measuredService.unload()
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelUnload, model: .reuse, outcome: .observed, modelBytes: UInt64(REUSEAudioEnhancement.modelSizeBytes), thermalState: .current))
                 throw error
             }
         }

@@ -7,6 +7,7 @@ import LearningPersistence
 import NeuralTTSBackends
 import NeuralASRBackends
 import LLMCore
+import DeviceDiagnostics
 
 @main struct EnglishTrainerApp: App {
     var body: some Scene { WindowGroup { RootView() } }
@@ -27,6 +28,13 @@ import LLMCore
         self.speech = TTSTrainingModel(speaker: playback)
         self.speaking = SpeakingTrainingModel()
         self.llm = LLMTrainingModel()
+        Task {
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(
+                subsystem: .app, action: .appLaunch, model: .system, outcome: .observed,
+                peakMemoryBytes: ProcessMemorySampler.currentResidentBytes(),
+                thermalState: .current
+            ))
+        }
         do {
             let folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
@@ -86,6 +94,12 @@ import LLMCore
     }
     func stop() { speech.stop() }
     func handleAudioInterruption() {
+        Task {
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(
+                subsystem: .app, action: .audioInterruption, model: .system, outcome: .observed,
+                thermalState: .current
+            ))
+        }
         speech.stop()
         speaking.handleAudioInterruption()
         llm.cancelCurrentOperation()
@@ -95,6 +109,13 @@ import LLMCore
         speaking.stopRecordingPlayback()
     }
     func handleMemoryWarning() {
+        Task {
+            await DiagnosticEventLog.shared.record(DiagnosticEvent(
+                subsystem: .app, action: .memoryWarning, model: .system, outcome: .observed,
+                peakMemoryBytes: ProcessMemorySampler.currentResidentBytes(),
+                thermalState: .current
+            ))
+        }
         speech.stop()
         speaking.handleMemoryWarning()
         llm.cancelCurrentOperation()
@@ -595,6 +616,7 @@ struct OfflineReadinessView: View {
 struct SettingsView: View {
     let model: AppModel
     @State private var confirmDelete = false
+    @State private var diagnosticEvents: [DiagnosticEvent] = []
     private var appVersion: String {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "不明"
@@ -623,12 +645,53 @@ struct SettingsView: View {
                 LabeledContent("物理メモリ", value: ByteCountFormatter.string(fromByteCount: Int64(ProcessInfo.processInfo.physicalMemory), countStyle: .memory))
                 LabeledContent("発熱状態", value: String(describing: ProcessInfo.processInfo.thermalState))
             }
+            Section {
+                if diagnosticEvents.isEmpty {
+                    Text("記録はありません。")
+                } else {
+                    ForEach(diagnosticEvents) { event in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("\(event.subsystem.rawValue.uppercased()) · \(event.action.rawValue) · \(event.outcome.rawValue)")
+                                .font(.subheadline)
+                            Text("\(event.timestamp.formatted(date: .abbreviated, time: .shortened)) · \(event.model.rawValue)")
+                                .font(.caption).foregroundStyle(.secondary)
+                            if let elapsed = event.elapsedMilliseconds {
+                                Text("処理時間 \(elapsed) ms").font(.caption).foregroundStyle(.secondary)
+                            }
+                            if let size = event.modelBytes {
+                                Text("モデル容量 \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            if let memory = event.peakMemoryBytes {
+                                Text("プロセスメモリ \(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            if let cache = event.cacheBytes {
+                                Text("キャッシュ \(ByteCountFormatter.string(fromByteCount: Int64(cache), countStyle: .memory))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Text("発熱状態 \(event.thermalState.rawValue)").font(.caption).foregroundStyle(.secondary)
+                        }.padding(.vertical, 3)
+                    }
+                }
+                Button("診断ログを消去", role: .destructive) {
+                    Task {
+                        await DiagnosticEventLog.shared.clear()
+                        diagnosticEvents = []
+                    }
+                }
+            } header: {
+                Text("端末内診断")
+            } footer: {
+                Text("直近500件を端末内に保存します。教材文、録音、文字起こし、入力内容、エラー文は保存しません。")
+            }
             Section("データ") {
                 Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
                 Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
                     .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
             }
-        }.navigationTitle("設定")
+        }.task { diagnosticEvents = await DiagnosticEventLog.shared.recentEvents() }
+        .navigationTitle("設定")
         .confirmationDialog("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("削除", role: .destructive) { model.deleteAllLearningData() }
         }
