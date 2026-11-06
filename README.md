@@ -2,7 +2,7 @@
 
 iPhone向けローカル英語学習アプリと、交換可能な音声AI基盤。SwiftUI / iOS 18以降。
 
-Phase 1〜6（共通基盤、TTS、ASR、復習・履歴、端末内Gemma教材生成、RE-USE音声強調）はmainへマージ済みです。TestFlightビルド0.1.0 (108.1)のアップロードに成功しました。USBで確認できたインストール済み版は0.1.0 (106.1)です。Phase 7（安定化）の[PR #13](https://github.com/Guch1120/english_app/pull/13)はmainをベースにCIを検証中です。CI成功はiPhone上のモデル実行を証明しません。機内モードでのTTS/ASR/LLM/RE-USE動作と、音声・割り込み時の実機確認が必要です。
+Phase 1〜6（共通基盤、TTS、ASR、復習・履歴、端末内Gemma教材生成、RE-USE音声強調）はmainへマージ済みです。TestFlightビルド0.1.0 (108.1)はアップロードされましたが、iPhoneの起動時クラッシュログで`CLiteRTLM.framework`欠落が確認されました。Phase 7の[PR #13](https://github.com/Guch1120/english_app/pull/13)に同frameworkの埋め込み修正とアーカイブ検証を追加し、mainをベースにCI検証中です。USBで確認できたインストール済み版は0.1.0 (108.1)です。機内モードでの各モデル動作と、音声・割り込み時の実機確認も必要です。
 
 ## Dockerで検証
 
