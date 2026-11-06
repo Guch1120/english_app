@@ -1,0 +1,29 @@
+name: Device build
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ipa:
+    if: github.ref == 'refs/heads/main'
+    environment: ios-development
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Sign and encrypt development IPA
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEV_IPA_PASSWORD: ${{ secrets.DEV_IPA_PASSWORD }}
+        run: bash Scripts/build-device.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: EnglishTrainer-device-encrypted
+          path: build/EnglishTrainer.ipa.enc
+          retention-days: 3
+          if-no-files-found: error
