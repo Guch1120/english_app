@@ -27,7 +27,7 @@ sdk=$(xcrun --sdk iphoneos --show-sdk-version)
 xcodebuild -version
 xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$work/EnglishTrainer.xcarchive" \
-  DEVELOPMENT_TEAM="${APPLE_TEAM_ID:-}" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION="$build_number" archive
+  DEVELOPMENT_TEAM="${APPLE_TEAM_ID:-}" CODE_SIGN_STYLE=Automatic CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION="$build_number" archive
 app="$work/EnglishTrainer.xcarchive/Products/Applications/EnglishTrainer.app"
 /usr/libexec/PlistBuddy -c 'Print CFBundleIconName' "$app/Info.plist" >/dev/null 2>&1 || \
   /usr/libexec/PlistBuddy -c 'Print CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' "$app/Info.plist" >/dev/null
