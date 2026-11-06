@@ -24,6 +24,10 @@ struct LLMModelsView: View {
                 Section { Text(model.status).font(.footnote).foregroundStyle(.secondary) }
             }
             Section("対応モデル") {
+                if model.candidates.isEmpty {
+                    Text("保存済みモデル情報はありません。モデルを探すにはインターネット接続が必要です。以前に準備したモデルは、保存済み情報を使ってオフラインで表示されます。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 ForEach(model.candidates) { candidate in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(candidate.displayName).font(.subheadline.weight(.semibold))
@@ -65,7 +69,6 @@ struct LLMModelsView: View {
             ToolbarItem(placement: .topBarLeading) { if model.busy { Button("中止", role: .cancel) { model.cancelCurrentOperation() } } }
             ToolbarItem(placement: .topBarTrailing) { Button("Gemma 4を探す") { model.query = "gemma-4-E2B"; model.search() }.disabled(model.busy) }
         }
-        .task { if model.candidates.isEmpty { model.search() } }
         .confirmationDialog("このモデルを端末から削除しますか？", isPresented: Binding(get: { confirmRemoval != nil }, set: { if !$0 { confirmRemoval = nil } }), titleVisibility: .visible) {
             if let candidate = confirmRemoval { Button("モデルを削除", role: .destructive) { model.remove(candidate) } }
             Button("キャンセル", role: .cancel) { confirmRemoval = nil }

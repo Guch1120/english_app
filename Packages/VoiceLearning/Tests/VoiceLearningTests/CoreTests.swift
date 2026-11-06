@@ -31,6 +31,15 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         } catch REUSEError.unavailable { }
     }
     #endif
+    func testHostedModelCandidateMetadataCanBeRestoredOffline() throws {
+        let candidate = HostedModelCandidate(id: "gemma-4-e2b", repository: "litert-community/gemma-4-E2B-it-litert-lm",
+            revision: String(repeating: "a", count: 40), filePath: "gemma-4-E2B-it.litertlm",
+            sizeBytes: 2_580_000_000, sha256: String(repeating: "b", count: 64), license: "Apache-2.0")
+        let restored = try JSONDecoder().decode(HostedModelCandidate.self, from: JSONEncoder().encode(candidate))
+        XCTAssertEqual(restored, candidate)
+        XCTAssertEqual(restored.manifest.revision, candidate.revision)
+    }
+
     func testReviewSchedule() {
         let now = Date(timeIntervalSince1970: 1000)
         let point = WeakPoint(itemID: UUID(), text: "meeting", reason: .listening, now: now)

@@ -1,5 +1,7 @@
 # Phase 0 investigation (2026-11-06)
 
+This is a dated investigation snapshot, not the current implementation inventory. Follow-on integrations are recorded in [TTS.md](TTS.md), [ASR.md](ASR.md), [LLM.md](LLM.md), and [REUSE.md](REUSE.md); their model compatibility and real-device verification status supersede the candidate-only statuses below.
+
 Reference snapshot: [Local_LLM_by_using_MobilePhone](https://github.com/Guch1120/Local_LLM_by_using_MobilePhone) commit `78ca70eabcca4647a116dbd7a98172379d3e8bf6`. Read-only shallow checkout excluded from Git. No source copied and no changes made there. Apache-2.0 license observed in the checkout; copying later requires preserving notices and license obligations.
 
 | Reference source | Finding / extraction decision |

@@ -3,7 +3,7 @@ import Foundation
 import FoundationNetworking
 #endif
 
-public struct HostedModelCandidate: Sendable, Identifiable, Equatable {
+public struct HostedModelCandidate: Codable, Sendable, Identifiable, Equatable {
     public let id: String
     public let repository: String
     public let revision: String
