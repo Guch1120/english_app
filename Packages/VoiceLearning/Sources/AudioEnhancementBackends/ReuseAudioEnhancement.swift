@@ -41,8 +41,8 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
                                       revision: sourceConfiguration.revision)
     }
 
-    public func storageStatus() throws -> REUSEStorageStatus {
-        let value = try store.inspect()
+    public func storageStatus() async throws -> REUSEStorageStatus {
+        let value = try await store.inspect()
         return REUSEStorageStatus(isInstalled: value.isInstalled, storedBytes: value.storedBytes,
                                   compiledBytes: value.compiledBytes)
     }
@@ -150,7 +150,7 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
     public static let modelRevision = "unavailable"
     public static let verificationKey = "reuse-device-verified-unavailable"
     public init(applicationSupportDirectory: URL, cachesDirectory: URL) throws {}
-    public func storageStatus() throws -> REUSEStorageStatus { throw REUSEError.unavailable }
+    public func storageStatus() async throws -> REUSEStorageStatus { throw REUSEError.unavailable }
     public func download(progress: @escaping @Sendable (Double) -> Void) async throws { throw REUSEError.unavailable }
     public func removeModel() async throws { throw REUSEError.unavailable }
     public func load() async throws { throw REUSEError.unavailable }
