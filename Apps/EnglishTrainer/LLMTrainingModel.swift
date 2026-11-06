@@ -148,7 +148,7 @@ import LearningPersistence
                 let metrics = try await coordinator.withExclusiveModel { [service] in
                     try await service.load(modelURL: modelURL)
                     do {
-                        let output = try await service.generate("Return one short English sentence confirming that the on-device language model is ready. No JSON or explanation.")
+                        let output = try await service.generate(prompt: "Return one short English sentence confirming that the on-device language model is ready. No JSON or explanation.")
                         guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ContentError.invalidJSON }
                         let metrics = await service.inferenceMetrics()
                         await service.unload()
