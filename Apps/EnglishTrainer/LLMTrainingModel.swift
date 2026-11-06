@@ -46,6 +46,9 @@ import LearningPersistence
         } catch {
             modelRoot = nil
             store = nil
+            installedIDs = []
+            selectedID = nil
+            UserDefaults.standard.removeObject(forKey: "selected-llm-model")
             self.error = "保護されたモデル保存領域を準備できませんでした。端末の空き容量と設定を確認してください。"
         }
         Task { await refreshInstalledModels() }

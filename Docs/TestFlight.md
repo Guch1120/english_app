@@ -32,7 +32,7 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" english-trainer-
 
 `ITSAppUsesNonExemptEncryption` is false because the current app and its linked libraries do not implement non-exempt encryption. This must be reviewed when dependencies or cryptographic features change. OpenSSL used by development scripts is not shipped in the app. Export-compliance declarations do not replace Apple's other requirements.
 
-App implementation is still Phase 1. This distribution change does not implement neural TTS, ASR, LLM inference, model downloads or enhancement.
+TestFlight distribution only verifies the upload and Apple processing path. The app now includes the implementations described in the phase documentation, but an uploaded build does not by itself verify on-device model downloads, inference, offline operation, or interruption recovery. Those behaviors need the documented device checks.
 
 Sources checked 2026-11-06:
 - [Apple upload requirements](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds)

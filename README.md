@@ -2,7 +2,7 @@
 
 iPhone向けローカル英語学習アプリと、交換可能な音声AI基盤。SwiftUI / iOS 18以降。
 
-Phase 1〜5（共通基盤、TTS、ASR、復習・履歴、端末内Gemma教材生成）は実装済みで、PR #11までmainへマージされています。Phase 5のmainマージからTestFlightビルドを作成中です。USBで確認できたインストール済み版は0.1.0 (106.1)です。Phase 6（RE-USE音声強調）は[PR #12](https://github.com/Guch1120/english_app/pull/12)でiOS CIを検証中、Phase 7（安定化）は作業中です。CI成功はiPhone上のモデル実行を証明しません。機内モードでのTTS/ASR/LLM/RE-USE動作と、音声・割り込み時の実機確認が必要です。
+Phase 1〜5（共通基盤、TTS、ASR、復習・履歴、端末内Gemma教材生成）は実装済みで、PR #11までmainへマージされています。TestFlightビルド0.1.0 (107.1)のアップロードに成功しました。USBで確認できたインストール済み版は0.1.0 (106.1)です。Phase 6（RE-USE音声強調）は[PR #12](https://github.com/Guch1120/english_app/pull/12)でiOS CIを検証中、Phase 7（安定化）は[PR #13](https://github.com/Guch1120/english_app/pull/13)でiOS CIを検証中です。CI成功はiPhone上のモデル実行を証明しません。機内モードでのTTS/ASR/LLM/RE-USE動作と、音声・割り込み時の実機確認が必要です。
 
 ## Dockerで検証
 
