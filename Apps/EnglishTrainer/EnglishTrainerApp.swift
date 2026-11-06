@@ -3,6 +3,7 @@ import SpeechCore
 import TTSBackends
 import LearningCore
 import LearningPersistence
+import NeuralTTSBackends
 
 @main struct EnglishTrainerApp: App {
     var body: some Scene { WindowGroup { RootView() } }
@@ -13,9 +14,9 @@ import LearningPersistence
     var error: String?
     var ready = false
     private var store: LearningStore?
-    private let speaker: any SpeechPlayback
+    let speech: TTSTrainingModel
     init(playback: any SpeechPlayback) {
-        self.speaker = playback
+        self.speech = TTSTrainingModel(speaker: playback)
         do {
             let folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
@@ -36,6 +37,11 @@ import LearningPersistence
         guard let store else { error = "保存領域を開けませんでした。アプリを再起動してください。"; return }
         do { try operation(store); try refresh() } catch { self.error = String(describing: error) }
     }
+    func deleteAllLearningData() {
+        guard !speech.busy, let store else { return }
+        do { try store.deleteAll(); try refresh(); speech.clearPersonalData() }
+        catch { self.error = String(describing: error) }
+    }
     func save(text: String, translation: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -48,15 +54,13 @@ import LearningPersistence
     func review(_ point: WeakPoint, grade: ReviewGrade) {
         perform { _ = try $0.review(point, grade: grade, now: Date()) }
     }
-    func speak(_ text: String, speed: Double) {
-        do { try speaker.speak(text, speed: speed) }
-        catch { self.error = String(describing: error) }
-    }
-    func stop() { speaker.stop() }
+    func speak(_ text: String, speed: Double) { speech.speak(text, speed: speed) }
+    func stop() { speech.stop() }
 }
 
 struct RootView: View {
     @State private var model = AppModel(playback: AppleSpeechPlayback())
+    @Environment(\.scenePhase) private var scenePhase
     var body: some View {
         TabView {
             NavigationStack { HomeView(model: model) }.tabItem { Label("学習", systemImage: "headphones") }
@@ -64,9 +68,10 @@ struct RootView: View {
             NavigationStack { SettingsView(model: model) }.tabItem { Label("設定", systemImage: "gearshape") }
         }
         .tint(.teal)
-        .alert("処理できませんでした", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
-            Button("閉じる") { model.error = nil }
-        } message: { Text(model.error ?? "") }
+        .alert("処理できませんでした", isPresented: Binding(get: { model.error != nil || model.speech.error != nil }, set: { if !$0 { model.error = nil; model.speech.error = nil } })) {
+            Button("閉じる") { model.error = nil; model.speech.error = nil }
+        } message: { Text(model.error ?? model.speech.error ?? "") }
+        .onChange(of: scenePhase) { _, phase in if phase == .background { model.speech.cancelWork() } }
     }
 }
 struct HomeView: View {
@@ -115,13 +120,24 @@ struct LessonView: View {
     var body: some View {
         Form {
             Section("まずは聞いてみましょう") {
+                TTSEnginePicker(speech: model.speech)
                 Button { model.speak(item.text, speed: speed) } label: {
                     Label("お手本を再生", systemImage: "play.circle.fill").font(.title2).frame(maxWidth: .infinity, minHeight: 70)
                 }
-                Button("再生を停止", systemImage: "stop.circle") { model.stop() }
+                .disabled(model.speech.busy)
+                if model.speech.busy { ProgressView(); Text(model.speech.status) }
+                Button(model.speech.busy ? "生成を中断" : "再生を停止", systemImage: "stop.circle") { model.stop() }
+                HStack {
+                    Button("一時停止") { model.speech.pause() }
+                    Spacer()
+                    Button("再開") { model.speech.resume() }
+                }
+                if model.speech.selected != "apple" {
+                    Toggle("生成音声を繰り返す", isOn: Binding(get: { model.speech.repeats }, set: { model.speech.repeats = $0 }))
+                }
                 Picker("読み上げ速度", selection: $speed) {
                     Text("0.75×").tag(0.75); Text("1×").tag(1.0); Text("1.2×").tag(1.2)
-                }
+                }.onChange(of: speed) { _, value in model.speech.setRate(value) }
                 Toggle("英文を表示", isOn: $showEnglish)
                 if showEnglish { Text(item.text).font(.title3).textSelection(.enabled) }
                 Toggle("日本語訳を表示", isOn: $showTranslation)
@@ -214,8 +230,10 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("音声とAI") {
-                LabeledContent("TTS", value: "Apple・米国英語")
-                Text("Kokoro / Pocket TTS / Parakeet / Gemma / RE-USE は未接続です。実機検証後に順次追加します。")
+                LabeledContent("TTS", value: NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語")
+                NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
+                NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
+                Text("Kokoro / Pocket TTSは検証用です。Parakeet / Gemma / RE-USE は未接続です。")
                 Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
             }
             Section("端末") {
@@ -225,11 +243,11 @@ struct SettingsView: View {
             }
             Section("データ") {
                 Text("学習データは端末内SQLiteへ保存します。OSバックアップの対象です。録音・クラウド同期はまだありません。")
-                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
+                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }.disabled(model.speech.busy)
             }
         }.navigationTitle("設定")
-        .confirmationDialog("教材・復習・履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("削除", role: .destructive) { model.perform { try $0.deleteAll() } }
+        .confirmationDialog("教材・復習・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("削除", role: .destructive) { model.deleteAllLearningData() }
         }
     }
 }

@@ -31,6 +31,10 @@ xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer -configurati
 app="$work/EnglishTrainer.xcarchive/Products/Applications/EnglishTrainer.app"
 /usr/libexec/PlistBuddy -c 'Print CFBundleIconName' "$app/Info.plist" >/dev/null 2>&1 || \
   /usr/libexec/PlistBuddy -c 'Print CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' "$app/Info.plist" >/dev/null
+if [ -n "$(find "$app" \( -name 'luxtts_en_us_lexicon.tsv.zz' -o -name 'luxtts_en_us_g2p_aux.json' \) -print -quit)" ]; then
+  echo 'Unused LuxTTS G2P data must not be redistributed in this app.' >&2
+  exit 1
+fi
 if [ "$mode" = --archive-only ]; then
   echo 'Unsigned distribution archive and compiled app icon verified.'
   exit 0

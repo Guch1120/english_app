@@ -2,6 +2,11 @@ name: Validate
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      tts_smoke:
+        description: Download curated TTS models and synthesize the fixed public test sentence on Apple Silicon
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -48,6 +53,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Package tests on macOS
+        env:
+          VOICELEARNING_TTS_SMOKE: ${{ inputs.tts_smoke == true && '1' || '0' }}
+          TTS_SMOKE_OUTPUT: ${{ runner.temp }}/tts-smoke
         run: swift test --package-path Packages/VoiceLearning
       - name: Build and analyze iOS Simulator app without signing
         run: >-
@@ -56,6 +64,14 @@ jobs:
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build analyze
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
+      - name: Keep public-sentence TTS smoke samples
+        if: inputs.tts_smoke == true && success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tts-smoke-public-sentence
+          path: ${{ runner.temp }}/tts-smoke
+          retention-days: 3
+          if-no-files-found: error
   review-gate:
     if: always()
     needs: [quality, core, ios]
