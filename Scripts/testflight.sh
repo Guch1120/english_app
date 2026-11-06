@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Unsigned archive is testable without secrets. Uploads are main-only and environment-protected.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mode=${1:---archive-only}
+case "$mode" in --archive-only|--upload) ;; *) echo 'Usage: bash Scripts/testflight.sh {--archive-only|--upload}' >&2; exit 2 ;; esac
+: "${RUNNER_TEMP:?Run on the GitHub macOS runner}"
+if [ "$mode" = --upload ]; then
+  [ "${GITHUB_REF:-}" = refs/heads/main ] || { echo 'Uploads are restricted to main.' >&2; exit 1; }
+  : "${APPSTORE_ISSUER_ID:?Missing issuer ID}" "${APPSTORE_API_KEY_ID:?Missing key ID}"
+  : "${APPSTORE_API_PRIVATE_KEY:?Missing API private key}" "${APPLE_TEAM_ID:?Missing team ID}"
+fi
+umask 077
+work=$(mktemp -d "$RUNNER_TEMP/english-testflight.XXXXXX")
+cleanup() { rm -rf "$work"; }
+trap cleanup EXIT
+build_number="$(( ${GITHUB_RUN_NUMBER:-1} + 100 )).${GITHUB_RUN_ATTEMPT:-1}"
+if [ "$mode" = --upload ]; then
+  key_path="$work/AuthKey_${APPSTORE_API_KEY_ID}.p8"
+  printf '%s' "$APPSTORE_API_PRIVATE_KEY" > "$key_path"
+  # Validate format without printing the private key.
+  openssl pkey -in "$key_path" -noout >/dev/null 2>&1 || { echo 'Invalid .p8 key: paste the full PEM including real newlines.' >&2; exit 1; }
+fi
+# Upload SDK requirement is iOS 26+. Fail before spending time on an incompatible archive.
+sdk=$(xcrun --sdk iphoneos --show-sdk-version)
+[ "${sdk%%.*}" -ge 26 ] || { echo 'TestFlight requires an iOS 26+ SDK.' >&2; exit 1; }
+xcodebuild -version
+xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath "$work/EnglishTrainer.xcarchive" \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION="$build_number" archive
+app="$work/EnglishTrainer.xcarchive/Products/Applications/EnglishTrainer.app"
+/usr/libexec/PlistBuddy -c 'Print CFBundleIconName' "$app/Info.plist" >/dev/null 2>&1 || \
+  /usr/libexec/PlistBuddy -c 'Print CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' "$app/Info.plist" >/dev/null
+if [ "$mode" = --archive-only ]; then
+  echo 'Unsigned distribution archive and compiled app icon verified.'
+  exit 0
+fi
+export ENGLISH_EXPORT_OPTIONS="$work/ExportOptions.plist"
+python3 - <<'PY'
+import os, plistlib
+with open(os.environ['ENGLISH_EXPORT_OPTIONS'], 'wb') as output:
+    plistlib.dump({'method':'app-store-connect', 'destination':'upload', 'signingStyle':'automatic',
+        'teamID':os.environ['APPLE_TEAM_ID'], 'manageAppVersionAndBuildNumber':False, 'uploadSymbols':True}, output)
+PY
+# Match the established app's unsigned-archive -> cloud-managed distribution-signing flow.
+xcodebuild -exportArchive -archivePath "$work/EnglishTrainer.xcarchive" \
+  -exportPath "$work/export" -exportOptionsPlist "$ENGLISH_EXPORT_OPTIONS" \
+  -allowProvisioningUpdates -authenticationKeyPath "$key_path" \
+  -authenticationKeyID "$APPSTORE_API_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID"
+echo 'App Store Connect upload command completed; Apple processing and tester availability are separate.'

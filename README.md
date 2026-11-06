@@ -22,3 +22,5 @@ iOSは `.github/workflows/validate.yml` のmacOSランナーで署名なしSimul
 - [新規App ID・Secrets登録とiPhone検証手順](Docs/iPhone-Setup.md)
 
 実装状況は [Status](Docs/Status.md) 参照。ローカルテストの成功はiOSでの動作確認を意味しません。個人データ・モデル重み・署名ファイルはGitへ登録しないでください。
+
+TestFlight配布は[専用手順](Docs/TestFlight.md)を参照してください。`ios-testflight` EnvironmentへAPIキーを登録し、mainから手動で実行する方式です。USB用Development署名とは別の配布経路です。
