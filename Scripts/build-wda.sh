@@ -143,7 +143,8 @@ PY
 
 mkdir -p build/wda-payload/Payload
 ditto "$runner_app" build/wda-payload/Payload/WebDriverAgentRunner-Runner.app
-ditto -c -k build/wda-payload/Payload build/wda-runner.ipa
+# An .ipa must contain the Payload directory at the ZIP root.
+ditto -c -k --keepParent build/wda-payload/Payload build/wda-runner.ipa
 openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 \
   -in build/wda-runner.ipa -out build/wda-runner.ipa.enc \
   -pass env:DEV_IPA_PASSWORD
