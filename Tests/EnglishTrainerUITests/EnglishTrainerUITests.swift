@@ -42,4 +42,41 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts[lesson].waitForExistence(timeout: 5))
     }
+
+    func testWeakPointReviewAndHistoryPersistAfterRestart() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+
+        let lesson = app.staticTexts["Could you reschedule the meeting for Thursday?"]
+        XCTAssertTrue(lesson.waitForExistence(timeout: 5))
+        lesson.tap()
+
+        let revealEnglish = app.buttons["英文を表示"]
+        XCTAssertTrue(revealEnglish.waitForExistence(timeout: 5))
+        revealEnglish.tap()
+        app.buttons["reschedule"].tap()
+        app.buttons["復習に登録"].tap()
+        XCTAssertTrue(app.buttons["保存しました"].waitForExistence(timeout: 5))
+
+        let reviewTab = app.tabBars.buttons["復習"]
+        XCTAssertTrue(reviewTab.waitForExistence(timeout: 5))
+        reviewTab.tap()
+        XCTAssertTrue(app.staticTexts["reschedule"].waitForExistence(timeout: 5))
+        app.buttons["普通"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["今日の復習・0件"].waitForExistence(timeout: 5))
+
+        app.buttons["復習履歴を表示"].tap()
+        let reviewEvent = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "普通 ·")
+        ).firstMatch
+        XCTAssertTrue(reviewEvent.waitForExistence(timeout: 5))
+
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        reviewTab.tap()
+        app.buttons["復習履歴を表示"].tap()
+        XCTAssertTrue(reviewEvent.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["reschedule"].exists)
+    }
 }
