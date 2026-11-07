@@ -17,6 +17,7 @@ from apple.wda_profiles import (  # noqa: E402
     make_token,
 )
 from apple.crypt_profile import decrypt_bytes, encrypt_bytes  # noqa: E402
+from ci.configure_wda_signing import configure_project  # noqa: E402
 
 
 def _der_integer(value):
@@ -32,6 +33,56 @@ def _raw_to_der(signature):
 
 
 class WDAProfileTests(unittest.TestCase):
+    def test_manual_signing_is_applied_only_to_runner_target(self):
+        project = Path(tempfile.mkdtemp(), "project.pbxproj")
+        project.write_text(
+            """/* Begin PBXNativeTarget section */
+		AAAAAAAAAAAAAAAAAAAAAAAA /* WebDriverAgentRunner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CCCCCCCCCCCCCCCCCCCCCCCC /* Build configuration list for PBXNativeTarget "WebDriverAgentRunner" */;
+			name = WebDriverAgentRunner;
+		};
+		BBBBBBBBBBBBBBBBBBBBBBBB /* WebDriverAgentLib */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDDDDDDDDDDDDDDDDDDDDDDD;
+			name = WebDriverAgentLib;
+		};
+/* End PBXNativeTarget section */
+		CCCCCCCCCCCCCCCCCCCCCCCC /* Build configuration list for PBXNativeTarget "WebDriverAgentRunner" */ = {
+			buildConfigurations = (
+				EEEEEEEEEEEEEEEEEEEEEEEE /* Debug */,
+				FFFFFFFFFFFFFFFFFFFFFFFF /* Release */,
+			);
+		};
+		EEEEEEEEEEEEEEEEEEEEEEEE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ENABLE_TESTABILITY = YES;
+			};
+		};
+		FFFFFFFFFFFFFFFFFFFFFFFF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ENABLE_TESTABILITY = YES;
+			};
+		};
+"""
+        )
+
+        configure_project(project, "TEAMID1234", "RUNNERPROFILEUUID")
+
+        result = project.read_text()
+        runner_start = result.index("AAAAAAAAAAAAAAAAAAAAAAAA /* WebDriverAgentRunner */ = {")
+        runner_end = result.index("\t\t};", runner_start)
+        runner_block = result[runner_start:runner_end]
+        self.assertEqual(runner_block.count("CODE_SIGN_STYLE = Manual;"), 0)
+        self.assertIn("RUNNERPROFILEUUID", result)
+        self.assertIn('CODE_SIGN_IDENTITY = "Apple Development";', result)
+        library_start = result.index("BBBBBBBBBBBBBBBBBBBBBBBB /* WebDriverAgentLib */ = {")
+        library_end = result.index("\t\t};", library_start)
+        self.assertNotIn("PROVISIONING_PROFILE_SPECIFIER", result[library_start:library_end])
+        self.assertEqual(result.count("PROVISIONING_PROFILE_SPECIFIER = RUNNERPROFILEUUID;"), 2)
+
     def test_es256_token_is_valid_and_has_short_lived_claims(self):
         with tempfile.TemporaryDirectory() as directory:
             key = Path(directory, "key.pem")
