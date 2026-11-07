@@ -1,0 +1,41 @@
+name: WDA Runner Build
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wda-runner-build
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    environment: ios-development
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+      IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      DEV_IPA_PASSWORD: ${{ secrets.DEV_IPA_PASSWORD }}
+      WDA_BASE_PROFILE_BASE64: ${{ secrets.WDA_BASE_PROFILE_BASE64 }}
+      WDA_RUNNER_PROFILE_BASE64: ${{ secrets.WDA_RUNNER_PROFILE_BASE64 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: appium/appium-ios
+          ref: 943e2efdb5d8b26a704d0cef58cb5eec0f37076c # appium-webdriveragent@16.18.1
+          path: appium-ios
+          sparse-checkout: packages/webdriveragent
+          persist-credentials: false
+      - name: Sign and build the WDA runner for registered iPhone
+        run: bash Scripts/build-wda.sh "$GITHUB_WORKSPACE/appium-ios/packages/webdriveragent"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: wda-runner-encrypted-${{ github.run_id }}
+          path: build/wda-runner.ipa.enc
+          if-no-files-found: error
+          retention-days: 1
