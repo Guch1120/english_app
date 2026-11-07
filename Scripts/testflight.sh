@@ -27,8 +27,21 @@ sdk=$(xcrun --sdk iphoneos --show-sdk-version)
 xcodebuild -version
 xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$work/EnglishTrainer.xcarchive" \
-  DEVELOPMENT_TEAM="${APPLE_TEAM_ID:-}" CODE_SIGN_STYLE=Automatic CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION="$build_number" archive
+  DEVELOPMENT_TEAM="${APPLE_TEAM_ID:-}" CODE_SIGN_STYLE=Automatic CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+  DEBUG_INFORMATION_FORMAT=dwarf-with-dsym CURRENT_PROJECT_VERSION="$build_number" archive
 app="$work/EnglishTrainer.xcarchive/Products/Applications/EnglishTrainer.app"
+dsym="$work/EnglishTrainer.xcarchive/dSYMs/EnglishTrainer.app.dSYM"
+dsym_binary="$dsym/Contents/Resources/DWARF/EnglishTrainer"
+if [ ! -f "$dsym_binary" ]; then
+  echo 'The distribution archive did not produce the app dSYM required to symbolicate device crash reports.' >&2
+  exit 1
+fi
+binary_uuids=$(dwarfdump --uuid "$app/EnglishTrainer" | awk '{print $2}' | sort)
+dsym_uuids=$(dwarfdump --uuid "$dsym_binary" | awk '{print $2}' | sort)
+if [ -z "$binary_uuids" ] || [ "$binary_uuids" != "$dsym_uuids" ]; then
+  echo 'The app dSYM UUID does not match the archived executable.' >&2
+  exit 1
+fi
 /usr/libexec/PlistBuddy -c 'Print CFBundleIconName' "$app/Info.plist" >/dev/null 2>&1 || \
   /usr/libexec/PlistBuddy -c 'Print CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName' "$app/Info.plist" >/dev/null
 if [ ! -f "$app/Frameworks/CLiteRTLM.framework/CLiteRTLM" ]; then
@@ -53,9 +66,12 @@ if [ -n "$(find "$app" \( -name 'luxtts_en_us_lexicon.tsv.zz' -o -name 'luxtts_e
   exit 1
 fi
 if [ "$mode" = --archive-only ]; then
-  echo 'Unsigned distribution archive and compiled app icon verified.'
+  echo 'Unsigned distribution archive, compiled app icon, and matching crash dSYM verified.'
   exit 0
 fi
+symbols_zip="$RUNNER_TEMP/EnglishTrainer-dSYMs-run${GITHUB_RUN_NUMBER:-1}-${GITHUB_RUN_ATTEMPT:-1}.zip"
+ditto -c -k --sequesterRsrc "$work/EnglishTrainer.xcarchive/dSYMs" "$symbols_zip"
+chmod 600 "$symbols_zip"
 export ENGLISH_EXPORT_OPTIONS="$work/ExportOptions.plist"
 python3 - <<'PY'
 import os, plistlib
