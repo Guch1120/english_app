@@ -35,8 +35,12 @@ final class EnglishTrainerUITests: XCTestCase {
 
         let speechRate = app.sliders["読み上げ速度"]
         XCTAssertTrue(speechRate.waitForExistence(timeout: 5))
-        speechRate.adjust(toNormalizedSliderPosition: 0.55)
-        XCTAssertEqual(speechRate.value as? String, "1.05倍")
+        let currentRate = speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let fineRate = speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
+        currentRate.press(forDuration: 0.1, thenDragTo: fineRate)
+        let fineRateReached = NSPredicate(format: "value == %@", "1.05倍")
+        let fineRateExpectation = XCTNSPredicateExpectation(predicate: fineRateReached, object: speechRate)
+        XCTAssertEqual(XCTWaiter.wait(for: [fineRateExpectation], timeout: 5), .completed, speechRate.debugDescription)
 
         let translationToggle = app.switches["日本語訳を表示"]
         XCTAssertTrue(translationToggle.exists)
@@ -112,5 +116,59 @@ final class EnglishTrainerUITests: XCTestCase {
         app.buttons["復習履歴を表示"].tap()
         XCTAssertTrue(reviewEvent.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["reschedule"].exists)
+    }
+
+    func testSpeakingAndReuseScreensExposeOnDeviceSafetyGates() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+
+        app.staticTexts["Could you reschedule the meeting for Thursday?"].tap()
+        XCTAssertTrue(app.navigationBars["リスニング"].waitForExistence(timeout: 5))
+        let lessonForm = app.collectionViews.firstMatch
+        XCTAssertTrue(lessonForm.waitForExistence(timeout: 5))
+        let speakingLink = app.descendants(matching: .any)
+            .matching(identifier: "lesson.speakingPractice").firstMatch
+        for _ in 0..<4 where !speakingLink.exists { lessonForm.swipeUp() }
+        XCTAssertTrue(speakingLink.waitForExistence(timeout: 5), app.debugDescription)
+        speakingLink.tap()
+
+        XCTAssertTrue(app.navigationBars["スピーキング練習"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["音声認識モデル"].exists)
+        XCTAssertTrue(app.buttons["Parakeetモデルをダウンロード"].exists)
+        XCTAssertFalse(app.buttons["録音を開始"].isEnabled)
+
+        let reuseToggle = app.switches["RE-USEを使う"]
+        if !reuseToggle.isHittable { app.swipeUp() }
+        XCTAssertTrue(reuseToggle.exists)
+
+        let reuseSettings = app.buttons["RE-USEモデルと端末確認の設定"]
+        if !reuseSettings.isHittable { app.swipeUp() }
+        XCTAssertTrue(reuseSettings.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["録音をRE-USEなし／ありで比較"].isEnabled)
+        reuseSettings.tap()
+        XCTAssertTrue(app.navigationBars["RE-USE設定"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["比較機能でRE-USEを使用"].exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "初回ダウンロード後はオフラインで処理できます")).firstMatch.exists)
+    }
+
+    func testLLMGenerationRequiresVerifiedModelAndOpensModelManager() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+
+        app.tabBars.buttons["設定"].tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
+        let generationLink = app.buttons["LLM教材生成・モデル管理"]
+        XCTAssertTrue(generationLink.waitForExistence(timeout: 5))
+        generationLink.tap()
+
+        XCTAssertTrue(app.navigationBars["教材を生成"].waitForExistence(timeout: 5))
+        let generateButton = app.buttons["端末内で教材を生成"]
+        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        XCTAssertFalse(generateButton.isEnabled)
+        XCTAssertTrue(app.staticTexts["未確認のLLMは教材生成に使えません。モデルを準備してから、端末上の固定テストを実行してください。"].exists)
+
+        app.buttons["モデル検索・管理"].tap()
+        XCTAssertTrue(app.navigationBars["LLMモデル管理"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Gemma 4を探す"].exists)
     }
 }
