@@ -66,6 +66,11 @@ jobs:
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build analyze
       - name: Launch app in iPhone Simulator and verify single initialization
         run: bash Scripts/ci/simulator-startup-smoke.sh build/Build/Products/Debug-iphonesimulator/EnglishTrainer.app
+      - name: Exercise learning persistence and navigation in iPhone Simulator
+        run: >-
+          xcodebuild test -project EnglishTrainer.xcodeproj -scheme EnglishTrainer
+          -destination 'platform=iOS Simulator,name=iPhone 16'
+          -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
       - name: Keep public-sentence TTS smoke samples
