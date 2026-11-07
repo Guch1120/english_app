@@ -66,11 +66,11 @@
 000000000000000000000069 = { isa = PBXBuildFile; fileRef = 00000000000000000000006A; };
 00000000000000000000006A = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnglishTrainerUITests.swift; sourceTree = "<group>"; };
 00000000000000000000006B = { isa = XCConfigurationList; buildConfigurations = (00000000000000000000006C, 00000000000000000000006D); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-00000000000000000000006C = { isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; PRODUCT_BUNDLE_IDENTIFIER = jp.guch1120.EnglishTrainerUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = 1; }; name = Debug; };
+00000000000000000000006C = { isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; PRODUCT_BUNDLE_IDENTIFIER = jp.guch1120.EnglishTrainerUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = 1; TEST_TARGET_NAME = EnglishTrainer; }; name = Debug; };
 
 00000000000000000000006E = { isa = PBXBuildFile; fileRef = 00000000000000000000006F; };
 00000000000000000000006F = { isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 000000000000000000000070 = { isa = PBXBuildFile; fileRef = 000000000000000000000071; };
 000000000000000000000071 = { isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCUIAutomation.framework; path = Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks/XCUIAutomation.framework; sourceTree = DEVELOPER_DIR; };
-00000000000000000000006D = { isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; PRODUCT_BUNDLE_IDENTIFIER = jp.guch1120.EnglishTrainerUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+00000000000000000000006D = { isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 18.0; PRODUCT_BUNDLE_IDENTIFIER = jp.guch1120.EnglishTrainerUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = 1; TEST_TARGET_NAME = EnglishTrainer; }; name = Release; };
 }; rootObject = 000000000000000000000001; }

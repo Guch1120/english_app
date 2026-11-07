@@ -5,7 +5,7 @@ final class EnglishTrainerUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
+        app = XCUIApplication(bundleIdentifier: "jp.guch1120.EnglishTrainer")
     }
 
     func testTopLevelTabsOpenTheirPrimaryScreens() {
