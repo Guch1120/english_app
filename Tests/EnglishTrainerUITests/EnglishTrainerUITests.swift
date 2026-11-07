@@ -64,6 +64,7 @@ final class EnglishTrainerUITests: XCTestCase {
         let reviewTab = app.tabBars.buttons["復習"]
         XCTAssertTrue(reviewTab.waitForExistence(timeout: 5))
         reviewTab.tap()
+        app.swipeUp()
         XCTAssertTrue(app.staticTexts["reschedule"].waitForExistence(timeout: 5))
         app.buttons["普通"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["今日の復習・0件"].waitForExistence(timeout: 5))
