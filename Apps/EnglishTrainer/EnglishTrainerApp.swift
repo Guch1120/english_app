@@ -278,6 +278,7 @@ struct LessonView: View {
             }
             Section {
                 NavigationLink("スピーキング練習・文字起こし") { SpeakingPreview(item: item, appModel: model, model: model.speaking) }
+                    .accessibilityIdentifier("lesson.speakingPractice")
             }
         }.navigationTitle("リスニング").onDisappear { model.stop() }
     }
