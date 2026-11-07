@@ -35,9 +35,22 @@ final class EnglishTrainerUITests: XCTestCase {
 
         let speechRate = app.sliders["読み上げ速度"]
         XCTAssertTrue(speechRate.waitForExistence(timeout: 5))
-        let fineRate = speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
-        fineRate.tap()
-        let fineRateReached = NSPredicate(format: "value == %@", "1.05倍")
+        guard let currentRate = Double((speechRate.value as? String ?? "").replacingOccurrences(of: "倍", with: "")) else {
+            XCTFail("Could not read the current speaking rate: \(speechRate.debugDescription)")
+            return
+        }
+        let nextRate = currentRate >= 1.5 ? currentRate - 0.05 : currentRate + 0.05
+        let currentThumb = speechRate.coordinate(
+            withNormalizedOffset: CGVector(dx: currentRate - 0.5, dy: 0.5)
+        )
+        let nextThumb = speechRate.coordinate(
+            withNormalizedOffset: CGVector(dx: nextRate - 0.5, dy: 0.5)
+        )
+        currentThumb.press(forDuration: 0.1, thenDragTo: nextThumb)
+        let fineRateReached = NSPredicate(
+            format: "value == %@",
+            nextRate.formatted(.number.precision(.fractionLength(2))) + "倍"
+        )
         let fineRateExpectation = XCTNSPredicateExpectation(predicate: fineRateReached, object: speechRate)
         XCTAssertEqual(XCTWaiter.wait(for: [fineRateExpectation], timeout: 5), .completed, speechRate.debugDescription)
 
