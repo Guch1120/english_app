@@ -47,11 +47,13 @@ jobs:
     runs-on: macos-26
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Start iPhone Simulator boot while macOS package tests run
+        run: bash Scripts/ci/simulator-startup-smoke.sh --boot-only
       - name: Package tests on macOS
         env:
           VOICELEARNING_TTS_SMOKE: ${{ inputs.tts_smoke == true && '1' || '0' }}
@@ -62,6 +64,8 @@ jobs:
           xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build analyze
+      - name: Launch app in iPhone Simulator and verify single initialization
+        run: bash Scripts/ci/simulator-startup-smoke.sh build/Build/Products/Debug-iphonesimulator/EnglishTrainer.app
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
       - name: Keep public-sentence TTS smoke samples
