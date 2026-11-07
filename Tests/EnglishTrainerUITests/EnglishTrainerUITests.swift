@@ -41,8 +41,12 @@ final class EnglishTrainerUITests: XCTestCase {
         let translationToggle = app.switches["日本語訳を表示"]
         XCTAssertTrue(translationToggle.exists)
         translationToggle.tap()
+        XCTAssertEqual(translationToggle.value as? String, "1")
         app.swipeUp()
-        XCTAssertTrue(app.staticTexts["会議を木曜日に変更していただけますか？"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.staticTexts["会議を木曜日に変更していただけますか？"].waitForExistence(timeout: 5),
+            app.debugDescription
+        )
     }
 
     func testNewLessonPersistsAfterRestart() {
