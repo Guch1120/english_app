@@ -35,9 +35,8 @@ final class EnglishTrainerUITests: XCTestCase {
 
         let speechRate = app.sliders["読み上げ速度"]
         XCTAssertTrue(speechRate.waitForExistence(timeout: 5))
-        let currentRate = speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let fineRate = speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
-        currentRate.press(forDuration: 0.1, thenDragTo: fineRate)
+        fineRate.tap()
         let fineRateReached = NSPredicate(format: "value == %@", "1.05倍")
         let fineRateExpectation = XCTNSPredicateExpectation(predicate: fineRateReached, object: speechRate)
         XCTAssertEqual(XCTWaiter.wait(for: [fineRateExpectation], timeout: 5), .completed, speechRate.debugDescription)
