@@ -62,6 +62,8 @@ jobs:
           xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build analyze
+      - name: Launch app in iPhone Simulator and verify single initialization
+        run: bash Scripts/ci/simulator-startup-smoke.sh build/Build/Products/Debug-iphonesimulator/EnglishTrainer.app
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
       - name: Keep public-sentence TTS smoke samples

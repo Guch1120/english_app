@@ -123,9 +123,24 @@ import DeviceDiagnostics
 }
 
 struct RootView: View {
-    @State private var model = AppModel(playback: AppleSpeechPlayback())
+    @State private var model: AppModel? = nil
     @Environment(\.scenePhase) private var scenePhase
     var body: some View {
+        Group {
+            if let model {
+                appContent(model)
+            } else {
+                ProgressView("学習データを準備しています")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .task { @MainActor in
+            guard model == nil else { return }
+            model = AppModel(playback: AppleSpeechPlayback())
+        }
+    }
+
+    private func appContent(_ model: AppModel) -> some View {
         TabView {
             NavigationStack { HomeView(model: model) }.tabItem { Label("学習", systemImage: "headphones") }
             NavigationStack { ReviewView(model: model) }.tabItem { Label("復習", systemImage: "arrow.clockwise") }
