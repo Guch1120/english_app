@@ -57,6 +57,10 @@ bash Scripts/capture-iphone.sh /path/to/private-signing-directory
 
 LinuxのDockerテスト、GitHub macOSのiOSビルド、iPhone上のCore ML/MLX実行は別の確認です。CI成功だけでは実機動作済みとは扱いません。未実施項目は機種、iOS、モデルrevision、結果、処理時間、RSS観測値、発熱を記録します。
 
+## USB UI自動操作（WDA）
+
+Apple Developerの画面操作を避けるためのAPI手順と、端末登録に使う証明書・iPhoneだけに範囲を絞る設定は[WDA自動操作の手順](WDA-Automation.md)を参照してください。登録後、署名済みrunnerのビルドとiPhoneへのインストールは別工程です。まだWDA runnerが入るまでは、スクリーンショット取得・起動確認はできますが、タップ操作はできません。
+
 ## Macなしで新しい証明書用CSRを作る例
 
 以下はユーザーが署名登録を行う段階で実行します。先に `bash Scripts/test.sh` でDockerイメージを作っておきます。保存先はリポジトリの外です。
