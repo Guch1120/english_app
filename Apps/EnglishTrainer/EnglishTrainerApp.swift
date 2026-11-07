@@ -315,7 +315,6 @@ struct SpeakingPreview: View {
                 } else {
                     Button("録音を開始", systemImage: "mic.circle.fill") {
                         appModel.stop(); model.startRecording()
-                        if model.recording { appModel.recordActivity(.speaking, item: item) }
                     }
                         .disabled(!model.recognitionAvailable || model.busy)
                 }
@@ -430,6 +429,19 @@ struct SpeakingPreview: View {
             }
         }
         .navigationTitle("スピーキング練習")
+        .onChange(of: model.recording) { wasRecording, isRecording in
+            if isRecording && !wasRecording {
+                appModel.recordActivity(.speaking, item: item)
+            }
+        }
+        .alert("音声処理でエラーが発生しました", isPresented: Binding(
+            get: { model.error != nil },
+            set: { if !$0 { model.error = nil } }
+        )) {
+            Button("閉じる") { model.error = nil }
+        } message: {
+            Text(model.error ?? "")
+        }
         .confirmationDialog("Parakeetモデルを準備しますか？", isPresented: $confirmDownload, titleVisibility: .visible) {
             Button("ダウンロード開始") { model.prepareModel() }
         } message: {
