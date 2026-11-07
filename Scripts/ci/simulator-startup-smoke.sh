@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-app_path=${1:?Usage: bash Scripts/ci/simulator-startup-smoke.sh /path/to/EnglishTrainer.app}
+boot_only=false
+if [[ "${1:-}" == "--boot-only" ]]; then
+  boot_only=true
+  shift
+fi
+app_path=${1:-}
 bundle_id=jp.guch1120.EnglishTrainer
-test -d "$app_path" || { echo "Simulator app not found: $app_path" >&2; exit 1; }
+if [[ "$boot_only" != true ]]; then
+  [[ -n "$app_path" ]] || { echo 'Usage: bash Scripts/ci/simulator-startup-smoke.sh [/path/to/EnglishTrainer.app | --boot-only]' >&2; exit 2; }
+  test -d "$app_path" || { echo "Simulator app not found: $app_path" >&2; exit 1; }
+fi
 
 read -r simulator_udid simulator_state < <(xcrun simctl list devices available --json | python3 -c '
 import json, re, sys
@@ -22,8 +30,13 @@ _, udid, state = max(candidates)
 print(udid, state)
 ')
 
-if [[ "$simulator_state" != "Booted" ]]; then
-  xcrun simctl boot "$simulator_udid"
+case "$simulator_state" in
+  Booted|Booting) ;;
+  *) xcrun simctl boot "$simulator_udid" ;;
+esac
+if [[ "$boot_only" == true ]]; then
+  echo "Started booting iPhone Simulator $simulator_udid"
+  exit 0
 fi
 xcrun simctl bootstatus "$simulator_udid" -b
 xcrun simctl uninstall "$simulator_udid" "$bundle_id" >/dev/null 2>&1 || true
