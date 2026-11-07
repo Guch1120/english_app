@@ -54,7 +54,10 @@ final class EnglishTrainerUITests: XCTestCase {
         let revealEnglish = app.switches["英文を表示"]
         XCTAssertTrue(revealEnglish.waitForExistence(timeout: 5))
         revealEnglish.tap()
-        app.buttons["reschedule"].tap()
+        let weakPointField = app.textFields["単語・フレーズ（空欄で文章全体）"]
+        XCTAssertTrue(weakPointField.waitForExistence(timeout: 5))
+        weakPointField.tap()
+        weakPointField.typeText("reschedule")
         app.buttons["復習に登録"].tap()
         XCTAssertTrue(app.buttons["保存しました"].waitForExistence(timeout: 5))
 
