@@ -69,7 +69,7 @@ jobs:
       - name: Exercise learning persistence and navigation in iPhone Simulator
         run: >-
           xcodebuild test -project EnglishTrainer.xcodeproj -scheme EnglishTrainer
-          -destination 'platform=iOS Simulator,name=iPhone 16'
+          -destination "platform=iOS Simulator,id=${IOS_SIMULATOR_UDID}"
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64
       - name: Verify unsigned distribution archive without secrets
         run: bash Scripts/testflight.sh --archive-only
