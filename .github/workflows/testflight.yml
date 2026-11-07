@@ -29,3 +29,10 @@ jobs:
           APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: bash Scripts/testflight.sh --upload
+      - name: Retain crash symbols for support
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: EnglishTrainer-dSYMs-run${{ github.run_number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/EnglishTrainer-dSYMs-run${{ github.run_number }}-${{ github.run_attempt }}.zip
+          if-no-files-found: error
+          retention-days: 7
