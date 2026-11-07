@@ -35,7 +35,9 @@ final class EnglishTrainerUITests: XCTestCase {
 
         let speechRate = app.sliders["読み上げ速度"]
         XCTAssertTrue(speechRate.waitForExistence(timeout: 5))
-        speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5)).tap()
+        let currentRate = speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let fineRate = speechRate.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
+        currentRate.press(forDuration: 0.1, thenDragTo: fineRate)
         let fineRateReached = NSPredicate(format: "value == %@", "1.05倍")
         let fineRateExpectation = XCTNSPredicateExpectation(predicate: fineRateReached, object: speechRate)
         XCTAssertEqual(XCTWaiter.wait(for: [fineRateExpectation], timeout: 5), .completed, speechRate.debugDescription)
@@ -122,9 +124,11 @@ final class EnglishTrainerUITests: XCTestCase {
 
         app.staticTexts["Could you reschedule the meeting for Thursday?"].tap()
         XCTAssertTrue(app.navigationBars["リスニング"].waitForExistence(timeout: 5))
+        let lessonForm = app.collectionViews.firstMatch
+        XCTAssertTrue(lessonForm.waitForExistence(timeout: 5))
         let speakingLink = app.descendants(matching: .any)
             .matching(identifier: "lesson.speakingPractice").firstMatch
-        for _ in 0..<6 where !speakingLink.exists { app.swipeUp() }
+        for _ in 0..<4 where !speakingLink.exists { lessonForm.swipeUp() }
         XCTAssertTrue(speakingLink.waitForExistence(timeout: 5), app.debugDescription)
         speakingLink.tap()
 
