@@ -157,7 +157,8 @@ final class EnglishTrainerUITests: XCTestCase {
         if !reuseToggle.isHittable { app.swipeUp() }
         XCTAssertTrue(reuseToggle.exists)
 
-        let reuseSettings = app.buttons["RE-USEモデルと端末確認の設定"]
+        let reuseSettings = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "RE-USEモデルと端末確認の設定")).firstMatch
         if !reuseSettings.isHittable { app.swipeUp() }
         XCTAssertTrue(reuseSettings.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["録音をRE-USEなし／ありで比較"].isEnabled)
