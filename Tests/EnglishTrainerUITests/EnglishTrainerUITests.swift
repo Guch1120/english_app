@@ -119,7 +119,11 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
 
         app.staticTexts["Could you reschedule the meeting for Thursday?"].tap()
-        let speakingLink = app.buttons["スピーキング練習・文字起こし"]
+        let speakingLinkLabel = "スピーキング練習・文字起こし"
+        let speakingLink = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label == %@", speakingLinkLabel)
+        ).firstMatch
+        for _ in 0..<4 where !speakingLink.exists { app.swipeUp() }
         XCTAssertTrue(speakingLink.waitForExistence(timeout: 5))
         speakingLink.tap()
 
