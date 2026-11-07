@@ -25,6 +25,25 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["音声とAI"].exists)
     }
 
+    func testLessonControlsExposeFineSpeechRateAndTranslation() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+
+        let lesson = app.staticTexts["Could you reschedule the meeting for Thursday?"]
+        XCTAssertTrue(lesson.waitForExistence(timeout: 5))
+        lesson.tap()
+
+        let speechRate = app.sliders["読み上げ速度"]
+        XCTAssertTrue(speechRate.waitForExistence(timeout: 5))
+        speechRate.adjust(toNormalizedSliderPosition: 0.55)
+        XCTAssertEqual(speechRate.value as? String, "1.05倍")
+
+        let translationToggle = app.switches["日本語訳を表示"]
+        XCTAssertTrue(translationToggle.exists)
+        translationToggle.tap()
+        XCTAssertTrue(app.staticTexts["会議を木曜日に変更していただけますか？"].waitForExistence(timeout: 5))
+    }
+
     func testNewLessonPersistsAfterRestart() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
