@@ -40,11 +40,16 @@ final class EnglishTrainerUITests: XCTestCase {
 
         let translationToggle = app.switches["日本語訳を表示"]
         XCTAssertTrue(translationToggle.exists)
-        translationToggle.tap()
-        XCTAssertEqual(translationToggle.value as? String, "1")
-        app.swipeUp()
+        if !translationToggle.isHittable { app.swipeUp() }
+        XCTAssertTrue(translationToggle.isHittable, translationToggle.debugDescription)
+        translationToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let translationEnabled = NSPredicate(format: "value == %@", "1")
+        let translationExpectation = XCTNSPredicateExpectation(predicate: translationEnabled, object: translationToggle)
+        XCTAssertEqual(XCTWaiter.wait(for: [translationExpectation], timeout: 5), .completed)
+        let translation = app.staticTexts["会議を木曜日に変更していただけますか？"]
+        if !translation.exists { app.swipeUp() }
         XCTAssertTrue(
-            app.staticTexts["会議を木曜日に変更していただけますか？"].waitForExistence(timeout: 5),
+            translation.waitForExistence(timeout: 5),
             app.debugDescription
         )
     }
