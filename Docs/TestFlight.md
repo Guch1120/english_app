@@ -35,6 +35,14 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/workspace" english-trainer-
 
 TestFlight distribution only verifies the upload and Apple processing path. With TestFlight Automatic Updates enabled, Codex can wait for the device's installed build number to change over USB and launch the app for a startup check. This does not enable remote taps on the current iOS 26.4.2 device, so workflows that require navigating controls still need physical interaction. An uploaded build does not by itself verify on-device model downloads, inference, offline operation, or interruption recovery; those behaviors need the documented device checks.
 
+To wait for a specific TestFlight build and check its launch over the trusted USB connection, run this from the repository root:
+
+```bash
+bash Scripts/verify-testflight-device.sh 120.1 3600
+```
+
+The script polls the installed `CFBundleVersion` inside `english-trainer-device-debug`, then launches the app if it is not already running, waits 20 seconds, confirms the process remains alive, and requires exactly one new fixed-field `appLaunch` event. If the app is already running, it reports the PID and skips the cold-launch check without terminating the process. It does not install or update the app itself; TestFlight must perform the update. It does not simulate taps or validate audio/model flows.
+
 Sources checked 2026-11-07:
 - [Apple upload requirements](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds)
 - [App icons](https://developer.apple.com/documentation/xcode/configuring-your-app-icon)
