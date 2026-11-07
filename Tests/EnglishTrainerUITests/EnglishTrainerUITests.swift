@@ -128,7 +128,11 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(lessonForm.waitForExistence(timeout: 5))
         let speakingLink = app.descendants(matching: .any)
             .matching(identifier: "lesson.speakingPractice").firstMatch
-        for _ in 0..<4 where !speakingLink.exists { lessonForm.swipeUp() }
+        let scrollStart = lessonForm.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+        let scrollEnd = lessonForm.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        for _ in 0..<4 where !speakingLink.exists {
+            scrollStart.press(forDuration: 0.1, thenDragTo: scrollEnd)
+        }
         XCTAssertTrue(speakingLink.waitForExistence(timeout: 5), app.debugDescription)
         speakingLink.tap()
 
