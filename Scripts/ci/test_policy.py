@@ -39,7 +39,10 @@ class ChangeSelectionTests(unittest.TestCase):
     def test_docs_and_usb_scripts_skip_macos_build(self):
         self.assertFalse(requires_build(['Docs/TestFlight.md','README.md','Scripts/iphone.sh']))
     def test_app_package_and_build_pipeline_require_build(self):
-        for path in ['Apps/EnglishTrainer/Info.plist','Packages/VoiceLearning/Package.swift','Scripts/testflight.sh','.github/workflows/validate.yml','.github/workflows/testflight.yml']:
+        for path in ['Apps/EnglishTrainer/Info.plist','Packages/VoiceLearning/Package.swift',
+                     'Tests/EnglishTrainerUITests/EnglishTrainerUITests.swift',
+                     'Tests/VoiceLearningTests/CoreTests.swift','Scripts/testflight.sh',
+                     '.github/workflows/validate.yml','.github/workflows/testflight.yml']:
             self.assertTrue(requires_build([path]))
 
 if __name__ == '__main__': unittest.main()

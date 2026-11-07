@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 
 def requires_build(paths):
-    return any(p.startswith(('Apps/','Packages/','EnglishTrainer.xcodeproj/','Vendor/','.github/workflows/')) or p in
+    return any(p.startswith(('Apps/','Packages/','Tests/','EnglishTrainer.xcodeproj/','Vendor/','.github/workflows/')) or p in
         ('Dockerfile','Scripts/test.sh','Scripts/testflight.sh','.github/workflows/validate.yml','Scripts/ci/changes.py') for p in paths)
 
 def main():
