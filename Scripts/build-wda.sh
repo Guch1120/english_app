@@ -85,6 +85,7 @@ for profile in wda-base wda-runner; do
   chmod 600 "$destination"
   installed_profiles+=("$destination")
 done
+runner_profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$temp_dir/wda-runner.plist")
 
 keychain_password=$(openssl rand -hex 24)
 security create-keychain -p "$keychain_password" "$keychain"
@@ -101,10 +102,10 @@ if ! xcodebuild \
   -configuration Debug \
   -destination 'generic/platform=iOS' \
   -derivedDataPath build/wda-derived \
-  -allowProvisioningUpdates \
   DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-  CODE_SIGN_STYLE=Automatic \
+  CODE_SIGN_STYLE=Manual \
   CODE_SIGN_IDENTITY='Apple Development' \
+  PROVISIONING_PROFILE_SPECIFIER="$runner_profile_uuid" \
   PRODUCT_BUNDLE_IDENTIFIER=jp.guch1120.WebDriverAgentRunner \
   CODE_SIGNING_ALLOWED=YES \
   CODE_SIGNING_REQUIRED=YES \
