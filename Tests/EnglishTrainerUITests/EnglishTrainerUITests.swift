@@ -57,13 +57,14 @@ final class EnglishTrainerUITests: XCTestCase {
         let weakPointField = app.textFields["単語・フレーズ（空欄で文章全体）"]
         XCTAssertTrue(weakPointField.waitForExistence(timeout: 5))
         weakPointField.tap()
-        weakPointField.typeText("reschedule")
+        weakPointField.typeText("reschedule\n")
         app.buttons["復習に登録"].tap()
         XCTAssertTrue(app.buttons["保存しました"].waitForExistence(timeout: 5))
 
         let reviewTab = app.tabBars.buttons["復習"]
         XCTAssertTrue(reviewTab.waitForExistence(timeout: 5))
         reviewTab.tap()
+        XCTAssertTrue(app.navigationBars["復習"].waitForExistence(timeout: 5))
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["reschedule"].waitForExistence(timeout: 5))
         app.buttons["普通"].firstMatch.tap()
