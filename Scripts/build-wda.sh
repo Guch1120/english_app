@@ -101,6 +101,7 @@ if ! xcodebuild \
   -configuration Debug \
   -destination 'generic/platform=iOS' \
   -derivedDataPath build/wda-derived \
+  -allowProvisioningUpdates \
   DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
   CODE_SIGN_STYLE=Automatic \
   CODE_SIGN_IDENTITY='Apple Development' \
