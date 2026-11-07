@@ -51,7 +51,7 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(lesson.waitForExistence(timeout: 5))
         lesson.tap()
 
-        let revealEnglish = app.buttons["英文を表示"]
+        let revealEnglish = app.switches["英文を表示"]
         XCTAssertTrue(revealEnglish.waitForExistence(timeout: 5))
         revealEnglish.tap()
         app.buttons["reschedule"].tap()
