@@ -1,0 +1,44 @@
+name: WDA Provisioning
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wda-provisioning
+  cancel-in-progress: false
+jobs:
+  register:
+    if: github.ref == 'refs/heads/main'
+    environment: ios-testflight
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Register WDA App IDs and development profiles
+        env:
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          WDA_PROFILE_OUTPUT: ${{ runner.temp }}/wda-profiles
+        run: python3 Scripts/apple/wda_profiles.py
+      - name: Encrypt profiles with the API private key before artifact storage
+        env:
+          PROFILE_ENCRYPTION_KEY_PEM: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          WDA_PROFILE_OUTPUT: ${{ runner.temp }}/wda-profiles
+        run: |
+          set -euo pipefail
+          umask 077
+          for profile in "$WDA_PROFILE_OUTPUT"/*.mobileprovision; do
+            python3 Scripts/apple/crypt_profile.py encrypt "$profile" "$profile.enc" \
+              --key-env PROFILE_ENCRYPTION_KEY_PEM
+            rm -f "$profile"
+          done
+      - name: Retain temporary signing profiles for the WDA build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: wda-profiles-run${{ github.run_id }}
+          path: ${{ runner.temp }}/wda-profiles/*.mobileprovision.enc
+          if-no-files-found: error
+          retention-days: 1
