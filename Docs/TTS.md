@@ -47,4 +47,4 @@ Verified code commit `e638898` on 2026-11-06:
 - SDK layout mapping: the verified Kokoro frontend is copied into the SDK's shared `Models/kokoro` directory; Pocket's manifest explicitly selects `Models/pocket-tts`. Storage folder overrides are validated against path traversal.
 - Full learning-data deletion also clears generated audio, local comparison text and measurement history; downloaded models remain available.
 
-Physical iPhone neural inference, offline execution, interruptions and perceptual audio quality remain unverified. This PR has not yet been distributed through TestFlight.
+Physical iPhone neural inference, offline execution, interruptions and perceptual audio quality remain unverified. TestFlight builds containing this implementation have been uploaded, but their installation and neural-voice use on the iPhone have not been confirmed.
