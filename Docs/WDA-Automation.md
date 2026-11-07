@@ -49,7 +49,7 @@ base64 -w 0 "$profile_dir/wda-runner.mobileprovision" | \
 
 ## Build and install the signed runner
 
-After the runner-build PR is merged, run **Actions → WDA Runner Build → Run workflow → main**. The workflow uses Appium WebDriverAgent 16.18.1 pinned to commit `943e2efdb5d8b26a704d0cef58cb5eec0f37076c`, the existing development certificate, and the two protected profiles. It verifies the runner signature and embedded profile, then encrypts the IPA with `DEV_IPA_PASSWORD` before uploading a one-day artifact.
+After the runner-build PR is merged, run **Actions → WDA Runner Build → Run workflow → main**. The workflow uses Appium WebDriverAgent 16.18.1 pinned to commit `943e2efdb5d8b26a704d0cef58cb5eec0f37076c`, the existing development certificate, and the two protected profiles. Its non-interactive Xcode 26 build enables provisioning updates so Xcode can resolve the registered development profiles. It verifies the runner signature and embedded profile, then encrypts the IPA with `DEV_IPA_PASSWORD` before uploading a one-day artifact.
 
 Download and decrypt the artifact into the private signing directory (replace `RUN_ID` with the WDA Runner Build run number):
 
