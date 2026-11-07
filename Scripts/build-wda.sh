@@ -86,6 +86,7 @@ for profile in wda-base wda-runner; do
   installed_profiles+=("$destination")
 done
 runner_profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$temp_dir/wda-runner.plist")
+python3 Scripts/ci/configure_wda_signing.py "$project/project.pbxproj" "$APPLE_TEAM_ID" "$runner_profile_uuid"
 
 keychain_password=$(openssl rand -hex 24)
 security create-keychain -p "$keychain_password" "$keychain"
@@ -102,11 +103,6 @@ if ! xcodebuild \
   -configuration Debug \
   -destination 'generic/platform=iOS' \
   -derivedDataPath build/wda-derived \
-  DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-  CODE_SIGN_STYLE=Manual \
-  CODE_SIGN_IDENTITY='Apple Development' \
-  PROVISIONING_PROFILE_SPECIFIER="$runner_profile_uuid" \
-  PRODUCT_BUNDLE_IDENTIFIER=jp.guch1120.WebDriverAgentRunner \
   CODE_SIGNING_ALLOWED=YES \
   CODE_SIGNING_REQUIRED=YES \
   build-for-testing > "$temp_dir/xcodebuild.log" 2>&1; then
