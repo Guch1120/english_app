@@ -9,9 +9,9 @@ Every PR runs the `Validate` workflow without signing secrets. No automatic appr
 | Gitleaks 8.30.1 | Committed Git history for recognized credential patterns, with values redacted in logs |
 | CI policy + negative/gate tests | Full-SHA action pins; read-only token permissions; no PR secret references or deployment environment; manual-only/main-only deployment jobs; no tracked signing/credential files |
 | Swift tests | Learning, persistence, alignment and coordinator behavior covered by tests |
-| macOS/Xcode | Simulator build/analyze and unsigned device archive/icon validation |
+| macOS/Xcode | Simulator build/analyze, UI-driven navigation and lesson persistence, and unsigned device archive/icon validation |
 
-Documentation-only or USB-tool-only PRs still get all quality/security checks but skip Swift/macOS builds. App/package/Xcode project changes, build scripts or any workflow require the full build path. Workflow dispatch runs all build checks. `review-gate` fails if a required check fails, is cancelled or unexpectedly skips; a skipped build passes only when change selection explicitly says it was unnecessary.
+The iPhone Simulator UI tests open the learning, review and settings tabs, add a lesson, and verify it remains after app restart. They validate app navigation and SQLite-backed lesson persistence without loading neural models; they do not establish physical-device audio, microphone, model inference or TestFlight behavior. Documentation-only or USB-tool-only PRs still get all quality/security checks but skip Swift/macOS builds. App/package/Xcode project changes, build scripts or any workflow require the full build path. Workflow dispatch runs all build checks. `review-gate` fails if a required check fails, is cancelled or unexpectedly skips; a skipped build passes only when change selection explicitly says it was unnecessary.
 
 Run local quality checks in Docker:
 

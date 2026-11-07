@@ -30,6 +30,10 @@ _, udid, state = max(candidates)
 print(udid, state)
 ')
 
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  printf 'IOS_SIMULATOR_UDID=%s\n' "$simulator_udid" >> "$GITHUB_ENV"
+fi
+
 case "$simulator_state" in
   Booted|Booting) ;;
   *) xcrun simctl boot "$simulator_udid" ;;
