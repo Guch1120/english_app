@@ -70,6 +70,12 @@ pymobiledevice3 developer wda screenshot /tmp/english-trainer-wda.png \
 
 ## Device requirements
 
-The iPhone must remain paired over USB and have Developer Mode enabled. Installing and launching the signed WDA runner is separate from registering its App IDs and profiles. After the first successful install, verify a WDA screenshot and harmless tap before using it for app acceptance. Stop the WDA runner when the automation session ends.
+The iPhone must remain paired over USB, have Developer Mode enabled, and have **Settings → Developer → Enable UI Automation** turned on. This is a separate device-side switch; creating the WDA App IDs/profiles, signing the runner, and installing it do not enable UI Automation. If the switch is off, XCTest can launch the runner but time out while enabling automation mode, so WDA never opens its HTTP server on port 8100.
+
+After enabling the switch, unlock the iPhone and retry the WDA launch. If iOS displays a confirmation or passcode prompt, complete it on the device. Verify a WDA status response and screenshot, then perform a harmless tap before using it for app acceptance. Stop the WDA runner when the automation session ends.
+
+### Troubleshooting the automation-mode timeout
+
+If the runner log contains `Timed out while enabling automation mode` and the host reports that port 8100 never became reachable, first check **Settings → Developer → Enable UI Automation** on the iPhone. A successful runner build, valid signing, successful USB installation, Developer Mode, and a mounted Developer image do not prove this switch is enabled.
 
 WDA is a development helper, not an app update mechanism. It provides UI input to the already installed TestFlight app; TestFlight still controls app installation and updates.
