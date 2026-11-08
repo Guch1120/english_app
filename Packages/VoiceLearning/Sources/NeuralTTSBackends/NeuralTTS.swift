@@ -50,8 +50,8 @@ public enum NeuralRuntime {
     }
     public static func modelStore(root: URL) -> VerifiedModelStore {
         configure()
-        return VerifiedModelStore(root: root, download: { remote, destination, progress in
-            try await URLSessionModelDownloader.download(from: remote, to: destination, progress: progress)
+        return VerifiedModelStore(root: root, download: { remote, destination, expectedSize, progress in
+            try await URLSessionModelDownloader.download(from: remote, to: destination, expectedSize: expectedSize, progress: progress)
         }, sha256: { url in
             let handle = try FileHandle(forReadingFrom: url); defer { try? handle.close() }
             var hash = SHA256()

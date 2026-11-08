@@ -13,6 +13,8 @@ public enum REUSEError: Error, Equatable {
 }
 
 #if canImport(ReuseKit) && canImport(ReuseModelAssets)
+import CryptoKit
+import ModelManagement
 import ReuseKit
 import ReuseModelAssets
 
@@ -24,7 +26,8 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
     public static let verificationKey = "reuse-device-verified-\(modelRevision)"
 
     private let store: ReuseModelStore
-    private let source: ReuseModelSource
+    private let transferStore: VerifiedModelStore
+    private let transferManifest: ModelManifest
     private let applicationSupportDirectory: URL
     private var engine: ReuseEngine?
     private var metrics: AudioEnhancementMetrics?
@@ -37,23 +40,67 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
         store = try ReuseModelStore(catalog: catalog, applicationSupportDirectory: applicationSupportDirectory,
                                     cachesDirectory: cachesDirectory)
         self.applicationSupportDirectory = applicationSupportDirectory
-        source = try ReuseModelSource(huggingFaceRepository: sourceConfiguration.repository,
-                                      revision: sourceConfiguration.revision)
+        let modelRoot = store.installedModelDirectory.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: modelRoot, withIntermediateDirectories: true,
+            attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
+        var excludedModelRoot = modelRoot
+        var modelRootValues = URLResourceValues(); modelRootValues.isExcludedFromBackup = true
+        try excludedModelRoot.setResourceValues(modelRootValues)
+        let manifest = ModelManifest(
+            id: "reuse-\(sourceConfiguration.revision)", repository: sourceConfiguration.repository,
+            revision: sourceConfiguration.revision,
+            files: catalog.files.map { ModelFile(path: $0.path, sha256: $0.sha256, size: $0.bytes) },
+            storageFolder: "model-pack"
+        )
+        try manifest.validate()
+        transferManifest = manifest
+        let transferRoot = applicationSupportDirectory.appendingPathComponent("REUSEDownloads", isDirectory: true)
+        try FileManager.default.createDirectory(at: transferRoot, withIntermediateDirectories: true,
+            attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
+        var protectedRoot = transferRoot
+        var resourceValues = URLResourceValues(); resourceValues.isExcludedFromBackup = true
+        try protectedRoot.setResourceValues(resourceValues)
+        transferStore = VerifiedModelStore(root: transferRoot, download: { remote, destination, expectedSize, progress in
+            try await URLSessionModelDownloader.download(from: remote, to: destination,
+                expectedSize: expectedSize, progress: progress)
+        }, sha256: Self.sha256)
     }
 
     public func storageStatus() async throws -> REUSEStorageStatus {
         let value = try await store.inspect()
-        return REUSEStorageStatus(isInstalled: value.isInstalled, storedBytes: value.storedBytes,
+        let transferDirectory = try await transferStore.directory(transferManifest)
+        let partialBytes = Self.bytes(in: transferDirectory)
+        return REUSEStorageStatus(isInstalled: value.isInstalled, storedBytes: value.storedBytes + partialBytes,
                                   compiledBytes: value.compiledBytes)
     }
 
     public func download(progress: @escaping @Sendable (Double) -> Void) async throws {
-        try await store.download(from: source) { update in progress(update.fraction) }
+        if try await store.inspect().isInstalled {
+            try? await transferStore.remove(transferManifest)
+            progress(1)
+            return
+        }
+        try await transferStore.install(transferManifest) { fraction in progress(fraction * 0.85) }
+        try Task.checkCancellation()
+
+        let transferDirectory = try await transferStore.directory(transferManifest)
+        let verifiedModelPack = transferDirectory.appendingPathComponent("Models", isDirectory: true)
+            .appendingPathComponent("model-pack", isDirectory: true)
+        let destination = store.installedModelDirectory
+        let incoming = destination.deletingLastPathComponent().appendingPathComponent("incoming-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: incoming.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: verifiedModelPack, to: incoming)
+        if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+        try FileManager.default.moveItem(at: incoming, to: destination)
+        guard try await store.inspect().isInstalled else { throw REUSEError.modelMissing }
+        try await transferStore.remove(transferManifest)
+        progress(1)
     }
 
     public func removeModel() async throws {
         await unload()
         try await store.remove()
+        try await transferStore.remove(transferManifest)
         metrics = nil
     }
 
@@ -125,6 +172,28 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
 
     public static var thirdPartyNotices: String { resourceText("ThirdPartyNotices") }
     public static var modelLicense: String { resourceText("NVIDIA-RE-USE") }
+
+    private static func sha256(_ url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hash = SHA256()
+        while let data = try handle.read(upToCount: 1024 * 1024), !data.isEmpty {
+            try Task.checkCancellation()
+            hash.update(data: data)
+        }
+        return hash.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func bytes(in directory: URL) -> Int64 {
+        guard let items = FileManager.default.enumerator(at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { return 0 }
+        return items.reduce(Int64(0)) { total, item in
+            guard let url = item as? URL,
+                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
+                  values.isRegularFile == true else { return total }
+            return total + Int64(values.fileSize ?? 0)
+        }
+    }
 
     private static func resource(_ name: String, extension ext: String) throws -> URL {
         guard let url = Bundle.module.url(forResource: name, withExtension: ext) else { throw REUSEError.unavailable }
