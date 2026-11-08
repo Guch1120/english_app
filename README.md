@@ -19,6 +19,8 @@ iOSは `.github/workflows/validate.yml` のmacOSランナーで署名なしSimul
 - [仕様書](Docs/Specification-v1.md)
 - [調査・互換性とライセンスの確認状況](Docs/Phase0.md)
 - [構成と実装上の制約](Docs/Architecture.md)
+- [初期版の受け入れ確認と実機チェック](Docs/Acceptance.md)
+- [直近の作業引き継ぎ](Docs/Handoff-2026-11-08.md)
 - [新規App ID・Secrets登録とiPhone検証手順](Docs/iPhone-Setup.md)
 
 実装状況は [Status](Docs/Status.md) 参照。モデルの端末内準備、オフライン動作、ライセンス、制約は各機能ドキュメントを参照してください。ローカルテストの成功はiOSでの動作確認を意味しません。個人データ・モデル重み・署名ファイルはGitへ登録しないでください。
