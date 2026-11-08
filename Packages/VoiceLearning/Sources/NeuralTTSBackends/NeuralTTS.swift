@@ -2,6 +2,33 @@ import Foundation
 import SpeechCore
 import ModelManagement
 
+public enum NeuralSpeaker: String, CaseIterable, Identifiable, Sendable {
+    case heart = "af_heart", bella = "af_bella", michael = "am_michael", alba
+    public var id: String { rawValue }
+    public var engine: NeuralVoice { self == .alba ? .pocket : .kokoro }
+    public var title: String {
+        switch self {
+        case .heart: "Heart（米国英語）"
+        case .bella: "Bella（米国英語）"
+        case .michael: "Michael（米国英語）"
+        case .alba: "Alba（英語）"
+        }
+    }
+    /// Optional voices have isolated storage: removing one cannot remove the base model.
+    public var supplementalManifest: ModelManifest? {
+        let size: Int64, hash: String
+        switch self {
+        case .bella: size = 2678538; hash = "e7bdbe207b927d1e59556dcda69b976cbbdc87be5e4affeea5bf030fca80e55c"
+        case .michael: size = 2667552; hash = "ec6e03f1fc30c11020ade45f587a64e1b8c51c08e8ab6f59bdf089f410c2b924"
+        default: return nil
+        }
+        return ModelManifest(id: "kokoro-" + rawValue.replacingOccurrences(of: "_", with: "-"),
+            repository: "FluidInference/kokoro-82m-coreml", revision: "2568276a60ff6e7f312afce3dc9e3f07521cb48d",
+            files: [ModelFile(path: "voices/\(rawValue).json", sha256: hash, size: size)],
+            storageFolder: "kokoro-voice-" + rawValue)
+    }
+}
+
 public enum NeuralVoice: String, CaseIterable, Codable, Identifiable, Sendable {
     case kokoro, pocket
     public var id: String { rawValue }
@@ -45,8 +72,8 @@ public enum NeuralRuntime {
         ModelHub.offlineMode = true
     }()
     public static func configure() { _ = configured }
-    public static func backend(voice: NeuralVoice, directory: URL) -> any TTSService {
-        FluidTTSBackend(voice: voice, directory: directory)
+    public static func backend(voice: NeuralVoice, directory: URL, speaker: NeuralSpeaker? = nil, speakerDirectory: URL? = nil) -> any TTSService {
+        FluidTTSBackend(voice: voice, directory: directory, speaker: speaker, speakerDirectory: speakerDirectory)
     }
     public static func modelStore(root: URL) -> VerifiedModelStore {
         configure()
@@ -66,18 +93,30 @@ public actor FluidTTSBackend: TTSService {
     public nonisolated let modelID: String
     private let voice: NeuralVoice
     private let directory: URL
+    private let speaker: NeuralSpeaker
+    private let speakerDirectory: URL?
     private var kokoro: KokoroAneManager?
     private var pocket: PocketTtsManager?
     private var cancelled = false
-    public init(voice: NeuralVoice, directory: URL) {
+    public init(voice: NeuralVoice, directory: URL, speaker: NeuralSpeaker? = nil, speakerDirectory: URL? = nil) {
         NeuralRuntime.configure(); self.voice = voice; self.modelID = voice.id; self.directory = directory
+        self.speaker = speaker ?? (voice == .kokoro ? .heart : .alba)
+        self.speakerDirectory = speakerDirectory
     }
     public func load() async throws {
         cancelled = false; try Task.checkCancellation()
+        guard speaker.engine == voice else { throw NeuralTTSError.invalidVoice }
         if voice == .kokoro {
             // FluidAudio keeps the ANE chain and shared English frontend in separate
             // repository folders. Both are copied only from the verified manifest tree.
             let models = directory.appendingPathComponent("Models")
+            if let manifest = speaker.supplementalManifest {
+                guard let speakerDirectory else { throw NeuralTTSError.modelsMissing }
+                let source = speakerDirectory.appendingPathComponent("Models").appendingPathComponent(manifest.storageFolder!).appendingPathComponent(manifest.files[0].path)
+                let pack = try KokoroAneVoicePack.load(fromJSON: Data(contentsOf: source))
+                let target = models.appendingPathComponent("kokoro-82m-coreml/ANE/\(speaker.id).bin")
+                try pack.binaryData.write(to: target, options: .atomic)
+            }
             let frontend = models.appendingPathComponent("kokoro")
             try FileManager.default.createDirectory(at: frontend, withIntermediateDirectories: true)
             for name in ["G2PEncoder.mlmodelc", "G2PDecoder.mlmodelc", "g2p_vocab.json", "us_lexicon_cache.json"] {
@@ -107,14 +146,14 @@ public actor FluidTTSBackend: TTSService {
         try Task.checkCancellation()
         guard !cancelled else { throw CancellationError() }
         let data: Data
-        if let kokoro { data = try await kokoro.synthesize(text: text, voice: "af_heart", speed: 1) }
+        if let kokoro { data = try await kokoro.synthesize(text: text, voice: speaker.id, speed: 1) }
         else if let pocket { data = try await pocket.synthesize(text: text, voice: "alba") }
         else { throw NeuralTTSError.modelsMissing }
         try Task.checkCancellation(); if cancelled { throw CancellationError() }
         return data
     }
     public func synthesize(_ request: SpeechRequest) async throws -> AudioAsset {
-        guard request.voiceID == voice.speaker else { throw NeuralTTSError.invalidVoice }
+        guard request.voiceID == speaker.id else { throw NeuralTTSError.invalidVoice }
         let data = try await synthesizeData(request.text), info = try WAVInfo(data: data)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("wav")
         try data.write(to: url, options: .atomic)

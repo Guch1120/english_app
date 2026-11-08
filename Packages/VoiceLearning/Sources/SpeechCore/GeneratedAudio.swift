@@ -111,6 +111,7 @@ public actor TTSAudioCache {
         }
     }
 }
+public enum TTSMeasurementError: Error { case noteTooLong }
 public struct TTSMeasurement: Codable, Identifiable, Sendable {
     public let id: UUID
     public let engine: String
@@ -123,9 +124,16 @@ public struct TTSMeasurement: Codable, Identifiable, Sendable {
     public let cacheHit: Bool
     public let comparisonID: UUID?
     public let peakProcessRSS: UInt64?
+    /// User content, stored locally with the measurement; never diagnostic output.
+    public private(set) var listeningNote: String?
+    public mutating func setListeningNote(_ note: String) throws {
+        guard note.count <= 2000 else { throw TTSMeasurementError.noteTooLong }
+        listeningNote = note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : note
+    }
     public var realTimeFactor: Double? { generationSeconds.map { $0 / duration } }
     public init(engine: String, voice: String, modelRevision: String, generationSeconds: Double?, asset: AudioAsset, cacheHit: Bool, comparisonID: UUID? = nil, peakProcessRSS: UInt64? = nil) {
         self.id = UUID(); self.engine = engine; self.voice = voice; self.modelRevision = modelRevision; self.generatedAt = Date()
         self.generationSeconds = generationSeconds; self.duration = asset.duration; self.sampleRate = asset.sampleRate; self.cacheHit = cacheHit; self.comparisonID = comparisonID; self.peakProcessRSS = peakProcessRSS
+        self.listeningNote = nil
     }
 }

@@ -260,6 +260,33 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "初回ダウンロード後はオフラインで処理できます")).firstMatch.exists)
     }
 
+    @MainActor
+    func testTTSListeningNoteSurvivesRestart() {
+        app.launchArguments.append("--uitest-seed-tts")
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let comparison = app.buttons["TTS聴き比べ・性能測定"]
+        scrollTo(comparison)
+        comparison.tap()
+        let add = app.buttons["聴き心地のメモを追加"]
+        scrollTo(add)
+        add.tap()
+        let field = app.descendants(matching: .any).matching(identifier: "tts.listeningNote").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap(); field.typeText("Clear and natural")
+        app.buttons["保存"].tap()
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        scrollTo(comparison); comparison.tap()
+        let saved = app.staticTexts["Clear and natural"]
+        scrollTo(saved)
+        XCTAssertTrue(saved.exists)
+        app.buttons["比較メモを編集"].tap()
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "tts.listeningNote").firstMatch.value as? String, "Clear and natural")
+    }
+
     func testASRModelManagementIsReachableFromSettings() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
