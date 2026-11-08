@@ -202,6 +202,18 @@ public struct LessonGenerationRequest: Sendable, Equatable {
         guard generated != normalized(previousContext), !targetPhrases.isEmpty,
               targetPhrases.allSatisfy({ !normalized($0).isEmpty && (" " + generated + " ").contains(" " + normalized($0) + " ") }) else { throw ContentError.invalidContent }
     }
+    public func validateGeneratedOutput(_ lesson: GeneratedLesson) throws {
+        // A lightweight language-presence gate, not a translation/semantic quality score.
+        func containsJapanese(_ text: String) -> Bool {
+            text.unicodeScalars.contains { scalar in
+                (0x3040...0x30ff).contains(scalar.value) || (0x3400...0x9fff).contains(scalar.value) || (0xff66...0xff9f).contains(scalar.value)
+            }
+        }
+        guard lesson.difficulty == difficulty,
+              lesson.kind.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == kind.lowercased(),
+              containsJapanese(lesson.translation), containsJapanese(lesson.explanation) else { throw ContentError.invalidContent }
+        try validateReviewExample(lesson)
+    }
 }
 
 public actor LessonGenerator {
@@ -217,14 +229,14 @@ public actor LessonGenerator {
                 let response = try await service.generate(prompt: prompt)
                 let lesson = try GeneratedLesson.decodeModelOutput(response)
                 _ = try lesson.validated()
-                try request.validateReviewExample(lesson)
+                try request.validateGeneratedOutput(lesson)
                 return lesson
             } catch let error as ContentError {
                 lastError = error
                 guard attempt == 0 else { break }
                 prompt = """
                 \(originalPrompt)
-                Your previous response did not satisfy the required JSON schema or content rules. Correct it and return a complete JSON object only. Use exactly four unique non-empty choices and a valid zero-based answerIndex. Do not include markdown fences or prose.
+                Your previous response did not satisfy the required JSON schema or content rules. Correct it and return a complete JSON object only. Keep kind exactly as the requested Lesson type and difficulty exactly as the requested number. Write BOTH translation and explanation in Japanese (日本語). Use exactly four unique non-empty choices and a valid zero-based answerIndex. For review examples include every requested phrase in a different situation. Do not include markdown fences or prose.
                 """
             }
         }

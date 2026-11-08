@@ -22,6 +22,18 @@ final class ReviewExampleTests: XCTestCase, @unchecked Sendable {
         XCTAssertThrowsError(try LessonGenerationRequest(topic: "hotel", difficulty: 2, targetPhrases: ["booking"], previousContext: String(repeating: "a", count: 1501)).prompt())
     }
 
+    func testNewGenerationRequiresJapaneseTranslationAndExplanation() throws {
+        let request = LessonGenerationRequest(topic: "hotel", difficulty: 2, kind: "review example")
+        let englishOnly = GeneratedLesson(kind: "review example", difficulty: 2, text: "Please confirm the booking.",
+            translation: "予約を確認してください。", targetPhrases: ["booking"], question: "What should be confirmed?",
+            choices: ["The booking", "The price", "The time", "The room"], answerIndex: 0, explanation: "The booking must be checked.")
+        XCTAssertNoThrow(try englishOnly.validated(), "Existing/imported/edited content remains readable")
+        XCTAssertThrowsError(try request.validateGeneratedOutput(englishOnly))
+        XCTAssertNoThrow(try request.validateGeneratedOutput(lesson(text: "Please confirm the booking.")))
+        XCTAssertThrowsError(try LessonGenerationRequest(topic: "hotel", difficulty: 3, kind: "review example").validateGeneratedOutput(lesson(text: "Please confirm the booking.")))
+        XCTAssertThrowsError(try LessonGenerationRequest(topic: "hotel", difficulty: 2, kind: "TOEIC Part 1 listening").validateGeneratedOutput(lesson(text: "Please confirm the booking.")))
+    }
+
     private actor Responses: LLMService {
         var values: [String]
         var calls = 0
@@ -35,7 +47,7 @@ final class ReviewExampleTests: XCTestCase, @unchecked Sendable {
         let copied = lesson(text: "Please confirm the booking.")
         let different = lesson(text: "At the reception desk, confirm the booking for tomorrow.")
         let service = Responses(try [copied, different].map { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) })
-        let request = LessonGenerationRequest(topic: "hotel", difficulty: 2, targetPhrases: ["confirm the booking"], previousContext: copied.text)
+        let request = LessonGenerationRequest(topic: "hotel", difficulty: 2, targetPhrases: ["confirm the booking"], kind: "review example", previousContext: copied.text)
         let generated = try await LessonGenerator(service: service).generate(request)
         XCTAssertEqual(generated.text, different.text)
         let count = await service.count(); XCTAssertEqual(count, 2)
