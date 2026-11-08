@@ -8,7 +8,7 @@ public enum URLSessionModelDownloader {
     public static func download(
         from remoteURL: URL,
         to destination: URL,
-        progress: @escaping @Sendable (Int64) async -> Void
+        progress: any ModelDownloadProgress
     ) async throws {
         let reporter = ByteProgressReporter(progress: progress)
         let operation = FileDownloadOperation(destination: destination, progress: reporter)
@@ -16,19 +16,19 @@ public enum URLSessionModelDownloader {
     }
 }
 
-private actor ByteProgressReporter {
-    private let progress: @Sendable (Int64) async -> Void
+private actor ByteProgressReporter: ModelDownloadProgress {
+    private let progress: any ModelDownloadProgress
     private var lastReportedBytes: Int64 = 0
 
-    init(progress: @escaping @Sendable (Int64) async -> Void) {
+    init(progress: any ModelDownloadProgress) {
         self.progress = progress
     }
 
-    func report(_ bytes: Int64) async {
+    func report(bytesReceived bytes: Int64) async {
         let next = max(lastReportedBytes, max(0, bytes))
         guard next > lastReportedBytes else { return }
         lastReportedBytes = next
-        await progress(next)
+        await progress.report(bytesReceived: next)
     }
 }
 
@@ -87,7 +87,7 @@ private final class FileDownloadOperation: NSObject, URLSessionDownloadDelegate,
         }
         if shouldReport {
             let received = max(0, totalBytesWritten)
-            Task { await progress.report(received) }
+            Task { await progress.report(bytesReceived: received) }
         }
     }
 
@@ -108,7 +108,7 @@ private final class FileDownloadOperation: NSObject, URLSessionDownloadDelegate,
                 return true
             }
             if shouldReport {
-                Task { await progress.report(received) }
+                Task { await progress.report(bytesReceived: received) }
             }
         } catch {
             lock.withLock { transferError = error }
