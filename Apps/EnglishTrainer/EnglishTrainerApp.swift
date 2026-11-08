@@ -209,6 +209,7 @@ struct HomeView: View {
 struct LessonView: View {
     let model: AppModel
     let item: LearningItem
+    @State private var speakingMode = false
     @State private var showEnglish = false
     @State private var showTranslation = false
     @AppStorage("listening-speed") private var speed = 1.0
@@ -216,6 +217,28 @@ struct LessonView: View {
     @State private var reason = WeakReason.listening
     @State private var saved = false
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("練習モード", selection: $speakingMode) {
+                Text("リスニング").tag(false)
+                Text("スピーキング").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("lesson.modeSelector")
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            Group {
+                if speakingMode {
+                    SpeakingPreview(item: item, appModel: model, model: model.speaking)
+                } else {
+                    listeningContent
+                }
+            }
+        }
+        .navigationTitle(speakingMode ? "スピーキング練習" : "リスニング")
+    }
+
+    private var listeningContent: some View {
         Form {
             Section("まずは聞いてみましょう") {
                 TTSEnginePicker(speech: model.speech)
@@ -276,21 +299,16 @@ struct LessonView: View {
                     saved = model.error == nil
                 }
             }
-            Section {
-                NavigationLink("スピーキング練習・文字起こし") { SpeakingPreview(item: item, appModel: model, model: model.speaking) }
-                    .accessibilityIdentifier("lesson.speakingPractice")
-            }
-        }.navigationTitle("リスニング").onDisappear { model.stop() }
+        }.onDisappear { model.stop() }
     }
 }
 struct SpeakingPreview: View {
     let item: LearningItem
     let appModel: AppModel
     @Bindable var model: SpeakingTrainingModel
-    @State private var confirmDownload = false
-    @State private var confirmModelRemoval = false
     var body: some View {
-        Form {
+        ScrollViewReader { proxy in
+            Form {
             Section("お手本") {
                 Text(item.text)
                 Button("お手本を聞く", systemImage: "play.circle") { appModel.speak(item.text, speed: 1, item: item) }
@@ -299,35 +317,19 @@ struct SpeakingPreview: View {
                 Picker("モデル", selection: $model.selectedEngine) {
                     ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
                 }.pickerStyle(.menu)
-                if model.selectedEngine == .parakeet {
-                    Text("\(ParakeetModel.title) · 約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file)) · \(ParakeetModel.license)")
-                        .font(.caption)
-                    Link("モデルの出典・ライセンス（CC BY 4.0）", destination: URL(string: "https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml")!)
-                        .font(.caption)
-                    if model.installed {
-                        Label("モデルのファイルを検証済み", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                        Button("モデルを削除", role: .destructive) { confirmModelRemoval = true }
-                            .disabled(model.busy || model.recording)
-                    } else {
-                        Button("Parakeetモデルをダウンロード") { confirmDownload = true }.disabled(model.busy)
-                    }
-                } else if model.recognitionAvailable {
+                if model.selectedEngine == .appleSpeech && model.recognitionAvailable {
                     Text("Apple Speechの英語認識を端末内限定で使います。音声は端末外へ送信しません。")
                         .font(.caption).foregroundStyle(.secondary)
-                } else {
+                } else if model.selectedEngine == .appleSpeech {
                     Text("この端末では英語の端末内認識を利用できません。Parakeetを選択してください。")
                         .font(.caption).foregroundStyle(.orange)
                 }
-                if model.busy {
-                    if model.progress > 0 { ProgressView(value: model.progress) } else { ProgressView() }
-                    Text(model.status).font(.caption)
-                    Button("処理を中断") { model.cancel() }
-                }
+                NavigationLink("ASRモデル管理") { ASRModelsView(model: model) }
             }
             Section("録音して話す") {
                 if model.recording {
                     Label("録音中 · 発話後に停止してください", systemImage: "record.circle").foregroundStyle(.red)
-                    Button("録音を停止", systemImage: "stop.circle.fill") { model.stopRecording() }
+                    Button("録音を停止して文字起こし", systemImage: "stop.circle.fill") { model.stopRecording(autoTranscribe: true) }
                 } else {
                     Button("録音を開始", systemImage: "mic.circle.fill") {
                         appModel.stop(); model.startRecording()
@@ -347,6 +349,7 @@ struct SpeakingPreview: View {
                 }
                 if !model.status.isEmpty && !model.busy { Text(model.status).font(.caption) }
             }
+            transcriptionResults
             Section("音声強調の比較") {
                 Toggle("RE-USEを使う", isOn: $model.reuse.enabled)
                 Text("同じ録音を、音声強調なし／ありで同じASRにかけて比較します。発話音声と学習文は端末内で処理します。")
@@ -377,74 +380,16 @@ struct SpeakingPreview: View {
                     Text(enhancedURL.lastPathComponent).font(.caption2).foregroundStyle(.tertiary)
                 }
             }
-            if !model.transcript.isEmpty {
-                let result = WordAlignment.compare(expected: item.text, recognized: model.transcript)
-                Section("文字起こし") {
-                    Text(model.transcript).textSelection(.enabled)
-                    if let seconds = model.processingSeconds {
-                        Text("認識時間：\(seconds, specifier: "%.2f")秒 · 録音時間：\(model.audioDuration, specifier: "%.1f")秒")
-                            .font(.caption).foregroundStyle(.secondary)
-                        if let memory = model.processingPeakMemoryBytes {
-                            Text("認識中のプロセスRSS観測ピーク：\(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        let wordCount = model.transcript.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).count
-                        if model.audioDuration > 0 {
-                            let speakingTime = max(0.1, model.audioDuration - (model.silenceMetricsAvailable ? model.silenceDuration : 0))
-                            Text("発話ペースの目安：\(Double(wordCount) / speakingTime * 60, specifier: "%.0f")語/分")
-                                .font(.caption).foregroundStyle(.secondary)
-                            if model.silenceMetricsAvailable {
-                                Text("無音の目安：\(model.silenceDuration, specifier: "%.1f")秒 · 0.4秒以上の間：\(model.pauseCount)回 · 最長：\(model.longestPause, specifier: "%.1f")秒")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            } else {
-                                Text("録音時間全体から求めた概算です。短い間も含みます。")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                Section("単語の差分") {
-                    ForEach(Array(result.tokens.enumerated()), id: \.offset) { _, token in
-                        HStack {
-                            Text(token.expected ?? "＋")
-                            Spacer()
-                            Text(token.recognized ?? "欠落")
-                        }.foregroundStyle(token.kind == .match ? Color.primary : Color.orange)
-                    }
-                    Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
-                    Text("文字起こしの一致度です。発音の正確さを採点するものではありません。").font(.caption)
-                    if result.tokens.contains(where: { $0.kind != .match }) {
-                        Button("この英文をスピーキングの復習に登録", systemImage: "bookmark") {
-                            appModel.mark(item, text: item.text, reason: .speaking)
-                        }
-                    }
-                }
             }
-            if !model.enhancedTranscript.isEmpty {
-                let enhancedResult = WordAlignment.compare(expected: item.text, recognized: model.enhancedTranscript)
-                Section("RE-USEありの文字起こし") {
-                    Text(model.enhancedTranscript).textSelection(.enabled)
-                    Text("単語誤り率：\(enhancedResult.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
-                    if let seconds = model.enhancedProcessingSeconds {
-                        Text("認識時間：\(seconds, specifier: "%.2f")秒 · RE-USEなし：\(model.processingSeconds ?? 0, specifier: "%.2f")秒")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    if let memory = model.enhancedPeakMemoryBytes {
-                        Text("認識中のプロセスRSS観測ピーク：\(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Text("RSSは推論中に50ms間隔で採取したアプリ全体の観測値で、モデル単体の割当量ではありません。")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Text("RE-USEなし／ありの両結果は同じ録音・同じASR・同じ英文で比較しています。")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+            .onChange(of: model.transcript) { _, value in
+                guard !value.isEmpty else { return }
+                withAnimation { proxy.scrollTo("speaking.transcriptionResult", anchor: .top) }
             }
-            Section {
-                Text("一致度は文字起こしの比較です。発音の正確さを採点するものではありません。")
-                    .font(.caption).foregroundStyle(.secondary)
+            .onChange(of: model.enhancedTranscript) { _, value in
+                guard !value.isEmpty else { return }
+                withAnimation { proxy.scrollTo("speaking.enhancedResult", anchor: .top) }
             }
         }
-        .navigationTitle("スピーキング練習")
         .onChange(of: model.recording) { wasRecording, isRecording in
             if isRecording && !wasRecording {
                 appModel.recordActivity(.speaking, item: item)
@@ -458,20 +403,173 @@ struct SpeakingPreview: View {
         } message: {
             Text(model.error ?? "")
         }
-        .confirmationDialog("Parakeetモデルを準備しますか？", isPresented: $confirmDownload, titleVisibility: .visible) {
-            Button("ダウンロード開始") { model.prepareModel() }
-        } message: {
-            Text("約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file) )を端末にダウンロードし、SHA-256で検証します。録音や教材文は送信しません。")
-        }
-        .confirmationDialog("保存したParakeetモデルを削除しますか？", isPresented: $confirmModelRemoval, titleVisibility: .visible) {
-            Button("モデルを削除", role: .destructive) { model.removeModel() }
-        }
         .onDisappear {
             if model.recording { model.stopRecording() }
             model.stopRecordingPlayback(); appModel.stop()
         }
     }
+
+    @ViewBuilder private var transcriptionResults: some View {
+        if model.transcript.isEmpty {
+            Section("文字起こし・評価") {
+                if model.busy && model.status.localizedCaseInsensitiveContains("文字起こし") {
+                    ProgressView(model.status)
+                        .accessibilityIdentifier("speaking.transcriptionProgress")
+                } else if model.audioDuration > 0 {
+                    Text("録音を停止すると文字起こしを開始し、結果と英文との一致度を表示します。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("録音後に文字起こし結果と英文との一致度がここに表示されます。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            let result = WordAlignment.compare(expected: item.text, recognized: model.transcript)
+            Section("文字起こし・評価") {
+                Text(model.transcript).textSelection(.enabled)
+                    .accessibilityIdentifier("speaking.transcriptionText")
+                if let seconds = model.processingSeconds {
+                    Text("認識時間：\(seconds, specifier: "%.2f")秒 · 録音時間：\(model.audioDuration, specifier: "%.1f")秒")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let memory = model.processingPeakMemoryBytes {
+                        Text("認識中のプロセスRSS観測ピーク：\(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    let wordCount = model.transcript.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).count
+                    if model.audioDuration > 0 {
+                        let speakingTime = max(0.1, model.audioDuration - (model.silenceMetricsAvailable ? model.silenceDuration : 0))
+                        Text("発話ペースの目安：\(Double(wordCount) / speakingTime * 60, specifier: "%.0f")語/分")
+                            .font(.caption).foregroundStyle(.secondary)
+                        if model.silenceMetricsAvailable {
+                            Text("無音の目安：\(model.silenceDuration, specifier: "%.1f")秒 · 0.4秒以上の間：\(model.pauseCount)回 · 最長：\(model.longestPause, specifier: "%.1f")秒")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text("録音時間全体から求めた概算です。短い間も含みます。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                ForEach(Array(result.tokens.enumerated()), id: \.offset) { _, token in
+                    HStack {
+                        Text(token.expected ?? "＋")
+                        Spacer()
+                        Text(token.recognized ?? "欠落")
+                    }.foregroundStyle(token.kind == .match ? Color.primary : Color.orange)
+                }
+                Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
+                    .accessibilityIdentifier("speaking.wordErrorRate")
+                Text("文字起こしの一致度です。発音の正確さを採点するものではありません。")
+                    .font(.caption)
+                if result.tokens.contains(where: { $0.kind != .match }) {
+                    Button("この英文をスピーキングの復習に登録", systemImage: "bookmark") {
+                        appModel.mark(item, text: item.text, reason: .speaking)
+                    }
+                }
+            }
+            .id("speaking.transcriptionResult")
+        }
+
+        if !model.enhancedTranscript.isEmpty {
+            let result = WordAlignment.compare(expected: item.text, recognized: model.enhancedTranscript)
+            Section("RE-USEありの文字起こし") {
+                Text(model.enhancedTranscript).textSelection(.enabled)
+                Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
+                if let seconds = model.enhancedProcessingSeconds {
+                    Text("認識時間：\(seconds, specifier: "%.2f")秒 · RE-USEなし：\(model.processingSeconds ?? 0, specifier: "%.2f")秒")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if let memory = model.enhancedPeakMemoryBytes {
+                    Text("認識中のプロセスRSS観測ピーク：\(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Text("RSSは推論中に50ms間隔で採取したアプリ全体の観測値で、モデル単体の割当量ではありません。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("RE-USEなし／ありの両結果は同じ録音・同じASR・同じ英文で比較しています。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .id("speaking.enhancedResult")
+        }
+    }
 }
+
+struct ASRModelsView: View {
+    @Bindable var model: SpeakingTrainingModel
+    @State private var confirmDownload = false
+    @State private var confirmRemoval = false
+
+    var body: some View {
+        Form {
+            Section("標準の音声認識") {
+                Picker("認識エンジン", selection: $model.selectedEngine) {
+                    ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
+                }
+                if model.selectedEngine == .appleSpeech {
+                    Text(model.recognitionAvailable
+                         ? "端末内音声認識を利用できます。認識をネットワークへ送信しません。"
+                         : "この端末では端末内音声認識を利用できません。Parakeetモデルを準備してください。")
+                        .font(.caption).foregroundStyle(model.recognitionAvailable ? Color.gray : Color.orange)
+                }
+            }
+            Section("オンデバイスASRモデル") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(ParakeetModel.title).font(.headline)
+                    Text("約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file)) · \(ParakeetModel.license)")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Link("モデルの出典・ライセンス（CC BY 4.0）", destination: URL(string: "https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml")!)
+                        .font(.caption)
+                    if model.installed {
+                        Label("モデルファイルを検証済み", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Button("Parakeetモデルを削除", role: .destructive) { confirmRemoval = true }
+                            .disabled(model.busy || model.recording)
+                    } else {
+                        Text("未準備・初回ダウンロードが必要です。音声と英文は送信されません。")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Button("Parakeetモデルをダウンロード") { confirmDownload = true }
+                            .disabled(model.busy || model.recording)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            if model.busy {
+                Section {
+                    if model.status.localizedCaseInsensitiveContains("ダウンロード"), model.progress > 0 {
+                        ProgressView(value: model.progress)
+                    } else {
+                        ProgressView()
+                    }
+                    Text(model.status).font(.caption)
+                    Button("処理を中断") { model.cancel() }
+                }
+            } else if !model.status.isEmpty {
+                Section { Text(model.status).font(.caption) }
+            }
+            Section {
+                Text("取得したモデルは端末内に保存し、サイズとSHA-256を検証してから使用します。モデルファイルと録音音声はiCloudバックアップ対象外です。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("ASRモデル管理")
+        .task { model.refreshModel() }
+        .confirmationDialog("Parakeetモデルを準備しますか？", isPresented: $confirmDownload, titleVisibility: .visible) {
+            Button("ダウンロード開始") { model.prepareModel() }
+        } message: {
+            Text("約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file))を端末にダウンロードし、SHA-256で検証します。英文や録音は送信しません。")
+        }
+        .confirmationDialog("保存したParakeetモデルを削除しますか？", isPresented: $confirmRemoval, titleVisibility: .visible) {
+            Button("モデルを削除", role: .destructive) { model.removeModel() }
+        }
+        .alert("モデル処理に失敗しました", isPresented: Binding(
+            get: { model.error != nil },
+            set: { if !$0 { model.error = nil } }
+        )) {
+            Button("閉じる") { model.error = nil }
+        } message: {
+            Text(model.error ?? "")
+        }
+    }
+}
+
 struct ReviewView: View {
     let model: AppModel
     @State private var pointToDelete: WeakPoint?
@@ -660,6 +758,7 @@ struct SettingsView: View {
                 LabeledContent("TTS", value: NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語")
                 NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
                 NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
+                NavigationLink("ASRモデル管理") { ASRModelsView(model: model.speaking) }
                 NavigationLink("LLM教材生成・モデル管理") {
                     LLMLessonGenerationView(model: model.llm, lessons: model.generatedLessons, save: model.saveGenerated)
                 }

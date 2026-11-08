@@ -136,21 +136,18 @@ final class EnglishTrainerUITests: XCTestCase {
 
         app.staticTexts["Could you reschedule the meeting for Thursday?"].tap()
         XCTAssertTrue(app.navigationBars["リスニング"].waitForExistence(timeout: 5))
-        let lessonForm = app.collectionViews.firstMatch
-        XCTAssertTrue(lessonForm.waitForExistence(timeout: 5))
-        let speakingLink = app.descendants(matching: .any)
-            .matching(identifier: "lesson.speakingPractice").firstMatch
-        let scrollStart = lessonForm.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
-        let scrollEnd = lessonForm.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
-        for _ in 0..<4 where !speakingLink.exists {
-            scrollStart.press(forDuration: 0.1, thenDragTo: scrollEnd)
-        }
-        XCTAssertTrue(speakingLink.waitForExistence(timeout: 5), app.debugDescription)
-        speakingLink.tap()
+        let modeSelector = app.segmentedControls["lesson.modeSelector"]
+        XCTAssertTrue(modeSelector.waitForExistence(timeout: 5), app.debugDescription)
+        modeSelector.buttons["スピーキング"].tap()
 
         XCTAssertTrue(app.navigationBars["スピーキング練習"].waitForExistence(timeout: 5))
+        modeSelector.buttons["リスニング"].tap()
+        XCTAssertTrue(app.navigationBars["リスニング"].waitForExistence(timeout: 5))
+        modeSelector.buttons["スピーキング"].tap()
+        XCTAssertTrue(app.navigationBars["スピーキング練習"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["音声認識モデル"].exists)
-        XCTAssertTrue(app.buttons["Parakeetモデルをダウンロード"].exists)
+        XCTAssertTrue(app.buttons["ASRモデル管理"].exists)
+        XCTAssertTrue(app.staticTexts["文字起こし・評価"].exists)
         XCTAssertFalse(app.buttons["録音を開始"].isEnabled)
 
         let reuseToggle = app.switches["RE-USEを使う"]
@@ -166,6 +163,21 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["RE-USE設定"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.switches["比較機能でRE-USEを使用"].exists)
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "初回ダウンロード後はオフラインで処理できます")).firstMatch.exists)
+    }
+
+    func testASRModelManagementIsReachableFromSettings() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+
+        app.tabBars.buttons["設定"].tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
+        let managementLink = app.buttons["ASRモデル管理"]
+        XCTAssertTrue(managementLink.waitForExistence(timeout: 5))
+        managementLink.tap()
+
+        XCTAssertTrue(app.navigationBars["ASRモデル管理"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Parakeet TDT-CTC 110M"].exists)
+        XCTAssertTrue(app.links["モデルの出典・ライセンス（CC BY 4.0）"].exists)
     }
 
     func testLLMGenerationRequiresVerifiedModelAndOpensModelManager() {

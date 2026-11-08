@@ -86,7 +86,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     }
 
     func refreshModel() {
-        guard let store else { return }
+        guard !busy, let store else { return }
         busy = true; status = "音声認識モデルを確認しています"
         operation = Task {
             defer { busy = false; operation = nil; status = "" }
@@ -176,7 +176,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    func stopRecording() {
+    func stopRecording(autoTranscribe: Bool = false) {
         guard recording else { return }
         stopMetering()
         recorder.stop(); recording = false
@@ -192,7 +192,15 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             Task {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .recording, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(audioDuration * 1000), thermalState: .current))
             }
-        } catch { self.error = "録音ファイルを保存できませんでした。" }
+        } catch {
+            self.error = "録音ファイルを保存できませんでした。"
+            return
+        }
+        guard autoTranscribe else { return }
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            self?.transcribe()
+        }
     }
 
     func transcribe() {

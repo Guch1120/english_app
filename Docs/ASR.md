@@ -18,6 +18,12 @@ The first use requires microphone permission; Apple Speech also asks for speech-
 
 The model runs after recording completes. Recognition time excludes model load. The result screen shows word alignment and word error rate, allows registering the lesson for speaking review, and reports a rough word pace plus metered silence/pause estimates. Metering uses a fixed -42 dB threshold and is presented as an estimate. The screen can play the reference TTS and the saved recording. Transcript similarity is not a pronunciation score. A single runtime lease covers model loading, inference and cleanup, and is shared with TTS to avoid overlapping large models. Cancellation waits for the active inference operation to return before cleanup.
 
+## Navigation and result display
+
+Parakeet download, integrity status, removal, license information, and the Apple Speech engine choice are available from Settings → ASR model management. Lesson detail keeps a segmented Listening/Speaking selector pinned above the content so learners can switch modes without navigating to a separate screen. Stopping a recording starts transcription automatically. The transcript, word alignment, and word error rate sit directly after the recording controls; the view scrolls to those results when recognition completes. RE-USE comparison remains optional and its enhanced transcript is shown separately.
+
+The Simulator UI suite checks the in-place mode switch and Settings route. CI does not provide microphone input or validate real ASR output; automatic scroll behavior and recognition still require an on-device recording session.
+
 ## Verification limits
 
 GitHub CI compiles the iOS app and runs Package tests. iPhone verification is still required for each engine's model/permission path, microphone signal and format, transcript quality, model switching and repeat transcription, stop/cancel behavior, playback, and offline recognition. Batch recognition is sufficient for this phase; streaming/VAD and pronunciation scoring remain outside the initial release. Optional RE-USE audio enhancement is implemented separately in [REUSE.md](REUSE.md) and requires its own fixed-sample device check.
