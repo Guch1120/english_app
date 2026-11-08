@@ -31,7 +31,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Package tests
+      # Main pushes are protected by strict PR checks, including the macOS package suite.
+      # Manual uploads have no preceding required-check gate, so test them here.
+      - name: Package tests for manual uploads
+        if: github.event_name == 'workflow_dispatch'
         run: swift test --package-path Packages/VoiceLearning
       - name: Archive, cloud-sign and upload
         env:
