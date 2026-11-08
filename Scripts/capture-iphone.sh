@@ -23,7 +23,11 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/state -e "CAPTURE_NAME=$file
   english-trainer-device-debug bash -c '
 set -euo pipefail
 umask 077
-pymobiledevice3 mounter auto-mount
+if ideviceimagemounter --list | grep -Fq "Status: Complete"; then
+  echo "Developer image is already mounted; skipping image lookup/download."
+else
+  pymobiledevice3 mounter auto-mount
+fi
 pymobiledevice3 developer dvt launch --no-kill-existing jp.guch1120.EnglishTrainer
 pymobiledevice3 developer core-device screen-capture screenshot "/captures/$CAPTURE_NAME"
 '
