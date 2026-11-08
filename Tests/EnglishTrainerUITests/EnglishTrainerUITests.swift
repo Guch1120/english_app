@@ -167,7 +167,11 @@ final class EnglishTrainerUITests: XCTestCase {
         let library = app.buttons["教材を探す・管理"]
         scrollTo(library)
         library.tap()
-        app.switches["非表示の教材も含める"].tap()
+        let includeHidden = app.switches["非表示の教材も含める"]
+        XCTAssertTrue(includeHidden.waitForExistence(timeout: 5))
+        includeHidden.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1"), object: includeHidden)
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 5), .completed)
         let hidden = app.staticTexts[text]
         scrollTo(hidden)
         hidden.tap()
