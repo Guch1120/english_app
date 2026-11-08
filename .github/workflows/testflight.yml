@@ -1,18 +1,7 @@
 name: TestFlight
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'Apps/**'
-      - 'Packages/**'
-      - 'Vendor/**'
-      - 'EnglishTrainer.xcodeproj/**'
-      - 'Package.swift'
-      - 'Package.resolved'
-      - 'project.yml'
-      - 'Scripts/build-device.sh'
-      - 'Scripts/testflight.sh'
-      - '.github/workflows/testflight.yml'
+  pull_request:
+    types: [closed]
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,7 +10,17 @@ concurrency:
   cancel-in-progress: false
 jobs:
   upload:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.merged == true &&
+          github.event.pull_request.base.ref == 'main' &&
+          contains(github.event.pull_request.labels.*.name, 'testflight')
+        )
+      )
     environment: ios-testflight
     runs-on: macos-26
     timeout-minutes: 45

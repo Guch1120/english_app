@@ -26,13 +26,28 @@ def workflow_errors(name, text):
     if not isinstance(events, dict): return [f'{name}: invalid trigger configuration']
     if 'pull_request_target' in events: fail('pull_request_target is not allowed')
     pr = 'pull_request' in events
-    if pr and re.search(r'\bsecrets\s*\.', text): fail('PR workflow must not reference secrets')
+    closed_pr = events.get('pull_request')
+    closed_pr_deploy = (
+        isinstance(closed_pr, dict)
+        and closed_pr.get('types') == ['closed']
+        and 'workflow_dispatch' in events
+        and 'push' not in events
+    )
+    has_deployment = any(job.get('environment') for job in workflow.get('jobs', {}).values())
+    if pr and re.search(r'\bsecrets\s*\.', text) and not (closed_pr_deploy and has_deployment):
+        fail('PR workflow must not reference secrets outside a merged-main deployment')
     def permissions(value):
         return isinstance(value, dict) and value.get('contents') == 'read' and all(v in ('read','none') for v in value.values())
     if not permissions(workflow.get('permissions')): fail('explicit read-only permissions with contents: read required')
     for job_name, job in workflow.get('jobs', {}).items():
+        job_text = yaml.safe_dump(job)
+        if pr and re.search(r'\bsecrets\s*\.', job_text) and not (
+            closed_pr_deploy and job.get('environment')
+        ):
+            fail(f'{job_name}: PR jobs may use secrets only inside the guarded deployment job')
         if 'permissions' in job and not permissions(job['permissions']): fail(f'{job_name}: write permissions are not allowed')
-        if pr and job.get('environment'): fail(f'{job_name}: PR jobs must not use deployment environments')
+        if pr and job.get('environment') and not closed_pr_deploy:
+            fail(f'{job_name}: PR jobs must not use deployment environments')
         for step in job.get('steps', []):
             uses = step.get('uses', '')
             if uses and not uses.startswith('./') and not re.fullmatch(r'[^@]+@[0-9a-f]{40}', uses):
@@ -42,15 +57,31 @@ def workflow_errors(name, text):
             if re.search(r'\$\{\{\s*(github\.event\.(?:pull_request|issue|comment)|inputs\.)', step.get('run','')):
                 fail(f'{job_name}: pass event text through env, not inline shell expressions')
         if job.get('environment'):
-            if 'workflow_dispatch' not in events or set(events) - {'workflow_dispatch', 'push'}:
-                fail(f'{job_name}: deployment may only run manually or on main pushes')
+            if 'workflow_dispatch' not in events or set(events) - {'workflow_dispatch', 'push', 'pull_request'}:
+                fail(f'{job_name}: deployment triggers must be manual, main pushes, or merged PRs')
+            if 'push' in events and 'pull_request' in events:
+                fail(f'{job_name}: deployment cannot mix push and pull_request triggers')
             if 'push' in events:
                 push = events['push']
                 if not isinstance(push, dict) or push.get('branches') != ['main']:
                     fail(f'{job_name}: deployment push trigger must be restricted to main')
             condition = job.get('if', '').strip()
             if condition.startswith('${{') and condition.endswith('}}'): condition = condition[3:-2].strip()
-            if condition != "github.ref == 'refs/heads/main'": fail(f'{job_name}: deployment requires an explicit main-only guard')
+            condition = re.sub(r'\s+', ' ', condition)
+            if "github.ref == 'refs/heads/main'" not in condition:
+                fail(f'{job_name}: deployment requires an explicit main-only guard')
+            if 'pull_request' in events:
+                pull_request = events['pull_request']
+                if not isinstance(pull_request, dict) or pull_request.get('types') != ['closed']:
+                    fail(f'{job_name}: labeled deployment must run only when a PR closes')
+                for required in (
+                    "github.event_name == 'workflow_dispatch'",
+                    "github.event.pull_request.merged == true",
+                    "github.event.pull_request.base.ref == 'main'",
+                    "contains(github.event.pull_request.labels.*.name, 'testflight')",
+                ):
+                    if required not in condition:
+                        fail(f'{job_name}: merged-PR deployment must require {required}')
     return errors
 
 def tracked_errors(paths):
@@ -68,6 +99,6 @@ def main():
     errors.extend(tracked_errors(filter(None,paths)))
     for error in errors: print(error)
     if errors: raise SystemExit(1)
-    print('PASS: read-only PR permissions, pinned Actions, no PR secrets, guarded manual deployments, no signing files tracked')
+    print('PASS: read-only PR checks, pinned Actions, no untrusted PR secrets, guarded deployments, no signing files tracked')
 
 if __name__ == '__main__': main()

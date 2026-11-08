@@ -58,7 +58,7 @@ jobs:
         env:
           VOICELEARNING_TTS_SMOKE: ${{ inputs.tts_smoke == true && '1' || '0' }}
           TTS_SMOKE_OUTPUT: ${{ runner.temp }}/tts-smoke
-        run: swift test --package-path Packages/VoiceLearning
+        run: bash Scripts/ci/run-package-tests.sh
       - name: Build and analyze iOS Simulator app without signing
         run: >-
           xcodebuild -project EnglishTrainer.xcodeproj -scheme EnglishTrainer

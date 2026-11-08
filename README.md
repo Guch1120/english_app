@@ -2,7 +2,7 @@
 
 iPhone向けローカル英語学習アプリと、交換可能な音声AI基盤。SwiftUI / iOS 18以降。
 
-Phase 1〜7の実装とCI対応はmainへマージ済みです。仕様にある初回モデル取得後のオフライン動作、音声品質、実機推論などの物理iPhone確認は継続中です。2026-11-08時点でTestFlightの最新アップロードは **0.1.0 (141.2)**、接続中のiPhoneで確認したインストール版は **0.1.0 (140.1)** です。USB接続・ペアリング、Developer Mode、Developer imageを確認し、WDAからアクセシビリティツリーを読めましたが、セッション作成とタップ操作はまだ動作していません。未検証項目と根拠は[実装状況](Docs/Status.md)に記録しています。Simulator CIは画面遷移と教材保存後の再起動復元も確認します。
+Phase 1〜7の実装とCI対応はmainへマージ済みです。仕様にある初回モデル取得後のオフライン動作、音声品質、実機推論などの物理iPhone確認は継続中です。2026-11-08時点でTestFlightの最新アップロードと接続中のiPhoneで確認したインストール版は **0.1.0 (141.2)** です。USB接続・ペアリング、Developer Mode、Developer imageを確認し、WDAからアクセシビリティツリーを読めましたが、セッション作成とタップ操作はまだ動作していません。未検証項目と根拠は[実装状況](Docs/Status.md)に記録しています。Simulator CIは画面遷移と教材保存後の再起動復元も確認します。
 
 ## Dockerで検証
 
@@ -23,7 +23,7 @@ iOSは `.github/workflows/validate.yml` のmacOSランナーで署名なしSimul
 
 実装状況は [Status](Docs/Status.md) 参照。モデルの端末内準備、オフライン動作、ライセンス、制約は各機能ドキュメントを参照してください。ローカルテストの成功はiOSでの動作確認を意味しません。個人データ・モデル重み・署名ファイルはGitへ登録しないでください。
 
-TestFlight配布は[専用手順](Docs/TestFlight.md)を参照してください。`ios-testflight` EnvironmentへAPIキーを登録すると、アプリに影響する変更をmainへマージした後に配布を開始します。ドキュメントや無関係なCI変更は配布を起動しません。Actionsからの手動実行もできます。USB用Development署名とは別の配布経路です。
+TestFlight配布は[専用手順](Docs/TestFlight.md)を参照してください。配布するPRに `testflight` ラベルを付けてmainへマージするとアップロードを開始します。ラベルなしのマージでは配布しません。Actionsからの手動実行もできます。USB用Development署名とは別の配布経路です。
 
 PRの自動チェックは[チェック範囲と結果の見方](Docs/Automated-Checks.md)を参照してください。`review-gate`に結果を集約し、ドキュメントだけの変更でも軽量な安全性チェックは実行します。自動承認・自動マージは有効化していません。
 
