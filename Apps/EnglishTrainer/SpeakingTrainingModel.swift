@@ -31,6 +31,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     var enhancedRecordingURL: URL?
     var enhancedProcessingSeconds: Double?
     var audioDuration = 0.0
+    var recordingItemID: UUID?
     var silenceDuration = 0.0
     var pauseCount = 0
     var longestPause = 0.0
@@ -79,6 +80,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             if let recordingURL, FileManager.default.fileExists(atPath: recordingURL.path),
                let audio = try? AVAudioFile(forReading: recordingURL) {
                 audioDuration = Double(audio.length) / audio.processingFormat.sampleRate
+                recordingItemID = UserDefaults.standard.string(forKey: "recording-item-id").flatMap { UUID(uuidString: $0) }
                 status = "前回の録音を復元しました。再認識または削除できます。"
             }
         } catch { self.error = "録音とモデルの保存領域を準備できませんでした。" }
@@ -133,11 +135,11 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
 
     private func updateProgress(_ value: Double) { progress = max(progress, min(1, value)) }
 
-    func startRecording() {
+    func startRecording(for itemID: UUID) {
         guard !busy, !recording, recognitionAvailable, let recordingURL else { return }
+        busy = true
         operation = Task { [weak self] in
             guard let self else { return }
-            busy = true
             defer { busy = false; operation = nil }
             let startedAt = Date()
             let diagnosticModel: DiagnosticModel = selectedEngine == .parakeet ? .parakeet : .appleSpeech
@@ -155,8 +157,14 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 let session = AVAudioSession.sharedInstance()
                 try session.setCategory(.record, mode: .measurement)
                 try session.setActive(true)
-                try? FileManager.default.removeItem(at: recordingURL)
+                if FileManager.default.fileExists(atPath: recordingURL.path) { try FileManager.default.removeItem(at: recordingURL) }
+                recordingItemID = nil
+                UserDefaults.standard.removeObject(forKey: "recording-item-id")
+                transcript = ""; enhancedTranscript = ""; audioDuration = 0
+                processingSeconds = nil; processingPeakMemoryBytes = nil
                 guard try recorder.start(url: recordingURL) else { throw ParakeetASRError.invalidAudio }
+                recordingItemID = itemID
+                UserDefaults.standard.set(itemID.uuidString, forKey: "recording-item-id")
                 transcript = ""; enhancedTranscript = ""; processingSeconds = nil
                 processingPeakMemoryBytes = nil; enhancedPeakMemoryBytes = nil; audioDuration = 0
                 silenceDuration = 0; pauseCount = 0; longestPause = 0; currentPause = 0
@@ -174,6 +182,16 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 self.error = "録音を開始できませんでした。"
             }
         }
+    }
+
+    func useSavedRecording(for itemID: UUID) {
+        guard !busy, !recording, audioDuration > 0 else { return }
+        recordingItemID = itemID
+        UserDefaults.standard.set(itemID.uuidString, forKey: "recording-item-id")
+        transcript = ""; enhancedTranscript = ""; processingSeconds = nil; processingPeakMemoryBytes = nil
+        enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil
+        removeEnhancedRecording()
+        transcribe()
     }
 
     func stopRecording(autoTranscribe: Bool = false) {
@@ -378,6 +396,8 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         do {
             stopRecordingPlayback()
             if FileManager.default.fileExists(atPath: recordingURL.path) { try FileManager.default.removeItem(at: recordingURL) }
+            recordingItemID = nil
+            UserDefaults.standard.removeObject(forKey: "recording-item-id")
             removeEnhancedRecording()
             transcript = ""; enhancedTranscript = ""; processingPeakMemoryBytes = nil
             enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil

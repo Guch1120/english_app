@@ -46,22 +46,24 @@ public struct GeneratedLesson: Codable, Sendable, Identifiable, Equatable {
     public let modelID: String
     public let promptVersion: String
     public let generatedAt: Date
+    public let editedAt: Date?
 
     public init(
         id: UUID = UUID(), kind: String, difficulty: Int, text: String, translation: String,
         targetPhrases: [String], question: String, choices: [String], answerIndex: Int,
         explanation: String, modelID: String = "unknown", promptVersion: String = "lesson-v1",
-        generatedAt: Date = Date()
+        generatedAt: Date = Date(), editedAt: Date? = nil
     ) {
         self.id = id; self.kind = kind; self.difficulty = difficulty; self.text = text
         self.translation = translation; self.targetPhrases = targetPhrases; self.question = question
         self.choices = choices; self.answerIndex = answerIndex; self.explanation = explanation
         self.modelID = modelID; self.promptVersion = promptVersion; self.generatedAt = generatedAt
+        self.editedAt = editedAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, difficulty, text, translation, targetPhrases, question, choices, answerIndex
-        case explanation, modelID, promptVersion, generatedAt
+        case explanation, modelID, promptVersion, generatedAt, editedAt
     }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -85,6 +87,7 @@ public struct GeneratedLesson: Codable, Sendable, Identifiable, Equatable {
         } else {
             generatedAt = Date()
         }
+        editedAt = try values.decodeIfPresent(Double.self, forKey: .editedAt).map(Date.init(timeIntervalSince1970:))
     }
     public func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
@@ -95,13 +98,15 @@ public struct GeneratedLesson: Codable, Sendable, Identifiable, Equatable {
         try values.encode(answerIndex, forKey: .answerIndex); try values.encode(explanation, forKey: .explanation)
         try values.encode(modelID, forKey: .modelID); try values.encode(promptVersion, forKey: .promptVersion)
         try values.encode(generatedAt.timeIntervalSince1970, forKey: .generatedAt)
+        try values.encodeIfPresent(editedAt?.timeIntervalSince1970, forKey: .editedAt)
     }
 
     public func attributing(modelID: String, generatedAt: Date = Date()) -> GeneratedLesson {
-        GeneratedLesson(id: id, kind: kind, difficulty: difficulty, text: text, translation: translation,
+        // A model-supplied ID must not overwrite an existing learner-edited lesson.
+        GeneratedLesson(id: UUID(), kind: kind, difficulty: difficulty, text: text, translation: translation,
                         targetPhrases: targetPhrases, question: question, choices: choices,
                         answerIndex: answerIndex, explanation: explanation, modelID: modelID,
-                        promptVersion: promptVersion, generatedAt: generatedAt)
+                        promptVersion: promptVersion, generatedAt: generatedAt, editedAt: nil)
     }
 
     public func validated() throws -> LearningItem {
@@ -120,7 +125,11 @@ public struct GeneratedLesson: Codable, Sendable, Identifiable, Equatable {
               !promptVersion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ContentError.invalidContent
         }
-        return LearningItem(id: id, text: text, translation: translation, updatedAt: generatedAt)
+        let normalizedKind = kind.lowercased()
+        let part = (1...4).first { normalizedKind.range(of: "\\bpart\\s+\($0)\\b", options: .regularExpression) != nil }
+        return LearningItem(id: id, text: text, translation: translation, updatedAt: editedAt ?? generatedAt,
+                            category: normalizedKind.contains("conversation") ? .conversation : .sentence,
+                            difficulty: difficulty, toeicPart: part)
     }
 
     /// Removes common markdown fences without accepting surrounding prose as lesson data.

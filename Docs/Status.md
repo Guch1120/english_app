@@ -4,6 +4,8 @@ Updated 2026-11-09 (JST). Local package tests and quality checks run in Docker; 
 
 ## Phase implementation
 
+Detailed source review after the phase PRs found remaining requirements beyond physical-device tests, including lesson answering/editing/hiding and TTS speaker/subjective-note controls. The lesson-management completion is in development; see [Specification-Audit.md](Specification-Audit.md). Merged phase PRs alone do not prove the full specification is complete.
+
 Phases 1–7 are merged in `main`. The implementations and their PR-level checks are summarized below. Phase completion here means the planned code and CI scope is merged; it does not imply that the specification's physical iPhone acceptance checks have passed.
 
 - **Phases 1–4:** the listening, speaking, local persistence, and review foundation is in `main`. See [ASR.md](ASR.md) and [Review.md](Review.md). Phase PRs #8–#10 passed their Docker and macOS CI checks.

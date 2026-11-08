@@ -20,6 +20,8 @@ iOSは `.github/workflows/validate.yml` のmacOSランナーで署名なしSimul
 - [調査・互換性とライセンスの確認状況](Docs/Phase0.md)
 - [構成と実装上の制約](Docs/Architecture.md)
 - [初期版の受け入れ確認と実機チェック](Docs/Acceptance.md)
+- [仕様本文の照合と未完了項目](Docs/Specification-Audit.md)
+- [教材の回答・修正・管理](Docs/Lesson-Management.md)
 - [直近の作業引き継ぎ](Docs/Handoff-2026-11-08.md)
 - [新規App ID・Secrets登録とiPhone検証手順](Docs/iPhone-Setup.md)
 

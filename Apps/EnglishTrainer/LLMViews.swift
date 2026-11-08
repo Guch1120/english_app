@@ -96,6 +96,7 @@ struct LLMLessonGenerationView: View {
                     Text("ビジネス会話").tag("business conversation")
                     Text("日常会話").tag("daily conversation")
                     Text("TOEIC形式").tag("TOEIC-style listening")
+                    ForEach(1...4, id: \.self) { Text("TOEIC Part \($0)").tag("TOEIC Part \($0) listening") }
                     Text("語彙・用例").tag("vocabulary example")
                 }
                 Stepper("難易度: \(difficulty) / 5", value: $difficulty, in: 1...5)

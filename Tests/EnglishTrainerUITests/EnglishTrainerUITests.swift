@@ -70,12 +70,13 @@ final class EnglishTrainerUITests: XCTestCase {
         )
     }
 
-    func testNewLessonPersistsAfterRestart() {
+    @MainActor func testNewLessonPersistsAfterRestart() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
 
         let lesson = "UI test lesson \(UUID().uuidString)"
         let englishField = app.textFields["英文"]
+        scrollTo(englishField)
         XCTAssertTrue(englishField.waitForExistence(timeout: 5))
         englishField.tap()
         englishField.typeText(lesson)
@@ -86,6 +87,100 @@ final class EnglishTrainerUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts[lesson].waitForExistence(timeout: 5))
+    }
+
+    @MainActor private func scrollTo(_ element: XCUIElement) {
+        for _ in 0..<8 {
+            if element.exists && element.isHittable { return }
+            app.swipeUp()
+        }
+        for _ in 0..<8 {
+            if element.exists && element.isHittable { return }
+            app.swipeDown()
+        }
+        XCTAssertTrue(element.exists && element.isHittable, app.debugDescription)
+    }
+
+    @MainActor private func openFixture(_ text: String) {
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        let lesson = app.staticTexts[text]
+        scrollTo(lesson)
+        lesson.tap()
+        XCTAssertTrue(app.navigationBars["リスニング"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testGeneratedQuestionPersistsAndCorrectionKeepsPriorAnswerHistory() {
+        app.launchArguments = ["--uitest-seed-quiz"]
+        app.launch()
+        let text = "Please confirm your test booking."
+        openFixture(text)
+        let choice = app.buttons["lesson.choice.1"]
+        scrollTo(choice)
+        choice.tap()
+        let submit = app.buttons["回答を確認"]
+        scrollTo(submit)
+        submit.tap()
+        let result = app.descendants(matching: .any).matching(identifier: "lesson.answerResult").firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["正解：The booking"].exists)
+
+        app.terminate()
+        app.launch()
+        openFixture(text)
+        scrollTo(app.buttons["もう一度回答"])
+        XCTAssertTrue(result.exists)
+        app.buttons["lesson.actions"].tap()
+        app.buttons["教材を修正"].tap()
+        let question = app.descendants(matching: .any).matching(identifier: "lesson.editor.question").firstMatch
+        scrollTo(question)
+        question.tap()
+        question.typeText(" Check again.")
+        app.navigationBars.buttons["保存"].tap()
+        XCTAssertTrue(app.navigationBars["リスニング"].waitForExistence(timeout: 5))
+        scrollTo(submit)
+        XCTAssertFalse(result.exists)
+
+        app.tabBars.buttons["復習"].tap()
+        app.buttons["復習履歴を表示"].tap()
+        scrollTo(app.staticTexts["教材を修正する前の回答です。"])
+        XCTAssertTrue(app.staticTexts["What should be confirmed?"].exists)
+    }
+
+    @MainActor func testLessonIssueAndHiddenStateSurviveRestartAndCanBeRestored() {
+        app.launchArguments = ["--uitest-seed-library"]
+        app.launch()
+        let text = "Please review this library fixture."
+        openFixture(text)
+        app.buttons["lesson.actions"].tap()
+        app.buttons["問題を記録"].tap()
+        let note = app.textViews["教材の問題メモ"]
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        note.tap()
+        note.typeText("Translation needs a review.")
+        app.navigationBars.buttons["保存"].tap()
+        app.buttons["lesson.actions"].tap()
+        app.buttons["教材を非表示"].tap()
+
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        let library = app.buttons["教材を探す・管理"]
+        scrollTo(library)
+        library.tap()
+        app.switches["非表示の教材も含める"].tap()
+        let hidden = app.staticTexts[text]
+        scrollTo(hidden)
+        hidden.tap()
+        app.buttons["lesson.actions"].tap()
+        app.buttons["問題を記録"].tap()
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        XCTAssertEqual(note.value as? String, "Translation needs a review.")
+        app.navigationBars.buttons["キャンセル"].tap()
+        app.buttons["lesson.actions"].tap()
+        app.buttons["教材を再表示"].tap()
+        app.terminate()
+        app.launch()
+        openFixture(text)
     }
 
     func testWeakPointReviewAndHistoryPersistAfterRestart() {

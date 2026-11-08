@@ -56,6 +56,6 @@ let package = Package(
         .target(name: "LiteRTLLMBackend", dependencies: litertDependencies),
         .target(name: "AudioEnhancementBackends", dependencies: reuseDependencies, resources: [.process("Resources")]),
         .target(name: "DeviceDiagnostics"),
-        .testTarget(name: "VoiceLearningTests", dependencies: ["LearningCore", "LearningPersistence", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend", "AudioEnhancementBackends", "DeviceDiagnostics"])
+        .testTarget(name: "VoiceLearningTests", dependencies: ["LearningCore", "LearningPersistence", "CSQLite", "SpeechCore", "TTSBackends", "NeuralTTSBackends", "LLMCore", "ModelManagement", "LiteRTLLMBackend", "AudioEnhancementBackends", "DeviceDiagnostics"])
     ]
 )
