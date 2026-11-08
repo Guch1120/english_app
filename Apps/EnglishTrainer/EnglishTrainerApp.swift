@@ -517,6 +517,7 @@ struct ASRModelsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     Link("モデルの出典・ライセンス（CC BY 4.0）", destination: URL(string: "https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml")!)
                         .font(.caption)
+                        .accessibilityIdentifier("asr.modelSource")
                     if model.installed {
                         Label("モデルファイルを検証済み", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)

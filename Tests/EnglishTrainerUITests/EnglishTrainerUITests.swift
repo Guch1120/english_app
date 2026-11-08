@@ -177,7 +177,9 @@ final class EnglishTrainerUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["ASRモデル管理"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Parakeet TDT-CTC 110M"].exists)
-        XCTAssertTrue(app.links["モデルの出典・ライセンス（CC BY 4.0）"].exists)
+        let modelSourceLink = app.descendants(matching: .any)
+            .matching(identifier: "asr.modelSource").firstMatch
+        XCTAssertTrue(modelSourceLink.exists)
     }
 
     func testLLMGenerationRequiresVerifiedModelAndOpensModelManager() {
