@@ -2,6 +2,8 @@
 
 The speaking screen offers two English recognition engines and saves one protected recording for playback or repeat transcription. Both engines run on device: Parakeet TDT-CTC 110M (downloaded and verified) and Apple Speech (available only when the device reports on-device support). The engine choice persists across launches. WhisperKit remains an optional comparison engine if real-device quality or latency measurements show a need.
 
+Parakeet can be downloaded and removed from **Settings → 音声認識モデル管理**. The same controls are also available from the speaking practice screen. The settings page shows download progress, verification status, model size and licensing information.
+
 ## Model and licensing
 
 - `FluidInference/parakeet-tdt-ctc-110m-coreml`, immutable revision `9bc92ead6e8f17eca92a869fd578ae76842b82ba`.

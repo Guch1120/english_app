@@ -55,10 +55,11 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     private var recordingURL: URL?
     private var operation: Task<Void, Never>?
     private let coordinator = ModelRuntimeCoordinator.shared
+    var appleSpeechAvailable: Bool { appleSpeech.supportsOfflineRecognition }
     var recognitionAvailable: Bool {
         switch selectedEngine {
         case .parakeet: installed
-        case .appleSpeech: appleSpeech.supportsOfflineRecognition
+        case .appleSpeech: appleSpeechAvailable
         }
     }
 

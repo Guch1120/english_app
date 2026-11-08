@@ -283,6 +283,68 @@ struct LessonView: View {
         }.navigationTitle("リスニング").onDisappear { model.stop() }
     }
 }
+struct ASRModelsView: View {
+    @Bindable var model: SpeakingTrainingModel
+    @State private var confirmDownload = false
+    @State private var confirmRemoval = false
+
+    var body: some View {
+        Form {
+            Section("標準の音声認識") {
+                Picker("認識エンジン", selection: $model.selectedEngine) {
+                    ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
+                }
+                .pickerStyle(.menu)
+                Text("録音画面で使う認識エンジンです。Parakeetを使うにはモデルの取得が必要です。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("オンデバイス音声認識モデル") {
+                Text(ParakeetModel.title).font(.headline)
+                Text("英語の録音を端末内で文字起こしします。")
+                Text("初回取得：約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file)) · \(ParakeetModel.license)")
+                    .font(.caption).foregroundStyle(.secondary)
+                Link("モデルの出典・ライセンス（CC BY 4.0）", destination: URL(string: "https://huggingface.co/FluidInference/parakeet-tdt-ctc-110m-coreml")!)
+                    .font(.caption)
+                if model.installed {
+                    Label("全モデルファイルを検証済み", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    Button("Parakeetモデルを削除", role: .destructive) { confirmRemoval = true }
+                        .disabled(model.busy || model.recording)
+                } else {
+                    Button("Parakeetモデルをダウンロード") { confirmDownload = true }
+                        .disabled(model.busy || model.recording)
+                }
+                if model.busy {
+                    if model.progress > 0 { ProgressView(value: model.progress) } else { ProgressView() }
+                    Text(model.status).font(.caption)
+                    Button("処理を中断") { model.cancel() }
+                }
+            }
+            Section("Apple Speech") {
+                if model.appleSpeechAvailable {
+                    Label("この端末でオンデバイス認識を利用できます", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Apple SpeechはParakeetをダウンロードせずに使えます。端末内認識に限定し、音声を送信しません。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("この端末では英語の端末内認識を利用できません。Parakeetモデルを準備してください。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("音声認識モデル管理")
+        .confirmationDialog("Parakeetモデルを準備しますか？", isPresented: $confirmDownload, titleVisibility: .visible) {
+            Button("ダウンロード開始") { model.prepareModel() }
+            Button("キャンセル", role: .cancel) { }
+        } message: {
+            Text("約\(ByteCountFormatter.string(fromByteCount: ParakeetModel.sizeBytes, countStyle: .file))を端末にダウンロードし、SHA-256で検証します。録音や教材文は送信しません。")
+        }
+        .confirmationDialog("保存したParakeetモデルを削除しますか？", isPresented: $confirmRemoval, titleVisibility: .visible) {
+            Button("モデルを削除", role: .destructive) { model.removeModel() }
+            Button("キャンセル", role: .cancel) { }
+        }
+    }
+}
+
 struct SpeakingPreview: View {
     let item: LearningItem
     let appModel: AppModel
@@ -659,6 +721,8 @@ struct SettingsView: View {
             Section("音声とAI") {
                 LabeledContent("TTS", value: NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語")
                 NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
+                NavigationLink("音声認識モデル管理") { ASRModelsView(model: model.speaking) }
+                    .accessibilityIdentifier("settings.asrModelManagement")
                 NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
                 NavigationLink("LLM教材生成・モデル管理") {
                     LLMLessonGenerationView(model: model.llm, lessons: model.generatedLessons, save: model.saveGenerated)

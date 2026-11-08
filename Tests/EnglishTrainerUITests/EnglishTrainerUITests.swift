@@ -25,6 +25,23 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["音声とAI"].exists)
     }
 
+    func testASRModelManagementIsReachableFromSettings() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+
+        app.tabBars.buttons["設定"].tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
+        let asrManagement = app.buttons["settings.asrModelManagement"]
+        XCTAssertTrue(asrManagement.waitForExistence(timeout: 5))
+        for _ in 0..<5 where !asrManagement.isHittable { app.swipeUp() }
+        XCTAssertTrue(asrManagement.isHittable, asrManagement.debugDescription)
+        asrManagement.tap()
+
+        XCTAssertTrue(app.navigationBars["音声認識モデル管理"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Parakeetモデルをダウンロード"].exists)
+        XCTAssertTrue(app.staticTexts["Apple Speech"].exists)
+    }
+
     func testLessonControlsExposeFineSpeechRateAndTranslation() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
