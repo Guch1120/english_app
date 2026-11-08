@@ -100,7 +100,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         busy = true; progress = 0; status = "Parakeetモデルをダウンロードして検証しています"
         operation = Task { [weak self] in
             guard let self else { return }
-            defer { busy = false; operation = nil; status = "" }
+            defer { busy = false; operation = nil }
             let startedAt = Date()
             await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .started, thermalState: .current))
             do {
@@ -112,7 +112,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
             } catch is CancellationError {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
-                status = "モデル取得を中断しました"
+                status = "モデル取得を中断しました。保存済みの途中データから、次回続けてダウンロードします。"
             } catch {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .modelDownload, model: .parakeet, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 self.error = "モデル取得に失敗しました。通信状態を確認して再試行してください。"

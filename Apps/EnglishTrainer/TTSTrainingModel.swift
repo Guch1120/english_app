@@ -76,7 +76,7 @@ import DeviceDiagnostics
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelDownload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))
             } catch is CancellationError {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelDownload, model: diagnosticModel, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
-                status = "取得を中断しました。再試行時は検証済みファイルを再利用します。"
+                status = "取得を中断しました。保存済みの途中データから、次回続けてダウンロードします。"
             } catch {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelDownload, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 self.error = "モデルを取得・検証できませんでした。通信と空き容量を確認して再試行してください。"; status = "準備に失敗しました"

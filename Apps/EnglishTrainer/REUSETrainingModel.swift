@@ -61,7 +61,7 @@ import DeviceDiagnostics
         busy = true; progress = 0; status = "RE-USEモデルを取得して検証しています"
         operation = Task { [weak self] in
             guard let self else { return }
-            defer { busy = false; operation = nil; status = "" }
+            defer { busy = false; operation = nil }
             let startedAt = Date()
             await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .started, thermalState: .current))
             do {
@@ -75,7 +75,7 @@ import DeviceDiagnostics
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(REUSEAudioEnhancement.modelSizeBytes), cacheBytes: UInt64(max(0, storage?.compiledBytes ?? 0)), thermalState: .current))
             } catch is CancellationError {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
-                status = "モデル取得を中断しました"
+                status = "モデル取得を中断しました。保存済みの途中データから、次回続けてダウンロードします。"
             } catch {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelDownload, model: .reuse, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
                 self.error = "モデルを取得できませんでした。通信状態と空き容量を確認してください。"

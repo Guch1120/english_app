@@ -165,11 +165,11 @@ import DeviceDiagnostics
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelDownload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
             } catch is CancellationError {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelDownload, model: diagnosticModel, outcome: .cancelled, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
-                status = "モデル取得を中断しました。検証済みファイルは再試行時に再利用します。"
+                status = "モデル取得を中断しました。保存済みの途中データから、次回続けてダウンロードします。"
             }
             catch {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelDownload, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
-                if Task.isCancelled { status = "モデル取得を中断しました。検証済みファイルは再試行時に再利用します。" }
+                if Task.isCancelled { status = "モデル取得を中断しました。保存済みの途中データから、次回続けてダウンロードします。" }
                 else { self.error = "モデルを準備できませんでした: \(error.localizedDescription)" }
             }
             busy = false; operation = nil
