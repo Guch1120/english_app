@@ -112,7 +112,7 @@ final class TTSInfrastructureTests: XCTestCase, @unchecked Sendable {
         let recorder = ProgressRecorder()
         let store = VerifiedModelStore(root: root, download: { _, url, report in
             try Data("verified".utf8).write(to: url)
-            for received in [1, 3, 5, 8] { await report(Int64(received)) }
+            for received in [1, 3, 5, 8] { await report.report(bytesReceived: Int64(received)) }
         }, sha256: { _ in digest })
 
         try await store.install(manifest) { value in await recorder.append(value) }

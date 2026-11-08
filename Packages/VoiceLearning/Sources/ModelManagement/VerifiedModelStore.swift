@@ -38,9 +38,25 @@ public struct ModelManifest: Codable, Sendable {
 }
 public enum ModelInstallError: Error { case invalidManifest, invalidChecksum, missingFiles, busy }
 
+public protocol ModelDownloadProgress: Sendable {
+    func report(bytesReceived: Int64) async
+}
+
+private struct ManifestFileProgress: ModelDownloadProgress, Sendable {
+    let completedBytes: Int64
+    let fileSize: Int64
+    let totalSize: Int64
+    let progress: @Sendable (Double) async -> Void
+
+    func report(bytesReceived: Int64) async {
+        let current = completedBytes + min(max(0, bytesReceived), fileSize)
+        await progress(min(0.99, Double(current) / Double(totalSize)))
+    }
+}
+
 /// File-granular retry: complete verified files survive cancellation; incomplete files never become loadable.
 public actor VerifiedModelStore {
-    public typealias Download = @Sendable (URL, URL, @Sendable (Int64) async -> Void) async throws -> Void
+    public typealias Download = @Sendable (URL, URL, any ModelDownloadProgress) async throws -> Void
     public typealias Hash = @Sendable (URL) throws -> String
     private let root: URL
     private let download: Download
@@ -79,11 +95,11 @@ public actor VerifiedModelStore {
                 try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                 let temporary = directory.appendingPathComponent(UUID().uuidString + ".partial")
                 defer { try? FileManager.default.removeItem(at: temporary) }
-                let completedBeforeFile = completed
-                try await download(try manifest.downloadURL(for: file),temporary) { bytesWritten in
-                    let current = completedBeforeFile + min(max(0, bytesWritten), file.size)
-                    await progress(min(0.99, Double(current) / Double(manifest.sizeBytes)))
-                }
+                let fileProgress = ManifestFileProgress(
+                    completedBytes: completed, fileSize: file.size,
+                    totalSize: manifest.sizeBytes, progress: progress
+                )
+                try await download(try manifest.downloadURL(for: file), temporary, fileProgress)
                 try Task.checkCancellation()
                 guard (try temporary.resourceValues(forKeys: [.fileSizeKey])).fileSize == Int(file.size),
                       try hash(temporary) == file.sha256 else { throw ModelInstallError.invalidChecksum }
