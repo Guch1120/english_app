@@ -11,6 +11,34 @@ jobs:
       - uses: actions/checkout@{SHA}
         with: {{persist-credentials: false}}
 '''
+CLOSED_DEPLOY = '''name: TestFlight
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  upload:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.merged == true &&
+          github.event.pull_request.base.ref == 'main' &&
+          contains(github.event.pull_request.labels.*.name, 'testflight')
+        )
+      )
+    environment: ios-testflight
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@SHA_PLACEHOLDER
+        with: {persist-credentials: false}
+      - run: bash Scripts/testflight.sh --upload
+        env:
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+'''.replace('SHA_PLACEHOLDER', SHA)
 class PolicyTests(unittest.TestCase):
     def test_on_is_an_event_key(self):
         self.assertEqual(workflow_errors('fixture', SAFE), [])
@@ -30,6 +58,17 @@ class PolicyTests(unittest.TestCase):
         automatic = automatic.replace('    runs-on:', "    if: github.ref == 'refs/heads/main'\n    runs-on:")
         self.assertEqual(workflow_errors('fixture', automatic), [])
         self.assertTrue(workflow_errors('fixture', automatic.replace('branches: [main]', 'branches: [main, release]')))
+    def test_testflight_deployment_requires_merged_main_pr_and_label(self):
+        self.assertEqual(workflow_errors('fixture', CLOSED_DEPLOY), [])
+        self.assertTrue(workflow_errors('fixture', CLOSED_DEPLOY.replace("contains(github.event.pull_request.labels.*.name, 'testflight')", 'true')))
+        self.assertTrue(workflow_errors('fixture', CLOSED_DEPLOY.replace('github.event.pull_request.merged == true', 'false')))
+        self.assertTrue(workflow_errors('fixture', CLOSED_DEPLOY.replace("github.event.pull_request.base.ref == 'main'", "github.event.pull_request.base.ref == 'release'")))
+        self.assertTrue(workflow_errors('fixture', CLOSED_DEPLOY.replace('types: [closed]', 'types: [opened]')))
+        unrelated_secret_job = CLOSED_DEPLOY.replace(
+            '  upload:\n',
+            '  unrelated:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ${{ secrets.APPSTORE_API_PRIVATE_KEY }}\n  upload:\n',
+        )
+        self.assertTrue(workflow_errors('fixture', unrelated_secret_job))
     def test_signing_files_including_encoded_files_fail(self):
         self.assertEqual(len(tracked_errors(['cert.p12','cert.p12.base64','key.p8','a.mobileprovision','p12-password.txt'])),5)
         self.assertEqual(tracked_errors(['Docs/TestFlight.md','Scripts/testflight.sh']),[])
