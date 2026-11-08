@@ -5,6 +5,11 @@ import ModelManagement
 import NeuralTTSBackends
 
 final class TTSInfrastructureTests: XCTestCase, @unchecked Sendable {
+    private actor ProgressRecorder {
+        private(set) var values: [Double] = []
+        func append(_ value: Double) { values.append(value) }
+    }
+
     static func wav(samples: Int = 240) -> Data {
         var data = Data()
         func text(_ value: String) { data.append(contentsOf: value.utf8) }
@@ -82,18 +87,37 @@ final class TTSInfrastructureTests: XCTestCase, @unchecked Sendable {
         defer { try? FileManager.default.removeItem(at:root) }
         let digest = String(repeating:"b",count:64)
         let manifest = ModelManifest(id:"test",repository:"a/b",revision:String(repeating:"a",count:40),files:[ModelFile(path:"model.bin",sha256:digest,size:4)])
-        let bad = VerifiedModelStore(root:root,download:{ _, url in try Data("evil".utf8).write(to:url) },sha256:{ _ in String(repeating:"c",count:64) })
+        let bad = VerifiedModelStore(root:root,download:{ _, url, _ in try Data("evil".utf8).write(to:url) },sha256:{ _ in String(repeating:"c",count:64) })
         do { try await bad.install(manifest,progress:{ _ in }); XCTFail("Unverified model accepted") } catch ModelInstallError.invalidChecksum { }
         let absent = try await bad.isInstalled(manifest); XCTAssertFalse(absent)
-        let good = VerifiedModelStore(root:root,download:{ _,url in try Data("good".utf8).write(to:url) },sha256:{ url in
+        let good = VerifiedModelStore(root:root,download:{ _,url,_ in try Data("good".utf8).write(to:url) },sha256:{ url in
             String(decoding:try Data(contentsOf:url),as:UTF8.self) == "good" ? digest : "invalid"
         })
         try await good.install(manifest,progress:{ _ in })
         let ready = try await good.isInstalled(manifest); XCTAssertTrue(ready)
-        let noNetwork = VerifiedModelStore(root:root,download:{ _,_ in throw URLError(.notConnectedToInternet) },sha256:{ _ in digest })
+        let noNetwork = VerifiedModelStore(root:root,download:{ _,_,_ in throw URLError(.notConnectedToInternet) },sha256:{ _ in digest })
         try await noNetwork.install(manifest,progress:{ _ in })
         try await noNetwork.remove(manifest)
         let removed = try await noNetwork.isInstalled(manifest); XCTAssertFalse(removed)
+    }
+
+    func testModelStoreReportsMonotonicByteProgressWithinLargeFile() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let digest = String(repeating: "b", count: 64)
+        let manifest = ModelManifest(
+            id: "test", repository: "a/b", revision: String(repeating: "a", count: 40),
+            files: [ModelFile(path: "model.bin", sha256: digest, size: 8)]
+        )
+        let recorder = ProgressRecorder()
+        let store = VerifiedModelStore(root: root, download: { _, url, report in
+            try Data("verified".utf8).write(to: url)
+            for received in [1, 3, 5, 8] { await report(Int64(received)) }
+        }, sha256: { _ in digest })
+
+        try await store.install(manifest) { value in await recorder.append(value) }
+        let values = await recorder.values
+        XCTAssertEqual(values, [0.125, 0.375, 0.625, 0.99, 1.0])
     }
 }
 
@@ -104,13 +128,13 @@ extension TTSInfrastructureTests {
         let digest=String(repeating:"b",count:64)
         let manifest=ModelManifest(id:"test",repository:"a/b",revision:String(repeating:"a",count:40),
             files:["one.bin","two.bin"].map { ModelFile(path:$0,sha256:digest,size:4) })
-        let first=VerifiedModelStore(root:root,download:{ remote,url in
+        let first=VerifiedModelStore(root:root,download:{ remote,url,_ in
             if remote.lastPathComponent == "two.bin" { throw CancellationError() }
             try Data("good".utf8).write(to:url)
         },sha256:{ _ in digest })
         do { try await first.install(manifest,progress:{ _ in }); XCTFail() } catch is CancellationError { }
         let partial=try await first.isInstalled(manifest); XCTAssertFalse(partial)
-        let retry=VerifiedModelStore(root:root,download:{ remote,url in
+        let retry=VerifiedModelStore(root:root,download:{ remote,url,_ in
             if remote.lastPathComponent == "one.bin" { throw URLError(.badURL) }
             try Data("good".utf8).write(to:url)
         },sha256:{ _ in digest })

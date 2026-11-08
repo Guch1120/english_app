@@ -131,7 +131,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    private func updateProgress(_ value: Double) { progress = value }
+    private func updateProgress(_ value: Double) { progress = max(progress, min(1, value)) }
 
     func startRecording() {
         guard !busy, !recording, recognitionAvailable, let recordingURL else { return }
