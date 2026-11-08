@@ -56,7 +56,7 @@ import DeviceDiagnostics
         installed = available
         cacheBytes = (try? await cache?.sizeBytes()) ?? 0
     }
-    private func updateProgress(_ value: Double) { progress = value }
+    private func updateProgress(_ value: Double) { progress = max(progress, min(1, value)) }
     func prepare(_ voice: NeuralVoice) {
         guard !busy, let store else { return }
         busy = true; progress = 0; status = "モデルを取得・検証しています"

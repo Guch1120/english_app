@@ -40,7 +40,7 @@ public enum ModelInstallError: Error { case invalidManifest, invalidChecksum, mi
 
 /// File-granular retry: complete verified files survive cancellation; incomplete files never become loadable.
 public actor VerifiedModelStore {
-    public typealias Download = @Sendable (URL, URL) async throws -> Void
+    public typealias Download = @Sendable (URL, URL, @Sendable (Int64) async -> Void) async throws -> Void
     public typealias Hash = @Sendable (URL) throws -> String
     private let root: URL
     private let download: Download
@@ -79,7 +79,11 @@ public actor VerifiedModelStore {
                 try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                 let temporary = directory.appendingPathComponent(UUID().uuidString + ".partial")
                 defer { try? FileManager.default.removeItem(at: temporary) }
-                try await download(try manifest.downloadURL(for: file),temporary)
+                let completedBeforeFile = completed
+                try await download(try manifest.downloadURL(for: file),temporary) { bytesWritten in
+                    let current = completedBeforeFile + min(max(0, bytesWritten), file.size)
+                    await progress(min(0.99, Double(current) / Double(manifest.sizeBytes)))
+                }
                 try Task.checkCancellation()
                 guard (try temporary.resourceValues(forKeys: [.fileSizeKey])).fileSize == Int(file.size),
                       try hash(temporary) == file.sha256 else { throw ModelInstallError.invalidChecksum }
