@@ -316,7 +316,7 @@ struct SpeakingPreview: View {
             Section("音声認識モデル") {
                 Picker("モデル", selection: $model.selectedEngine) {
                     ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
-                }.pickerStyle(.menu)
+                }.pickerStyle(.menu).disabled(model.busy || model.recording)
                 if model.selectedEngine == .appleSpeech && model.recognitionAvailable {
                     Text("Apple Speechの英語認識を端末内限定で使います。音声は端末外へ送信しません。")
                         .font(.caption).foregroundStyle(.secondary)
@@ -336,7 +336,10 @@ struct SpeakingPreview: View {
                     }
                         .disabled(!model.recognitionAvailable || model.busy)
                 }
-                if model.busy { Text(model.status).font(.caption) }
+                if model.busy {
+                    Text(model.status).font(.caption)
+                    Button("処理を中断") { model.cancel() }
+                }
                 if model.audioDuration > 0 {
                     LabeledContent("録音時間", value: model.audioDuration.formatted(.number.precision(.fractionLength(1))) + "秒")
                     Button(model.playingRecording ? "録音の再生中" : "自分の録音を聞く", systemImage: model.playingRecording ? "speaker.wave.2.fill" : "play.circle") {
@@ -426,8 +429,14 @@ struct SpeakingPreview: View {
         } else {
             let result = WordAlignment.compare(expected: item.text, recognized: model.transcript)
             Section("文字起こし・評価") {
+                Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
+                    .font(.headline)
+                    .accessibilityIdentifier("speaking.wordErrorRate")
                 Text(model.transcript).textSelection(.enabled)
                     .accessibilityIdentifier("speaking.transcriptionText")
+                Text("文字起こしの一致度です。発音の正確さを採点するものではありません。")
+                    .font(.caption)
+                DisclosureGroup("認識時間・発話ペース") {
                 if let seconds = model.processingSeconds {
                     Text("認識時間：\(seconds, specifier: "%.2f")秒 · 録音時間：\(model.audioDuration, specifier: "%.1f")秒")
                         .font(.caption).foregroundStyle(.secondary)
@@ -449,6 +458,8 @@ struct SpeakingPreview: View {
                         }
                     }
                 }
+                }
+                DisclosureGroup("単語ごとの差分") {
                 ForEach(Array(result.tokens.enumerated()), id: \.offset) { _, token in
                     HStack {
                         Text(token.expected ?? "＋")
@@ -456,10 +467,7 @@ struct SpeakingPreview: View {
                         Text(token.recognized ?? "欠落")
                     }.foregroundStyle(token.kind == .match ? Color.primary : Color.orange)
                 }
-                Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
-                    .accessibilityIdentifier("speaking.wordErrorRate")
-                Text("文字起こしの一致度です。発音の正確さを採点するものではありません。")
-                    .font(.caption)
+                }
                 if result.tokens.contains(where: { $0.kind != .match }) {
                     Button("この英文をスピーキングの復習に登録", systemImage: "bookmark") {
                         appModel.mark(item, text: item.text, reason: .speaking)

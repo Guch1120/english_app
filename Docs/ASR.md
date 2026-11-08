@@ -22,6 +22,8 @@ The model runs after recording completes. Recognition time excludes model load. 
 
 Parakeet download, integrity status, removal, license information, and the Apple Speech engine choice are available from Settings → ASR model management. Lesson detail keeps a segmented Listening/Speaking selector pinned above the content so learners can switch modes without navigating to a separate screen. Stopping a recording starts transcription automatically. The transcript, word alignment, and word error rate sit directly after the recording controls; the view scrolls to those results when recognition completes. RE-USE comparison remains optional and its enhanced transcript is shown separately.
 
+The error rate appears first in the result section, followed by the transcript. Per-word differences and timing/pace details can be expanded below it, so they do not push the summary out of view. Recognition can be cancelled from the recording controls.
+
 The Simulator UI suite checks the in-place mode switch and Settings route. CI does not provide microphone input or validate real ASR output; automatic scroll behavior and recognition still require an on-device recording session.
 
 ## Verification limits
