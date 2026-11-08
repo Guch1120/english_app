@@ -76,7 +76,11 @@ final class TTSInfrastructureTests: XCTestCase, @unchecked Sendable {
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             if isInterruptedFirstAttempt {
                 client?.urlProtocol(self, didLoad: Data(body.prefix(4)))
-                client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost))
+                // Let URLSession deliver the buffered bytes to its delegate before simulating a dropped connection.
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    guard let self else { return }
+                    self.client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost))
+                }
             } else {
                 client?.urlProtocol(self, didLoad: body)
                 client?.urlProtocolDidFinishLoading(self)

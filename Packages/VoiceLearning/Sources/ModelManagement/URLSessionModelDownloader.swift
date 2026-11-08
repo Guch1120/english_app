@@ -51,7 +51,7 @@ public enum URLSessionModelDownloader {
         sessionConfiguration: URLSessionConfiguration
     ) async throws {
         guard expectedSize > 0 else { throw URLError(.badURL) }
-        let existingSize = ((try? destination.resourceValues(forKeys: [.fileSizeKey]))?.fileSize).map(Int64.init) ?? 0
+        let existingSize = ((try? FileManager.default.attributesOfItem(atPath: destination.path)[.size]) as? Int).map(Int64.init) ?? 0
         if existingSize >= expectedSize {
             try FileManager.default.removeItem(at: destination)
         }

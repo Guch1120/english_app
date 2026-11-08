@@ -84,10 +84,13 @@ public actor VerifiedModelStore {
     private func partialURL(_ file: ModelFile, directory: URL) -> URL {
         directory.appendingPathComponent(".downloads", isDirectory: true).appendingPathComponent(file.sha256 + ".partial")
     }
+    private func fileSize(at url: URL) throws -> Int? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return (try FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? Int
+    }
     private func valid(_ file: ModelFile, manifest: ModelManifest, in directory: URL) throws -> Bool {
         let url = localURL(file, manifest: manifest, directory: directory)
-        guard FileManager.default.fileExists(atPath: url.path),
-              (try url.resourceValues(forKeys: [.fileSizeKey])).fileSize == Int(file.size) else { return false }
+        guard try fileSize(at: url) == Int(file.size) else { return false }
         return try hash(url) == file.sha256
     }
     public func isInstalled(_ manifest: ModelManifest) throws -> Bool {
@@ -109,7 +112,7 @@ public actor VerifiedModelStore {
                 try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
 
                 if FileManager.default.fileExists(atPath: partial.path) {
-                    let partialSize = (try partial.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
+                    let partialSize = try fileSize(at: partial) ?? 0
                     if partialSize == Int(file.size), try hash(partial) == file.sha256 {
                         if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
                         try FileManager.default.moveItem(at: partial, to: destination)
@@ -126,7 +129,7 @@ public actor VerifiedModelStore {
                 )
                 try await download(try manifest.downloadURL(for: file), partial, file.size, fileProgress)
                 try Task.checkCancellation()
-                let downloadedSize = (try partial.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
+                let downloadedSize = try fileSize(at: partial) ?? 0
                 guard downloadedSize == Int(file.size) else { throw ModelInstallError.incompleteDownload }
                 guard try hash(partial) == file.sha256 else {
                     try? FileManager.default.removeItem(at: partial)
