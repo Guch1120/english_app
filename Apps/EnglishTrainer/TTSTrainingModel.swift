@@ -22,6 +22,7 @@ import DeviceDiagnostics
     private var store: VerifiedModelStore?
     private let coordinator = ModelRuntimeCoordinator.shared
     private var operation: Task<Void, Never>?
+    @ObservationIgnored private var activeBackend: (any TTSService)?
     private var historyURL: URL?
     init(speaker: any SpeechPlayback) {
         self.speaker = speaker
@@ -118,7 +119,7 @@ import DeviceDiagnostics
         busy = true; progress = 0; status = "モデルを読み込み、音声を生成しています"
         operation = Task { [weak self] in
             guard let self else { return }
-            defer { busy = false; operation = nil }
+            defer { activeBackend = nil; busy = false; operation = nil }
             let startedAt = Date()
             let diagnosticModel: DiagnosticModel = voice == .kokoro ? .kokoro : .pocket
             await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .inference, model: diagnosticModel, outcome: .started, cacheBytes: UInt64(max(0, cacheBytes)), thermalState: .current))
@@ -134,6 +135,7 @@ import DeviceDiagnostics
                     guard try await store.isInstalled(manifest) else { installed.remove(voice); throw NeuralTTSError.modelsMissing }
                     let directory = try await store.directory(manifest)
                     let backend = NeuralRuntime.backend(voice: voice, directory: directory)
+                    activeBackend = backend
                     let result: (Data, Double, UInt64?) = try await coordinator.withExclusiveModel {
                         let monitor = ProcessMemorySampler(); await monitor.start()
                         let loadStartedAt = Date()
@@ -182,8 +184,22 @@ import DeviceDiagnostics
             }
         }
     }
-    func cancelWork() { if busy { operation?.cancel(); status = "処理の停止を待っています" } }
-    func stop() { operation?.cancel(); stopPlayback(); status = busy ? "処理の停止を待っています" : "停止しました" }
+    private func cancelInference() {
+        operation?.cancel()
+        if let activeBackend {
+            Task { await activeBackend.cancel() }
+        }
+    }
+    func cancelWork() {
+        guard busy else { return }
+        cancelInference()
+        status = "処理の停止を待っています"
+    }
+    func stop() {
+        cancelInference()
+        stopPlayback()
+        status = busy ? "処理の停止を待っています" : "停止しました"
+    }
     func pause() { speaker.pause(); player.pause() }
     func resume() { speaker.resume(); player.resume() }
     func setRate(_ rate: Double) { player.setRate(rate) }
