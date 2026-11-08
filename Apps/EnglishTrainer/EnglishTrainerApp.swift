@@ -692,6 +692,9 @@ struct ReviewView: View {
     var body: some View {
         List {
             let due = model.visiblePoints.filter { $0.nextReviewAt <= Date() }.sorted { $0.nextReviewAt < $1.nextReviewAt }
+            Section("復習の音声") {
+                TTSEnginePicker(speech: model.speech)
+            }
             Section("学習の記録") {
                 LabeledContent("累計復習", value: "\(model.progress.totalReviews)回")
                 LabeledContent("学習した日", value: "\(model.progress.activeDays)日")
