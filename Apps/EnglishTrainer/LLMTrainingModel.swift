@@ -93,8 +93,8 @@ import DeviceDiagnostics
     }
 
     private static func makeStore(root: URL) -> VerifiedModelStore {
-        VerifiedModelStore(root: root, download: { source, destination, progress in
-            try await URLSessionModelDownloader.download(from: source, to: destination, progress: progress)
+        VerifiedModelStore(root: root, download: { source, destination, expectedSize, progress in
+            try await URLSessionModelDownloader.download(from: source, to: destination, expectedSize: expectedSize, progress: progress)
         }, sha256: { url in
             let handle = try FileHandle(forReadingFrom: url); defer { try? handle.close() }
             var hash = SHA256()

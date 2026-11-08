@@ -36,7 +36,16 @@ public struct ModelManifest: Codable, Sendable {
         return url
     }
 }
-public enum ModelInstallError: Error { case invalidManifest, invalidChecksum, missingFiles, busy }
+public enum ModelInstallError: Error, LocalizedError {
+    case invalidManifest, invalidChecksum, incompleteDownload, missingFiles, busy
+
+    public var errorDescription: String? {
+        switch self {
+        case .incompleteDownload: "ダウンロードが中断しました。再試行すると保存済みの続きから再開します。"
+        default: nil
+        }
+    }
+}
 
 public protocol ModelDownloadProgress: Sendable {
     func report(bytesReceived: Int64) async
@@ -54,9 +63,9 @@ private struct ManifestFileProgress: ModelDownloadProgress, Sendable {
     }
 }
 
-/// File-granular retry: complete verified files survive cancellation; incomplete files never become loadable.
+/// Verified files and byte-level partials survive interruption; incomplete files never become loadable.
 public actor VerifiedModelStore {
-    public typealias Download = @Sendable (URL, URL, any ModelDownloadProgress) async throws -> Void
+    public typealias Download = @Sendable (URL, URL, Int64, any ModelDownloadProgress) async throws -> Void
     public typealias Hash = @Sendable (URL) throws -> String
     private let root: URL
     private let download: Download
@@ -71,6 +80,9 @@ public actor VerifiedModelStore {
     }
     private func localURL(_ file: ModelFile, manifest: ModelManifest, directory: URL) -> URL {
         directory.appendingPathComponent("Models").appendingPathComponent(manifest.storageFolder ?? String(manifest.repository.split(separator: "/").last!)).appendingPathComponent(file.path)
+    }
+    private func partialURL(_ file: ModelFile, directory: URL) -> URL {
+        directory.appendingPathComponent(".downloads", isDirectory: true).appendingPathComponent(file.sha256 + ".partial")
     }
     private func valid(_ file: ModelFile, manifest: ModelManifest, in directory: URL) throws -> Bool {
         let url = localURL(file, manifest: manifest, directory: directory)
@@ -90,22 +102,39 @@ public actor VerifiedModelStore {
         var completed: Int64 = 0
         for file in manifest.files {
             try Task.checkCancellation()
+            let destination = localURL(file, manifest: manifest, directory: directory)
             if try !valid(file, manifest: manifest, in: directory) {
-                let destination = localURL(file, manifest: manifest, directory: directory)
+                let partial = partialURL(file, directory: directory)
                 try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-                let temporary = directory.appendingPathComponent(UUID().uuidString + ".partial")
-                defer { try? FileManager.default.removeItem(at: temporary) }
+                try FileManager.default.createDirectory(at: partial.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+                if FileManager.default.fileExists(atPath: partial.path) {
+                    let partialSize = (try partial.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
+                    if partialSize == Int(file.size), try hash(partial) == file.sha256 {
+                        if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+                        try FileManager.default.moveItem(at: partial, to: destination)
+                        completed += file.size
+                        await progress(Double(completed)/Double(manifest.sizeBytes))
+                        continue
+                    }
+                    if partialSize >= Int(file.size) || partialSize < 0 { try FileManager.default.removeItem(at: partial) }
+                }
+
                 let fileProgress = ManifestFileProgress(
                     completedBytes: completed, fileSize: file.size,
                     totalSize: manifest.sizeBytes, progress: progress
                 )
-                try await download(try manifest.downloadURL(for: file), temporary, fileProgress)
+                try await download(try manifest.downloadURL(for: file), partial, file.size, fileProgress)
                 try Task.checkCancellation()
-                guard (try temporary.resourceValues(forKeys: [.fileSizeKey])).fileSize == Int(file.size),
-                      try hash(temporary) == file.sha256 else { throw ModelInstallError.invalidChecksum }
+                let downloadedSize = (try partial.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
+                guard downloadedSize == Int(file.size) else { throw ModelInstallError.incompleteDownload }
+                guard try hash(partial) == file.sha256 else {
+                    try? FileManager.default.removeItem(at: partial)
+                    throw ModelInstallError.invalidChecksum
+                }
                 // The file lives under app-owned storage, so no reader sees an unverified replacement.
                 if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
-                try FileManager.default.moveItem(at: temporary, to: destination)
+                try FileManager.default.moveItem(at: partial, to: destination)
             }
             completed += file.size
             await progress(Double(completed)/Double(manifest.sizeBytes))
