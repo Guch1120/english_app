@@ -2,6 +2,17 @@ name: TestFlight
 on:
   push:
     branches: [main]
+    paths:
+      - 'Apps/**'
+      - 'Packages/**'
+      - 'Vendor/**'
+      - 'EnglishTrainer.xcodeproj/**'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'project.yml'
+      - 'Scripts/build-device.sh'
+      - 'Scripts/testflight.sh'
+      - '.github/workflows/testflight.yml'
   workflow_dispatch:
 permissions:
   contents: read
