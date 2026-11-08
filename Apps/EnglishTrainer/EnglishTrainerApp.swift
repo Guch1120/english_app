@@ -131,6 +131,11 @@ import DeviceDiagnostics
     func saveGenerated(_ lesson: GeneratedLesson) {
         perform { try $0.save(lesson) }
     }
+    func persistGenerated(_ lesson: GeneratedLesson) throws {
+        guard let store else { throw StoreError.invalidRecord }
+        try store.save(lesson)
+        try refresh()
+    }
     func speak(_ text: String, speed: Double, item: LearningItem? = nil) {
         if let item { recordActivity(.listening, item: item) }
         speech.speak(text, speed: speed)
@@ -714,6 +719,7 @@ struct ReviewView: View {
                             .disabled(model.speech.busy)
                         if let item = model.item(for: point) {
                             NavigationLink("元の教材とスピーキング練習") { LessonView(model: model, item: item) }
+                            NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
                         }
                         ViewThatFits {
                             HStack { grades(point) }
@@ -741,6 +747,7 @@ struct ReviewView: View {
                         }
                         if let item = model.item(for: point) {
                             NavigationLink("元の教材を開く") { LessonView(model: model, item: item) }
+                            NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
                         }
                         Button("復習項目を削除", systemImage: "trash", role: .destructive) { pointToDelete = point }
                     }
@@ -897,7 +904,7 @@ struct SettingsView: View {
                 NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
                 NavigationLink("ASRモデル管理") { ASRModelsView(model: model.speaking) }
                 NavigationLink("LLM教材生成・モデル管理") {
-                    LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.saveGenerated)
+                    LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.persistGenerated)
                 }
                 NavigationLink("RE-USE音声強調モデル") { REUSESettingsView(model: model.speaking.reuse) }
                 NavigationLink("オフライン利用の準備") { OfflineReadinessView(model: model) }

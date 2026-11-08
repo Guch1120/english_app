@@ -23,4 +23,6 @@ FluidAudioの変更しないvendor snapshotの`KokoroAneVoicePack.load(fromJSON:
 
 Docker testsは34件成功。追加テストは旧JSON互換・メモ保存復元/長さ上限/消去、固定版追加manifestの分離と話者別キャッシュidentityを確認する。qualityは成功。Swift syntax parseも成功したが、iOS型検査・Core ML推論の成功を示すものではない。
 
-Simulatorには固定の計測メタデータだけを使うメモ編集→再起動復元テストを追加。Debug Simulatorの明示引数に限定し、Release・物理端末では生成しない。macOSのopt-in native smoke testを4話者の固定公開文生成へ拡張した。これらのGitHub実行はこれからであり、追加話者の実行成功・実機品質は未確認。全必須CIとnative smokeが成功するまで配布しない。
+Simulatorには固定の計測メタデータだけを使うメモ編集→再起動復元テストを追加。Debug Simulatorの明示引数に限定し、Release・物理端末では生成しない。macOSのopt-in native smoke testを4話者の固定公開文生成へ拡張した。
+
+[run 42498088478](https://github.com/Guch1120/english_app/actions/runs/42498088478)、commit `b03d7f4`：macOS34 tests成功、4話者の実生成smoke成功（85.804秒）。iOS Simulatorのbuild/analyze・単一起動確認成功、比較メモの再起動復元UIテスト成功（38.617秒）。ただし別の非表示教材UIテストがスイッチをオンにできず、全runは失敗。archiveと音声artifact uploadには進んでいない。実機の追加話者品質と最新headの全必須CIは未確認で、配布はまだ行わない。

@@ -183,7 +183,7 @@ final class EnglishTrainerUITests: XCTestCase {
         openFixture(text)
     }
 
-    func testWeakPointReviewAndHistoryPersistAfterRestart() {
+    @MainActor func testWeakPointReviewAndHistoryPersistAfterRestart() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
 
@@ -207,9 +207,18 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["復習"].waitForExistence(timeout: 5))
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["reschedule"].waitForExistence(timeout: 5))
-        app.buttons["普通"].firstMatch.tap()
+        let newExample = app.buttons["新しい用例で復習"].firstMatch
+        scrollTo(newExample); newExample.tap()
+        XCTAssertTrue(app.navigationBars["新しい用例で復習"].waitForExistence(timeout: 5))
+        let phrase = app.descendants(matching: .any).matching(identifier: "review.examplePhrase").firstMatch
+        XCTAssertEqual(phrase.value as? String, "reschedule")
+        XCTAssertFalse(app.buttons["別の用例を端末内で生成"].isEnabled)
+        app.navigationBars.buttons.firstMatch.tap()
+        let grade = app.buttons["普通"].firstMatch
+        scrollTo(grade); grade.tap()
         XCTAssertTrue(app.staticTexts["今日の復習・0件"].waitForExistence(timeout: 5))
 
+        scrollTo(app.buttons["復習履歴を表示"])
         app.buttons["復習履歴を表示"].tap()
         let reviewEvent = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "普通 ·")
