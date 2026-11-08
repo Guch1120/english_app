@@ -8,3 +8,4 @@ build/
 *.p12
 *.mobileprovision
 .env
+development.cer
