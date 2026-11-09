@@ -347,9 +347,15 @@ final class EnglishTrainerUITests: XCTestCase {
         app.tabBars.buttons["設定"].tap()
         let setting = app.switches["recording.retainOnRestart"]
         scrollTo(setting)
-        if setting.value as? String == "0" { setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        if setting.value as? String == "0" {
+            setting.tap()
+            expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: setting)
+            waitForExpectations(timeout: 5)
+        }
         XCTAssertEqual(setting.value as? String, "1")
-        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        setting.tap()
+        expectation(for: NSPredicate(format: "value == '0'"), evaluatedWith: setting)
+        waitForExpectations(timeout: 5)
         XCTAssertEqual(setting.value as? String, "0")
         app.terminate(); app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
