@@ -6,6 +6,7 @@ public enum ParakeetModel {
     public static let id = "parakeet-tdt-ctc-110m"
     public static let title = "Parakeet TDT-CTC 110M"
     public static let license = "CC BY 4.0 · NVIDIA / FluidInference"
+    public static var verificationKey: String { "parakeet-inference-verified-" + ((try? manifest().revision) ?? "unknown") }
     public static var sizeBytes: Int64 { (try? manifest().sizeBytes) ?? 0 }
     public static func manifest() throws -> ModelManifest {
         guard let url = Bundle.module.url(forResource: "parakeet", withExtension: "json") else {
@@ -72,11 +73,13 @@ public actor ParakeetTDT110MBackend: ASRService {
         try Task.checkCancellation()
         let models = try AsrModels.loadLocal(from: directory, version: .tdtCtc110m)
         manager = AsrManager(config: ASRConfig(encoderHiddenSize: 512), models: models)
+        await ModelRuntimeCoordinator.shared.didLoad(modelID)
     }
 
     public func unload() async {
         if let manager { await manager.cleanup() }
         manager = nil
+        await ModelRuntimeCoordinator.shared.didUnload(modelID)
     }
 
     public func cancel() async { cancelled = true }

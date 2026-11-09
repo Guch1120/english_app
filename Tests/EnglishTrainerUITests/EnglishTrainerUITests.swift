@@ -201,7 +201,7 @@ final class EnglishTrainerUITests: XCTestCase {
         openFixture(text)
     }
 
-    func testWeakPointReviewAndHistoryPersistAfterRestart() {
+    @MainActor func testWeakPointReviewAndHistoryPersistAfterRestart() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
 
@@ -225,20 +225,27 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["復習"].waitForExistence(timeout: 5))
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["reschedule"].waitForExistence(timeout: 5))
-        app.buttons["普通"].firstMatch.tap()
+        let grade = app.buttons["普通"].firstMatch
+        scrollTo(grade); grade.tap()
         XCTAssertTrue(app.staticTexts["今日の復習・0件"].waitForExistence(timeout: 5))
 
-        app.buttons["復習履歴を表示"].tap()
-        let reviewEvent = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "普通 ·")
-        ).firstMatch
-        XCTAssertTrue(reviewEvent.waitForExistence(timeout: 5))
+        let newExample = app.buttons["新しい用例で復習"].firstMatch
+        scrollTo(newExample); newExample.tap()
+        XCTAssertTrue(app.navigationBars["新しい用例で復習"].waitForExistence(timeout: 5))
+        let phrase = app.descendants(matching: .any).matching(identifier: "review.examplePhrase").firstMatch
+        XCTAssertEqual(phrase.value as? String, "reschedule")
+        XCTAssertFalse(app.buttons["別の用例を端末内で生成"].isEnabled)
 
         app.terminate()
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
-        reviewTab.tap()
+        app.tabBars.buttons["復習"].tap()
+        XCTAssertTrue(app.navigationBars["復習"].waitForExistence(timeout: 5))
+        scrollTo(app.buttons["復習履歴を表示"])
         app.buttons["復習履歴を表示"].tap()
+        let reviewEvent = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "普通 ·")
+        ).firstMatch
         XCTAssertTrue(reviewEvent.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["reschedule"].exists)
     }
@@ -276,6 +283,50 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["RE-USE設定"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.switches["比較機能でRE-USEを使用"].exists)
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "初回ダウンロード後はオフラインで処理できます")).firstMatch.exists)
+    }
+
+    @MainActor
+    func testTTSListeningNoteSurvivesRestart() {
+        app.launchArguments.append("--uitest-seed-tts")
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let comparison = app.buttons["TTS聴き比べ・性能測定"]
+        scrollTo(comparison)
+        comparison.tap()
+        let add = app.buttons["聴き心地のメモを追加"]
+        scrollTo(add)
+        add.tap()
+        let field = app.descendants(matching: .any).matching(identifier: "tts.listeningNote").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap(); field.typeText("Clear and natural")
+        app.buttons["保存"].tap()
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        scrollTo(comparison); comparison.tap()
+        let saved = app.staticTexts["Clear and natural"]
+        scrollTo(saved)
+        XCTAssertTrue(saved.exists)
+        app.buttons["比較メモを編集"].tap()
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "tts.listeningNote").firstMatch.value as? String, "Clear and natural")
+    }
+
+    @MainActor func testModelInformationSeparatesUnpreparedFilesAndUnloadedRuntime() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let information = app.buttons["AIモデル情報・状態"]
+        scrollTo(information); information.tap()
+        XCTAssertTrue(app.navigationBars["AIモデル情報・状態"].waitForExistence(timeout: 5))
+        let kokoro = app.buttons["model.info.kokoro"]
+        XCTAssertTrue(kokoro.waitForExistence(timeout: 5)); kokoro.tap()
+        XCTAssertTrue(app.staticTexts["hexgrad / FluidInference"].waitForExistence(timeout: 5))
+        let unloaded = app.staticTexts["未ロード"]
+        scrollTo(unloaded)
+        XCTAssertTrue(unloaded.exists)
+        XCTAssertTrue(app.staticTexts["未準備"].exists)
+        XCTAssertTrue(app.staticTexts["このrevisionの端末生成記録なし。"].exists)
     }
 
     func testASRModelManagementIsReachableFromSettings() {
