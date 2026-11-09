@@ -449,6 +449,16 @@ private enum AppleSpeechASRError: LocalizedError {
     }
 }
 
+private func requestAppleSpeechAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
+    await withCheckedContinuation { continuation in
+        // Speech can deliver this callback on a background queue. Keep its
+        // closure outside the MainActor inherited by the backend instance.
+        SFSpeechRecognizer.requestAuthorization { status in
+            continuation.resume(returning: status)
+        }
+    }
+}
+
 @MainActor private final class AppleOnDeviceASRBackend: ASRService {
     nonisolated let modelID = "apple-speech-en-us-on-device"
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
@@ -459,9 +469,7 @@ private enum AppleSpeechASRError: LocalizedError {
     }
 
     func load() async throws {
-        let status = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-        }
+        let status = await requestAppleSpeechAuthorization()
         guard status == .authorized else { throw AppleSpeechASRError.permissionDenied }
         guard supportsOfflineRecognition else { throw AppleSpeechASRError.offlineRecognitionUnavailable }
     }
