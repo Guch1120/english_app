@@ -1,5 +1,24 @@
 import Foundation
 import SpeechCore
+import ModelManagement
+
+/// Metadata remains available without the inference SDK; it never enables an unsupported engine.
+public enum REUSECatalogInformation {
+    public static func manifest() throws -> ModelManifest {
+        struct Catalog: Decodable {
+            struct File: Decodable { let path: String; let bytes: Int64; let sha256: String }
+            let files: [File]
+        }
+        struct Source: Decodable { let repository: String; let revision: String }
+        guard let catalogURL = Bundle.module.url(forResource: "ModelCatalog", withExtension: "json"),
+              let sourceURL = Bundle.module.url(forResource: "ModelSource", withExtension: "json") else { throw REUSEError.modelMissing }
+        let catalog = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: catalogURL))
+        let source = try JSONDecoder().decode(Source.self, from: Data(contentsOf: sourceURL))
+        let result = ModelManifest(id: "reuse-\(source.revision)", repository: source.repository, revision: source.revision,
+            files: catalog.files.map { ModelFile(path: $0.path, sha256: $0.sha256, size: $0.bytes) }, storageFolder: "model-pack")
+        try result.validate(); return result
+    }
+}
 
 public struct REUSEStorageStatus: Sendable, Equatable {
     public let isInstalled: Bool
@@ -14,7 +33,6 @@ public enum REUSEError: Error, Equatable {
 
 #if canImport(ReuseKit) && canImport(ReuseModelAssets)
 import CryptoKit
-import ModelManagement
 import ReuseKit
 import ReuseModelAssets
 
@@ -34,9 +52,7 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
 
     public init(applicationSupportDirectory: URL, cachesDirectory: URL) throws {
         let catalogURL = try Self.resource("ModelCatalog", extension: "json")
-        let sourceURL = try Self.resource("ModelSource", extension: "json")
         let catalog = try JSONDecoder().decode(ReuseModelCatalog.self, from: Data(contentsOf: catalogURL))
-        let sourceConfiguration = try JSONDecoder().decode(ModelSourceConfiguration.self, from: Data(contentsOf: sourceURL))
         store = try ReuseModelStore(catalog: catalog, applicationSupportDirectory: applicationSupportDirectory,
                                     cachesDirectory: cachesDirectory)
         self.applicationSupportDirectory = applicationSupportDirectory
@@ -46,12 +62,7 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
         var excludedModelRoot = modelRoot
         var modelRootValues = URLResourceValues(); modelRootValues.isExcludedFromBackup = true
         try excludedModelRoot.setResourceValues(modelRootValues)
-        let manifest = ModelManifest(
-            id: "reuse-\(sourceConfiguration.revision)", repository: sourceConfiguration.repository,
-            revision: sourceConfiguration.revision,
-            files: catalog.files.map { ModelFile(path: $0.path, sha256: $0.sha256, size: $0.bytes) },
-            storageFolder: "model-pack"
-        )
+        let manifest = try REUSECatalogInformation.manifest()
         try manifest.validate()
         transferManifest = manifest
         let transferRoot = applicationSupportDirectory.appendingPathComponent("REUSEDownloads", isDirectory: true)
@@ -110,11 +121,13 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
         guard engine == nil else { return }
         engine = ReuseEngine(modelPack: ReuseModelPack(root: store.installedModelDirectory),
                              cacheDirectory: store.compilationCacheDirectory)
+        await ModelRuntimeCoordinator.shared.didLoad(modelID)
     }
 
     public func unload() async {
         if let engine { await engine.release() }
         engine = nil
+        await ModelRuntimeCoordinator.shared.didUnload(modelID)
     }
 
     public func cancel() async {
@@ -206,10 +219,6 @@ public actor REUSEAudioEnhancement: MeasuredAudioEnhancementService {
         return text
     }
 
-    private struct ModelSourceConfiguration: Decodable {
-        let repository: String
-        let revision: String
-    }
 }
 #else
 /// The inference runtime is unavailable outside supported iOS devices.
