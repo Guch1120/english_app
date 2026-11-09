@@ -114,7 +114,7 @@ import DeviceDiagnostics
             await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .inference, model: .reuse, outcome: .started, thermalState: .current))
             do {
                 let measured = service
-                let result = try await coordinator.withExclusiveModel {
+                let result = try await coordinator.withExclusiveModel(modelID: measured.modelID) {
                     try await measured.verifyOnDevice()
                 }
                 lastMetrics = result
@@ -135,7 +135,7 @@ import DeviceDiagnostics
     func enhance(_ audio: AudioAsset) async throws -> AudioAsset {
         guard installed, verified, let service else { throw REUSEError.modelMissing }
         let measuredService = service
-        let result = try await coordinator.withExclusiveModel {
+        let result = try await coordinator.withExclusiveModel(modelID: measuredService.modelID) {
             let loadStartedAt = Date()
             await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .reuse, action: .modelLoad, model: .reuse, outcome: .started, modelBytes: UInt64(REUSEAudioEnhancement.modelSizeBytes), thermalState: .current))
             try await measuredService.load()

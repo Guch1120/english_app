@@ -131,6 +131,11 @@ import DeviceDiagnostics
     func saveGenerated(_ lesson: GeneratedLesson) {
         perform { try $0.save(lesson) }
     }
+    func persistGenerated(_ lesson: GeneratedLesson) throws {
+        guard let store else { throw StoreError.invalidRecord }
+        try store.save(lesson)
+        try refresh()
+    }
     func speak(_ text: String, speed: Double, item: LearningItem? = nil) {
         if let item { recordActivity(.listening, item: item) }
         speech.speak(text, speed: speed)
@@ -692,6 +697,9 @@ struct ReviewView: View {
     var body: some View {
         List {
             let due = model.visiblePoints.filter { $0.nextReviewAt <= Date() }.sorted { $0.nextReviewAt < $1.nextReviewAt }
+            Section("復習の音声") {
+                TTSEnginePicker(speech: model.speech)
+            }
             Section("学習の記録") {
                 LabeledContent("累計復習", value: "\(model.progress.totalReviews)回")
                 LabeledContent("学習した日", value: "\(model.progress.activeDays)日")
@@ -711,6 +719,7 @@ struct ReviewView: View {
                             .disabled(model.speech.busy)
                         if let item = model.item(for: point) {
                             NavigationLink("元の教材とスピーキング練習") { LessonView(model: model, item: item) }
+                            NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
                         }
                         ViewThatFits {
                             HStack { grades(point) }
@@ -738,6 +747,7 @@ struct ReviewView: View {
                         }
                         if let item = model.item(for: point) {
                             NavigationLink("元の教材を開く") { LessonView(model: model, item: item) }
+                            NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
                         }
                         Button("復習項目を削除", systemImage: "trash", role: .destructive) { pointToDelete = point }
                     }
@@ -895,10 +905,11 @@ struct SettingsView: View {
                 NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
                 NavigationLink("ASRモデル管理") { ASRModelsView(model: model.speaking) }
                 NavigationLink("LLM教材生成・モデル管理") {
-                    LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.saveGenerated)
+                    LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.persistGenerated)
                 }
                 NavigationLink("RE-USE音声強調モデル") { REUSESettingsView(model: model.speaking.reuse) }
                 NavigationLink("オフライン利用の準備") { OfflineReadinessView(model: model) }
+                NavigationLink("AIモデル情報・状態") { ModelInformationView(model: model) }
                 Text("Kokoro / Pocket TTS、Parakeet ASR、LiteRT-LM、RE-USEを端末内で使用します。")
                 Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
             }
