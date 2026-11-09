@@ -37,11 +37,11 @@ struct ModelInformationView: View {
         }
         if let manifest = try? REUSECatalogInformation.manifest() {
             result.append(ModelInformationEntry(descriptor: ModelDescriptor(id: "nvidia-reuse-apple-0.2.0", name: "NVIDIA RE-USE", kind: .enhancement,
-                runtime: "RE-USE 0.2.0 / Core ML + MLX", verifiedOnDevice: model.reuse.verified, developer: "NVIDIA / Corvelis / AILogDev",
+                runtime: "RE-USE 0.2.0 / Core ML + MLX", verifiedOnDevice: model.speaking.reuse.verified, developer: "NVIDIA / Corvelis / AILogDev",
                 languages: ["音声信号（英語学習で利用）"], version: manifest.revision, minimumOS: "iOS 18（アプリ対象OS）",
                 license: "OpenMDW-1.1 / 第三者ライセンスはRE-USE管理画面に表示", capabilities: ["任意の音声強調", "オフライン", "元音声を保持", "性能測定"], manifest: manifest,
                 downloadSource: URL(string: "https://huggingface.co/\(manifest.repository)/tree/\(manifest.revision)"),
-                verificationSummary: model.reuse.verified ? "この端末の固定音声確認済み。強調品質の保証とは別です。" : "この端末の固定音声確認が必要です。"), installed: model.reuse.installed))
+                verificationSummary: model.speaking.reuse.verified ? "この端末の固定音声確認済み。強調品質の保証とは別です。" : "この端末の固定音声確認が必要です。"), installed: model.speaking.reuse.installed))
         }
         for candidate in model.llm.candidates {
             let verified = model.llm.runtimeIsVerified(candidate)
