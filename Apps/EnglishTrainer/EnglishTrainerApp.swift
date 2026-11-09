@@ -886,6 +886,7 @@ struct SettingsView: View {
     let model: AppModel
     @State private var confirmDelete = false
     @State private var diagnosticEvents: [DiagnosticEvent] = []
+    @AppStorage(RecordingRetention.preferenceKey) private var retainRecording = true
     private var appVersion: String {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "不明"
@@ -960,6 +961,10 @@ struct SettingsView: View {
             }
             Section("データ") {
                 Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
+                Toggle("次回起動後も最新の録音を保持", isOn: $retainRecording)
+                    .accessibilityIdentifier("recording.retainOnRestart")
+                Text("オフの場合、最新録音は次回アプリ起動時に削除します。今回の練習中は再生・再認識でき、新しい録音は前の録音を置き換えます。")
+                    .font(.caption)
                 Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
                     .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
             }

@@ -1,4 +1,13 @@
 import Foundation
+
+/// The default preserves the latest recording. When disabled, remove it at the next app launch.
+public enum RecordingRetention {
+    public static let preferenceKey = "retain-recording-on-restart"
+    public static func prepareForLaunch(recordingURL: URL, retain: Bool, fileManager: FileManager = .default) throws {
+        guard !retain, fileManager.fileExists(atPath: recordingURL.path) else { return }
+        try fileManager.removeItem(at: recordingURL)
+    }
+}
 public struct AudioAsset: Sendable { public let url: URL; public let duration: Double; public let sampleRate: Double
     public init(url: URL, duration: Double, sampleRate: Double) { self.url = url; self.duration = duration; self.sampleRate = sampleRate }
 }

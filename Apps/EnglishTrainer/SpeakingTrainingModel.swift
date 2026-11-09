@@ -89,6 +89,11 @@ struct ASRComparisonResult: Identifiable {
                 attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
             recordingURL = folder.appendingPathComponent("latest.wav")
             try? FileManager.default.removeItem(at: folder.appendingPathComponent("reuse-latest.wav"))
+            let retain = UserDefaults.standard.object(forKey: RecordingRetention.preferenceKey) as? Bool ?? true
+            if let recordingURL {
+                try RecordingRetention.prepareForLaunch(recordingURL: recordingURL, retain: retain)
+                if !retain { UserDefaults.standard.removeObject(forKey: "recording-item-id") }
+            }
             store = NeuralASRRuntime.modelStore(root: root)
             if let recordingURL, FileManager.default.fileExists(atPath: recordingURL.path),
                let audio = try? AVAudioFile(forReading: recordingURL) {

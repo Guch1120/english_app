@@ -328,6 +328,25 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertFalse(app.buttons["2つのASRを比較"].isEnabled)
     }
 
+    @MainActor func testRecordingRetentionSettingPersists() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let setting = app.switches["recording.retainOnRestart"]
+        scrollTo(setting)
+        if setting.value as? String == "0" { setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        XCTAssertEqual(setting.value as? String, "1")
+        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(setting.value as? String, "0")
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        scrollTo(setting)
+        XCTAssertEqual(setting.value as? String, "0")
+        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(setting.value as? String, "1")
+    }
+
     func testASRModelManagementIsReachableFromSettings() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
