@@ -6,9 +6,18 @@ import LLMCore
 import ModelManagement
 import AudioEnhancementBackends
 import DeviceDiagnostics
+import SpeechCore
 
 // Stateless test case; individual async tests own their actor-confined fixtures.
 final class CoreTests: XCTestCase, @unchecked Sendable {
+    func testEnhancementPolicyNeverSilentlyBypassesEnabledUnreadyModel() {
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: false, installed: false, verified: false, duration: 301), .bypass)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: false, verified: false, duration: 1), .modelNotReady)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: false, duration: 1), .modelNotReady)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: 300), .enhance)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: 301), .recordingTooLong)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: .nan), .recordingTooLong)
+    }
     func testDiagnosticEventLogPersistsOnlyBoundedFixedFieldsAndCanClear() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let file = root.appendingPathComponent("diagnostics.json")

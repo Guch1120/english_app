@@ -35,6 +35,7 @@ struct ASRComparisonResult: Identifiable {
     var progress = 0.0
     var status = ""
     var transcript = ""
+    var transcriptUsesREUSE = false
     var enhancedTranscript = ""
     var enhancedRecordingURL: URL?
     var enhancedProcessingSeconds: Double?
@@ -174,7 +175,7 @@ struct ASRComparisonResult: Identifiable {
                 comparisonResults = []
                 recordingItemID = nil
                 UserDefaults.standard.removeObject(forKey: "recording-item-id")
-                transcript = ""; enhancedTranscript = ""; audioDuration = 0
+                transcript = ""; transcriptUsesREUSE = false; enhancedTranscript = ""; audioDuration = 0
                 processingSeconds = nil; processingPeakMemoryBytes = nil
                 guard try recorder.start(url: recordingURL) else { throw ParakeetASRError.invalidAudio }
                 recordingItemID = itemID
@@ -203,7 +204,7 @@ struct ASRComparisonResult: Identifiable {
         recordingItemID = itemID
         comparisonResults = []
         UserDefaults.standard.set(itemID.uuidString, forKey: "recording-item-id")
-        transcript = ""; enhancedTranscript = ""; processingSeconds = nil; processingPeakMemoryBytes = nil
+        transcript = ""; transcriptUsesREUSE = false; enhancedTranscript = ""; processingSeconds = nil; processingPeakMemoryBytes = nil
         enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil
         removeEnhancedRecording()
         transcribe()
@@ -238,6 +239,22 @@ struct ASRComparisonResult: Identifiable {
 
     func transcribe() {
         guard !busy, !recording, recognitionAvailable, let recordingURL else { return }
+        let decision = AudioPreprocessingDecision.decide(enabled: reuse.enabled, installed: reuse.installed,
+                                                         verified: reuse.verified, duration: audioDuration)
+        transcript = ""; transcriptUsesREUSE = false
+        enhancedTranscript = ""; processingSeconds = nil; enhancedProcessingSeconds = nil
+        processingPeakMemoryBytes = nil; enhancedPeakMemoryBytes = nil
+        reuse.lastMetrics = nil
+        removeEnhancedRecording()
+        switch decision {
+        case .modelNotReady:
+            error = "RE-USEがオンです。モデルの取得と端末確認を完了するか、RE-USEをオフにしてください。"
+            return
+        case .recordingTooLong:
+            error = "RE-USEは5分以内の録音に対応します。短く録音するか、RE-USEをオフにしてください。"
+            return
+        case .bypass, .enhance: break
+        }
         let engine = selectedEngine
         busy = true; status = "\(engine.title)で文字起こししています"; transcript = ""; processingSeconds = nil
         operation = Task { [weak self] in
@@ -247,8 +264,20 @@ struct ASRComparisonResult: Identifiable {
             let diagnosticModel: DiagnosticModel = engine == .parakeet ? .parakeet : .appleSpeech
             await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .transcription, model: diagnosticModel, outcome: .started, thermalState: .current))
             do {
-                let recognition = try await recognize(url: recordingURL, duration: audioDuration, engine: engine)
+                let input: AudioAsset
+                if decision == .enhance {
+                    status = "RE-USEで音声を強調しています"
+                    input = try await reuse.enhance(AudioAsset(url: recordingURL, duration: audioDuration, sampleRate: 16_000))
+                    enhancedRecordingURL = input.url
+                } else {
+                    input = AudioAsset(url: recordingURL, duration: audioDuration, sampleRate: 16_000)
+                }
+                try Task.checkCancellation()
+                status = "\(engine.title)で文字起こししています"
+                let recognition = try await recognize(url: input.url, duration: input.duration, engine: engine)
+                try Task.checkCancellation()
                 transcript = recognition.0
+                transcriptUsesREUSE = decision == .enhance
                 processingSeconds = recognition.1
                 processingPeakMemoryBytes = recognition.2
                 status = transcript.isEmpty ? "音声を認識できませんでした。もう一度録音してください。" : "文字起こしが完了しました"
@@ -261,7 +290,7 @@ struct ASRComparisonResult: Identifiable {
                 self.error = error.localizedDescription
             } catch {
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .asr, action: .transcription, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
-                self.error = "文字起こしに失敗しました。録音を残したまま再試行できます。"
+                self.error = decision == .enhance ? "音声強調または文字起こしに失敗しました。元の録音を残したまま再試行できます。" : "文字起こしに失敗しました。録音を残したまま再試行できます。"
             }
         }
     }
@@ -273,7 +302,7 @@ struct ASRComparisonResult: Identifiable {
         let selected = selectedEngine
         let duration = audioDuration
         busy = true; status = "RE-USEなしの音声を文字起こししています"
-        transcript = ""; enhancedTranscript = ""; processingSeconds = nil; processingPeakMemoryBytes = nil
+        transcript = ""; transcriptUsesREUSE = false; enhancedTranscript = ""; processingSeconds = nil; processingPeakMemoryBytes = nil
         enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil
         reuse.lastMetrics = nil
         operation = Task { [weak self] in
@@ -448,7 +477,7 @@ struct ASRComparisonResult: Identifiable {
             comparisonResults = []
             UserDefaults.standard.removeObject(forKey: "recording-item-id")
             removeEnhancedRecording()
-            transcript = ""; enhancedTranscript = ""; processingPeakMemoryBytes = nil
+            transcript = ""; transcriptUsesREUSE = false; enhancedTranscript = ""; processingPeakMemoryBytes = nil
             enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil
             audioDuration = 0; silenceDuration = 0; pauseCount = 0; longestPause = 0
             silenceMetricsAvailable = false; processingSeconds = nil; status = "録音を削除しました"

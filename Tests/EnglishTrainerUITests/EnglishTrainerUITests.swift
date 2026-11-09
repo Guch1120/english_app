@@ -269,7 +269,7 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertFalse(app.buttons["録音をRE-USEなし／ありで比較"].isEnabled)
         reuseSettings.tap()
         XCTAssertTrue(app.navigationBars["RE-USE設定"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.switches["比較機能でRE-USEを使用"].exists)
+        XCTAssertTrue(app.switches["文字起こしでRE-USEを使用"].exists)
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "初回ダウンロード後はオフラインで処理できます")).firstMatch.exists)
     }
 

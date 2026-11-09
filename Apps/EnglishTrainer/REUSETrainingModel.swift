@@ -176,8 +176,8 @@ struct REUSESettingsView: View {
     var body: some View {
         Form {
             Section("オンデバイス音声強調") {
-                Toggle("比較機能でRE-USEを使用", isOn: $model.enabled)
-                Text("同じ録音をRE-USEなし／ありでASRにかけ、単語誤り率と処理時間を比較します。音声や学習文を外部へ送信しません。初期設定はOFFです。")
+                Toggle("文字起こしでRE-USEを使用", isOn: $model.enabled).disabled(model.busy)
+                Text("オンにすると通常の文字起こしの前に音声を強調します。元の録音は保持し、同じ録音で強調なし／ありの比較もできます。音声や学習文は送信しません。初期設定はOFFです。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("モデル") {

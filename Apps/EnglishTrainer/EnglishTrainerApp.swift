@@ -428,6 +428,10 @@ struct SpeakingPreview: View {
                         .font(.caption).foregroundStyle(.orange)
                 }
                 NavigationLink("ASRモデル管理") { ASRModelsView(model: model) }
+                if model.reuse.enabled {
+                    Text("通常の文字起こしにもRE-USEを適用します。事前のモデル取得と端末確認が必要です。")
+                        .font(.caption)
+                }
             }
             Section("録音して話す") {
                 if model.recording {
@@ -464,7 +468,8 @@ struct SpeakingPreview: View {
             transcriptionResults
             Section("音声強調の比較") {
                 Toggle("RE-USEを使う", isOn: $model.reuse.enabled)
-                Text("同じ録音を、音声強調なし／ありで同じASRにかけて比較します。発話音声と学習文は端末内で処理します。")
+                    .disabled(model.busy || model.recording || model.reuse.busy)
+                Text("オンでは通常の文字起こしに音声強調を適用できます。同じ録音を強調なし／ありで比較することもできます。発話音声と学習文は端末内で処理します。")
                     .font(.caption).foregroundStyle(.secondary)
                 if model.reuse.installed && !model.reuse.verified {
                     Text("この端末で固定音声の動作確認を完了すると比較を利用できます。")
@@ -477,7 +482,7 @@ struct SpeakingPreview: View {
                            model.audioDuration > 300 || model.recordingItemID != item.id)
                 NavigationLink("RE-USEモデルと端末確認の設定") { REUSESettingsView(model: model.reuse) }
                 if model.audioDuration > 300 {
-                    Text("RE-USEは5分以内の録音に対応します。通常の文字起こしは引き続き利用できます。")
+                    Text("RE-USEは5分以内の録音に対応します。長い録音はRE-USEをオフにすると認識できます。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if let metrics = model.reuse.lastMetrics {
@@ -527,6 +532,8 @@ struct SpeakingPreview: View {
             Section("文字起こし・評価") { Text("この教材を録音すると、結果がここに表示されます。") }
         } else if model.transcript.isEmpty {
             Section("文字起こし・評価") {
+                Text(model.transcriptUsesREUSE ? "RE-USEで強調した音声を認識" : "元の録音を認識")
+                    .font(.caption).foregroundStyle(.secondary)
                 if model.busy && model.status.localizedCaseInsensitiveContains("文字起こし") {
                     ProgressView(model.status)
                         .accessibilityIdentifier("speaking.transcriptionProgress")

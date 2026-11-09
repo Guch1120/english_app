@@ -1,4 +1,14 @@
 import Foundation
+public enum AudioPreprocessingDecision: Equatable, Sendable {
+    case bypass, enhance, modelNotReady, recordingTooLong
+
+    public static func decide(enabled: Bool, installed: Bool, verified: Bool, duration: Double) -> Self {
+        guard enabled else { return .bypass }
+        guard installed && verified else { return .modelNotReady }
+        guard duration.isFinite && duration > 0 && duration <= 300 else { return .recordingTooLong }
+        return .enhance
+    }
+}
 public struct AudioAsset: Sendable { public let url: URL; public let duration: Double; public let sampleRate: Double
     public init(url: URL, duration: Double, sampleRate: Double) { self.url = url; self.duration = duration; self.sampleRate = sampleRate }
 }
