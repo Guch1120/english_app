@@ -15,6 +15,7 @@ public enum LiteRTLLMError: Error, Equatable {
 /// complete load/generate/unload operation so TTS and ASR cannot compete for peak memory.
 public actor LiteRTLLMService: ManagedLLMService {
     private var modelURL: URL?
+    private var trackedModelID: String?
     private var loadSeconds: Double?
     private var latestMetrics: LLMInferenceMetrics?
     private let memorySampler = ProcessMemorySampler()
@@ -26,8 +27,12 @@ public actor LiteRTLLMService: ManagedLLMService {
     public init() {}
 
     public func load(modelURL: URL) async throws {
+        try await load(modelURL: modelURL, modelID: modelURL.lastPathComponent)
+    }
+
+    public func load(modelURL: URL, modelID: String) async throws {
         guard FileManager.default.fileExists(atPath: modelURL.path) else { throw LiteRTLLMError.modelMissing }
-        guard self.modelURL != modelURL else { return }
+        guard self.modelURL != modelURL || trackedModelID != modelID else { return }
         await unload()
         let started = ContinuousClock.now
         #if canImport(LiteRTLM)
@@ -36,6 +41,8 @@ public actor LiteRTLLMService: ManagedLLMService {
         try await loaded.initialize()
         engine = loaded
         self.modelURL = modelURL
+        trackedModelID = modelID
+        await ModelRuntimeCoordinator.shared.didLoad(modelID)
         loadSeconds = started.duration(to: .now).seconds
         #else
         throw LiteRTLLMError.runtimeUnavailable
@@ -102,6 +109,9 @@ public actor LiteRTLLMService: ManagedLLMService {
         #endif
         modelURL = nil
         loadSeconds = nil
+        let unloadedID = trackedModelID
+        trackedModelID = nil
+        if let unloadedID { await ModelRuntimeCoordinator.shared.didUnload(unloadedID) }
     }
 
     public func inferenceMetrics() async -> LLMInferenceMetrics? { latestMetrics }

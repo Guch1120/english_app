@@ -57,7 +57,7 @@ Download and decrypt the artifact into the private signing directory (replace `R
 bash Scripts/download-wda-ipa.sh RUN_ID /home/robo25/.config/english-trainer-signing/registration-vpztHzWL
 ```
 
-Install the helper runner and start a WDA session over USB:
+Install the helper runner and start a WDA session over USB. The following `pymobiledevice3` commands run **inside the Dockerfile.device-debug container**, with the IPA and existing usbmuxd socket mounted; do not install it on the host:
 
 ```bash
 ipa=/home/robo25/.config/english-trainer-signing/registration-vpztHzWL/builds/wda-RUN_ID/wda-runner.ipa
@@ -79,3 +79,30 @@ After enabling the switch, unlock the iPhone and retry the WDA launch. If iOS di
 If the runner log contains `Timed out while enabling automation mode` and the host reports that port 8100 never became reachable, first check **Settings → Developer → Enable UI Automation** on the iPhone. A successful runner build, valid signing, successful USB installation, Developer Mode, and a mounted Developer image do not prove this switch is enabled.
 
 WDA is a development helper, not an app update mechanism. It provides UI input to the already installed TestFlight app; TestFlight still controls app installation and updates.
+
+## Confirmed USB control (2026-11-09)
+
+After the user enabled UI Automation, WDA 16.18.1 returned `ready: true` on iPhone 16 / iOS 26.4.2. Screenshots worked. Keeping the XCTest runner alive across commands allowed `tap gearshape` to open Settings; a later screenshot confirmed the selected Settings tab and English Trainer 0.1.0 (143.1). RE-USE and LLM management navigation also worked. This establishes remote UI control, not successful TestFlight installation or model inference by itself.
+
+Per-command `--xctrunner` can return before the HTTP server is stable. Prefer one bounded runner and execute subsequent WDA commands in the same container. The image pins pymobiledevice3 11.50.0. Example using the existing private pairing/tunnel state:
+
+```bash
+wda_state=/home/robo25/.config/english-trainer-signing/registration-vpztHzWL/device-state
+wda_output=/tmp/english-app-device-check
+mkdir -p -m 700 "$wda_output"
+docker run --detach --rm --name english-trainer-wda-session \
+  --user "$(id -u):$(id -g)" -e HOME=/state \
+  --mount type=bind,src=/var/run/usbmuxd,dst=/var/run/usbmuxd \
+  --mount "type=bind,src=$wda_state,dst=/state" \
+  --mount "type=bind,src=$wda_output,dst=/output" \
+  english-trainer-device-debug \
+  pymobiledevice3 developer dvt xcuitest \
+  jp.guch1120.WebDriverAgentRunner.xctrunner --userspace --timeout 900 \
+  --output-log /output/runner.log
+docker exec english-trainer-wda-session \
+  pymobiledevice3 developer wda status --userspace --timeout 15
+docker exec english-trainer-wda-session \
+  pymobiledevice3 developer wda screenshot /output/device.png --userspace --timeout 15
+```
+
+Wait for a successful status response before input commands. Inspect the current screen/elements before each action. SwiftUI tab accessibility names are `headphones`, `arrow.clockwise`, and `gearshape`; Japanese labels need not be the accessibility ID. Do not repeat a timed-out action blindly: inspect the screen because the tap may already have taken effect. Stop the bounded runner with `docker stop english-trainer-wda-session` when done. Keep screenshots, element trees and debug logs outside Git; they may contain learning content.
