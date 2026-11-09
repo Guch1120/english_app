@@ -422,7 +422,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
         if recording { stopRecording() }
         if busy { cancel() }
         if reuse.busy { reuse.cancel() }
-        stopRecordingPlayback()
+        // A recording already being played can continue with the app's audio background mode.
     }
 
     func handleAudioInterruption() {
