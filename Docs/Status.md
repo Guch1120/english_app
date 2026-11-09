@@ -1,12 +1,12 @@
 # Implementation status
 
-Updated 2026-11-09 (JST). Local package tests and quality checks run in Docker; iOS Simulator and archive builds run on GitHub's macOS runners because the development host is Linux. The specification's 18 initial-release conditions and remaining device checks are tracked in [Acceptance.md](Acceptance.md).
+Updated 2026-11-10 (JST). Local package tests and quality checks run in Docker; iOS Simulator and archive builds run on GitHub's macOS runners because the development host is Linux. The specification's 18 initial-release conditions and remaining device checks are tracked in [Acceptance.md](Acceptance.md) and [Specification-Audit.md](Specification-Audit.md).
 
 ## Phase implementation
 
-Detailed source review after the phase PRs found remaining requirements beyond physical-device tests, including lesson answering/editing/hiding and TTS speaker/subjective-note controls. The lesson-management completion is in development; see [Specification-Audit.md](Specification-Audit.md). Merged phase PRs alone do not prove the full specification is complete.
+Phases 0–7 and the follow-up specification work are merged in `main`. Phase completion means the planned code and CI scope is merged; it does not imply that physical iPhone acceptance has passed. The latest source audit distinguishes implemented behavior from device verification in [Specification-Audit.md](Specification-Audit.md).
 
-Phases 1–7 are merged in `main`. The implementations and their PR-level checks are summarized below. Phase completion here means the planned code and CI scope is merged; it does not imply that the specification's physical iPhone acceptance checks have passed.
+Phases 1–7 are merged in `main`. The implementations and their PR-level checks are summarized below.
 
 - **Phases 1–4:** the listening, speaking, local persistence, and review foundation is in `main`. See [ASR.md](ASR.md) and [Review.md](Review.md). Phase PRs #8–#10 passed their Docker and macOS CI checks.
 - **Phase 5 / LLM:** PR [#11](https://github.com/Guch1120/english_app/pull/11), merged as `fea0620`. Docker quality/tests, macOS package tests, iOS Simulator build/analyze, unsigned archive, and review gate passed in [run 42271561361](https://github.com/Guch1120/english_app/actions/runs/42271561361). TestFlight run [42273707239](https://github.com/Guch1120/english_app/actions/runs/42273707239) uploaded **0.1.0 (107.1)**.
@@ -27,6 +27,14 @@ Phases 1–7 are merged in `main`. The implementations and their PR-level checks
 - **TTS cancellation and release workflow:** PR [#45](https://github.com/Guch1120/english_app/pull/45), merged as `fef994b`, cancels the active neural TTS backend when playback stops. Its TestFlight workflow filters out documentation and unrelated CI-only changes, and skips Package tests on protected main pushes because those checks already passed before merge. All four required checks passed in [run 42462999243](https://github.com/Guch1120/english_app/actions/runs/42462999243); the iOS job took 40m35s. TestFlight run [#41](https://github.com/Guch1120/english_app/actions/runs/42466024701) attempt 1 hit GitHub Releases HTTP 504 responses while fetching binary dependencies; attempt 2 succeeded and uploaded **0.1.0 (141.2)**. The duplicate Package test step was skipped on the main push.
 
 - **Lesson modes and ASR result flow:** PR [#49](https://github.com/Guch1120/english_app/pull/49), merged as `680f825`, adds a pinned listening/speaking selector, Settings ASR model management, automatic recognition after recording stops, and automatic movement to the result. Word error rate appears first, with transcript and expandable details; optional RE-USE controls follow the results. Docker tests (28), quality checks, and all four required checks passed in [run 42490444933](https://github.com/Guch1120/english_app/actions/runs/42490444933), including Simulator UI tests and an unsigned archive. TestFlight [run 42493055527](https://github.com/Guch1120/english_app/actions/runs/42493055527) succeeded in 13m11s and uploaded **0.1.0 (143.1)** after the labeled PR merged. The archive command used build 143.1 and checked out main commit `680f825`. Apple processing, tester availability and installation are separate. Microphone recognition and automatic result movement still require physical iPhone confirmation.
+
+## Follow-up specification work and current verification
+
+PRs [#52](https://github.com/Guch1120/english_app/pull/52)–[#58](https://github.com/Guch1120/english_app/pull/58) are merged. These complete lesson answers/editing/hiding and review examples, model information, diagnostics export, phrase selection, background playback, the Apple Speech authorization crash fix, and same-recording ASR comparison with configurable recording retention and optional RE-USE processing. See [Specification-Audit.md](Specification-Audit.md) for the requirement-to-code summary and remaining device checks.
+
+The latest feature head passed the required Docker core, quality/security, macOS Package, iOS Simulator build/launch/UI, unsigned archive and review-gate checks in [run 42699460096](https://github.com/Guch1120/english_app/actions/runs/42699460096). The local Docker run passed 42 Swift package tests and 18 quality policy tests, plus ShellCheck, actionlint and redacted Git history scanning.
+
+TestFlight upload [run 42699366994](https://github.com/Guch1120/english_app/actions/runs/42699366994) succeeded for **0.1.0 (151.1)**. This establishes upload only: Apple processing, internal tester assignment and iPhone installation remain unconfirmed. The user reported an Apple Speech crash at recording start after selecting that engine on 145.1. PR #57 changes the authorization continuation isolation implicated by the symbolicated reports. Verify the fix on 151.1 before calling it resolved on-device. The other offline, inference quality, interruption, storage, latency, memory and thermal checks remain tracked in [Acceptance.md](Acceptance.md).
 
 ## Physical iPhone validation
 
