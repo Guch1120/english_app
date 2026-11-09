@@ -9,6 +9,14 @@ import DeviceDiagnostics
 
 // Stateless test case; individual async tests own their actor-confined fixtures.
 final class CoreTests: XCTestCase, @unchecked Sendable {
+    func testLessonTextSelectionPreservesOriginalPhraseAndHandlesBounds() {
+        let text = "Could  you\nreschedule the meeting?"
+        XCTAssertEqual(LessonTextSelection.phrase(in: text, from: 1, through: 3), "you\nreschedule the")
+        XCTAssertEqual(LessonTextSelection.phrase(in: text, from: 3, through: 1), "you\nreschedule the")
+        XCTAssertEqual(LessonTextSelection.phrase(in: text, from: 4, through: 4), "meeting?")
+        XCTAssertNil(LessonTextSelection.phrase(in: text, from: -1, through: 2))
+        XCTAssertNil(LessonTextSelection.phrase(in: "", from: 0, through: 0))
+    }
     func testDiagnosticEventLogPersistsOnlyBoundedFixedFieldsAndCanClear() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let file = root.appendingPathComponent("diagnostics.json")

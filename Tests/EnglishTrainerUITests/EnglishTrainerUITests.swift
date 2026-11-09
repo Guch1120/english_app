@@ -89,6 +89,25 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[lesson].waitForExistence(timeout: 5))
     }
 
+    @MainActor func testListeningSelectsAndSavesPhrase() {
+        app.launch()
+        openFixture("Could you reschedule the meeting for Thursday?")
+        let toggle = app.switches["英文を表示"]
+        scrollTo(toggle)
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let first = app.buttons["lesson.word.0"]
+        scrollTo(first)
+        first.tap()
+        app.buttons["lesson.word.1"].tap()
+        let field = app.textFields["単語・フレーズ（空欄で文章全体）"]
+        XCTAssertEqual(field.value as? String, "Could you")
+        let save = app.buttons["復習に登録"]
+        scrollTo(save)
+        save.tap()
+        app.tabBars.buttons["復習"].tap()
+        XCTAssertTrue(app.staticTexts.matching(identifier: "Could you").firstMatch.waitForExistence(timeout: 5))
+    }
+
     @MainActor private func scrollTo(_ element: XCUIElement) {
         for _ in 0..<8 {
             if element.exists && element.isHittable { return }
