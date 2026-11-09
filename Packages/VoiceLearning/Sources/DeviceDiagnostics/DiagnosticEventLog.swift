@@ -102,6 +102,31 @@ public struct DiagnosticEvent: Codable, Identifiable, Sendable, Equatable {
     }
 }
 
+/// Export deliberately omits persistent identifiers and timestamps. All remaining fields are
+/// fixed enums or numeric measurements; it cannot carry lesson text or arbitrary error strings.
+public struct DiagnosticExportEvent: Encodable, Sendable {
+    public let subsystem: DiagnosticSubsystem
+    public let action: DiagnosticAction
+    public let model: DiagnosticModel
+    public let outcome: DiagnosticOutcome
+    public let elapsedMilliseconds: Int?
+    public let modelBytes: UInt64?
+    public let peakMemoryBytes: UInt64?
+    public let cacheBytes: UInt64?
+    public let thermalState: DiagnosticThermalState
+
+    init(_ event: DiagnosticEvent) {
+        subsystem = event.subsystem; action = event.action; model = event.model; outcome = event.outcome
+        elapsedMilliseconds = event.elapsedMilliseconds; modelBytes = event.modelBytes
+        peakMemoryBytes = event.peakMemoryBytes; cacheBytes = event.cacheBytes; thermalState = event.thermalState
+    }
+}
+
+public struct DiagnosticExport: Encodable, Sendable {
+    public let formatVersion = 1
+    public let events: [DiagnosticExportEvent]
+}
+
 /// A bounded, on-device event log. Its API accepts only fixed enums and numeric metrics,
 /// so callers cannot accidentally store audio, transcripts, prompts, or localized errors.
 public actor DiagnosticEventLog {
@@ -131,6 +156,13 @@ public actor DiagnosticEventLog {
     public func recentEvents(limit: Int = 100) -> [DiagnosticEvent] {
         let current = loadIfNeeded()
         return Array(current.suffix(max(0, limit)).reversed())
+    }
+
+    public func exportJSON() throws -> String {
+        let report = DiagnosticExport(events: loadIfNeeded().map(DiagnosticExportEvent.init))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return String(decoding: try encoder.encode(report), as: UTF8.self)
     }
 
     public func clear() {
