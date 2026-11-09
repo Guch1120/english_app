@@ -18,6 +18,21 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: 301), .recordingTooLong)
         XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: .nan), .recordingTooLong)
     }
+
+    func testRecordingRetentionRemovesOnlyRequestedFileAtLaunch() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recording = root.appendingPathComponent("latest.wav")
+        let unrelated = root.appendingPathComponent("other.wav")
+        try Data([1, 2]).write(to: recording); try Data([3]).write(to: unrelated)
+        try RecordingRetention.prepareForLaunch(recordingURL: recording, retain: true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: recording.path))
+        try RecordingRetention.prepareForLaunch(recordingURL: recording, retain: false)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: recording.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: unrelated.path))
+        XCTAssertNoThrow(try RecordingRetention.prepareForLaunch(recordingURL: recording, retain: false))
+    }
     func testDiagnosticEventLogPersistsOnlyBoundedFixedFieldsAndCanClear() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let file = root.appendingPathComponent("diagnostics.json")
