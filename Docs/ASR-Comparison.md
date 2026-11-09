@@ -1,0 +1,7 @@
+# ASR comparison
+
+Settings offers a separate comparison of Parakeet and Apple Speech using the same latest recording and its associated lesson as the reference. Both engines run sequentially under the existing exclusive runtime coordinator; Apple Speech is restricted to on-device recognition. The comparison requires an installed Parakeet model, an available on-device Apple recognizer, and an associated recording. It displays transcripts, word error rate, elapsed recognition time, real-time factor, and sampled peak process RSS where available. WER is transcript agreement, not a pronunciation score; RSS is not model-only memory.
+
+Only a completed pair is displayed. Cancellation or an error leaves the source recording intact and does not present a partial pair as a completed comparison. Results are held in memory and cleared when leaving the screen, replacing or deleting the recording, or changing the recording's lesson association; they are not added to diagnostics or sent to a server. Recognition can still require microphone or Apple Speech permissions.
+
+The Simulator test covers navigation and the disabled state without a recording or models, not real recognition. Physical-device verification must compare both results for one known recording, confirm offline operation and cancellation, and record timings without recording personal speech or transcript content in the repository.

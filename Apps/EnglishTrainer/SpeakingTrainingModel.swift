@@ -20,6 +20,14 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
+struct ASRComparisonResult: Identifiable {
+    let engine: ASREngine
+    let transcript: String
+    let seconds: Double
+    let peakProcessBytes: UInt64?
+    var id: ASREngine { engine }
+}
+
 @MainActor @Observable final class SpeakingTrainingModel {
     var installed = false
     var recording = false
@@ -45,6 +53,11 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     }
     var reuse = REUSETrainingModel()
     var playingRecording = false
+    var comparisonResults: [ASRComparisonResult] = []
+    var comparingEngines = false
+    var comparisonAvailable: Bool {
+        installed && appleSpeech.supportsOfflineRecognition && audioDuration > 0 && recordingItemID != nil
+    }
 
     private let recorder = RecorderBox()
     private let appleSpeech = AppleOnDeviceASRBackend()
@@ -158,6 +171,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 try session.setCategory(.record, mode: .measurement)
                 try session.setActive(true)
                 if FileManager.default.fileExists(atPath: recordingURL.path) { try FileManager.default.removeItem(at: recordingURL) }
+                comparisonResults = []
                 recordingItemID = nil
                 UserDefaults.standard.removeObject(forKey: "recording-item-id")
                 transcript = ""; enhancedTranscript = ""; audioDuration = 0
@@ -187,6 +201,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
     func useSavedRecording(for itemID: UUID) {
         guard !busy, !recording, audioDuration > 0 else { return }
         recordingItemID = itemID
+        comparisonResults = []
         UserDefaults.standard.set(itemID.uuidString, forKey: "recording-item-id")
         transcript = ""; enhancedTranscript = ""; processingSeconds = nil; processingPeakMemoryBytes = nil
         enhancedProcessingSeconds = nil; enhancedPeakMemoryBytes = nil
@@ -282,6 +297,36 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 status = "RE-USEなし／ありの比較が完了しました"
             } catch is CancellationError { status = "音声比較を中断しました" }
             catch { self.error = "RE-USE比較に失敗しました。元の録音は保持されています。" }
+        }
+    }
+
+    /// The same saved recording is processed sequentially; publish only a complete pair.
+    func compareASREngines() {
+        guard !busy, !recording, comparisonAvailable, let recordingURL else { return }
+        busy = true; comparingEngines = true; comparisonResults = []
+        let duration = audioDuration
+        operation = Task { [weak self] in
+            guard let self else { return }
+            defer { busy = false; comparingEngines = false; operation = nil }
+            do {
+                var results: [ASRComparisonResult] = []
+                for engine in [ASREngine.parakeet, .appleSpeech] {
+                    try Task.checkCancellation()
+                    status = "\(engine.title)で同じ録音を文字起こししています"
+                    let result = try await recognize(url: recordingURL, duration: duration, engine: engine)
+                    try Task.checkCancellation()
+                    results.append(ASRComparisonResult(engine: engine, transcript: result.0,
+                                                       seconds: result.1, peakProcessBytes: result.2))
+                }
+                comparisonResults = results
+                status = "音声認識の比較が完了しました"
+            } catch is CancellationError {
+                status = "音声認識の比較を中断しました"
+            } catch let failure as AppleSpeechASRError {
+                error = failure.localizedDescription
+            } catch {
+                error = "音声認識の比較に失敗しました。録音は保持されています。"
+            }
         }
     }
 
@@ -400,6 +445,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             stopRecordingPlayback()
             if FileManager.default.fileExists(atPath: recordingURL.path) { try FileManager.default.removeItem(at: recordingURL) }
             recordingItemID = nil
+            comparisonResults = []
             UserDefaults.standard.removeObject(forKey: "recording-item-id")
             removeEnhancedRecording()
             transcript = ""; enhancedTranscript = ""; processingPeakMemoryBytes = nil

@@ -317,6 +317,17 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["このrevisionの端末生成記録なし。"].exists)
     }
 
+    @MainActor func testASRComparisonRequiresRecordingAndModels() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let link = app.buttons["ASR聴き取り比較"]
+        scrollTo(link); link.tap()
+        XCTAssertTrue(app.navigationBars["ASR比較"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["先に教材のスピーキング画面で録音してください。"].exists)
+        XCTAssertFalse(app.buttons["2つのASRを比較"].isEnabled)
+    }
+
     func testASRModelManagementIsReachableFromSettings() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
