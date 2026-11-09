@@ -53,6 +53,15 @@ final class CoreTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(encoded.contains("transcript"))
         XCTAssertFalse(encoded.contains("prompt"))
 
+        let exported = try await log.exportJSON()
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(exported.utf8)) as? [String: Any])
+        XCTAssertEqual(object["formatVersion"] as? Int, 1)
+        let exportedEvents = try XCTUnwrap(object["events"] as? [[String: Any]])
+        XCTAssertEqual(exportedEvents.count, 2)
+        XCTAssertEqual(exportedEvents.first?["elapsedMilliseconds"] as? Int, 1250)
+        XCTAssertEqual(Set(exportedEvents[0].keys), Set(["subsystem", "action", "model", "outcome", "elapsedMilliseconds", "peakMemoryBytes", "cacheBytes", "thermalState"]))
+        XCTAssertFalse(exported.contains(recent[0].id.uuidString))
+
         let restored = DiagnosticEventLog(fileURL: file, maximumEvents: 2)
         let restoredEvents = await restored.recentEvents(limit: 10)
         XCTAssertEqual(restoredEvents, recent)

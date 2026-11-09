@@ -894,6 +894,7 @@ struct SettingsView: View {
     @State private var confirmDelete = false
     @State private var diagnosticEvents: [DiagnosticEvent] = []
     @AppStorage(RecordingRetention.preferenceKey) private var retainRecording = true
+    @State private var diagnosticExport: String?
     private var appVersion: String {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "不明"
@@ -955,10 +956,19 @@ struct SettingsView: View {
                         }.padding(.vertical, 3)
                     }
                 }
+                Button("共有用の診断情報を作成") {
+                    Task { diagnosticExport = try? await DiagnosticEventLog.shared.exportJSON() }
+                }
+                if let diagnosticExport {
+                    ShareLink("診断情報を共有", item: diagnosticExport)
+                    Text("共有先は次の画面で選びます。記録時刻と識別子、教材・録音・文字起こしは含めません。処理種別や性能値は含まれます。")
+                        .font(.caption)
+                }
                 Button("診断ログを消去", role: .destructive) {
                     Task {
                         await DiagnosticEventLog.shared.clear()
                         diagnosticEvents = []
+                        diagnosticExport = nil
                     }
                 }
             } header: {
