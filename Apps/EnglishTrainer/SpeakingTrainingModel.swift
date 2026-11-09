@@ -450,7 +450,7 @@ private enum AppleSpeechASRError: LocalizedError {
 }
 
 private func requestAppleSpeechAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
-    await withCheckedContinuation { continuation in
+    await withCheckedContinuation(isolation: nil) { (continuation: CheckedContinuation<SFSpeechRecognizerAuthorizationStatus, Never>) in
         // Speech can deliver this callback on a background queue. Keep its
         // closure outside the MainActor inherited by the backend instance.
         SFSpeechRecognizer.requestAuthorization { status in
