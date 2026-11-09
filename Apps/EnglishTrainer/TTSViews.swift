@@ -12,6 +12,20 @@ struct TTSEnginePicker: View {
                     .tag(voice.id).disabled(!speech.installed.contains(voice))
             }
         }.disabled(speech.busy)
+        if let engine = NeuralVoice(rawValue: speech.selected), speech.installed.contains(engine) {
+            TTSSpeakerPicker(speech: speech, engine: engine)
+        }
+    }
+}
+struct TTSSpeakerPicker: View {
+    let speech: TTSTrainingModel
+    let engine: NeuralVoice
+    var body: some View {
+        Picker("話者", selection: Binding(get: { speech.selectedSpeaker(for: engine) }, set: { speech.selectSpeaker($0) })) {
+            ForEach(NeuralSpeaker.allCases.filter { $0.engine == engine && speech.installedSpeakers.contains($0) }) { speaker in
+                Text(speaker.title).tag(speaker)
+            }
+        }.disabled(speech.busy)
     }
 }
 struct TTSModelsView: View {
@@ -19,6 +33,9 @@ struct TTSModelsView: View {
     @State private var requested: NeuralVoice?
     @State private var confirmDownload = false
     @State private var confirmRemove = false
+    @State private var requestedSpeaker: NeuralSpeaker?
+    @State private var confirmSpeakerDownload = false
+    @State private var confirmSpeakerRemove = false
     @State private var limit = UserDefaults.standard.integer(forKey: "tts-cache-mb") == 0 ? 128 : UserDefaults.standard.integer(forKey: "tts-cache-mb")
     var body: some View {
         Form {
@@ -39,6 +56,20 @@ struct TTSModelsView: View {
                             Button("ダウンロードして準備") { requested = voice; confirmDownload = true }
                         }
                     }.padding(.vertical, 5).disabled(speech.busy)
+                }
+            }
+            Section("Kokoro追加話者") {
+                Text("基本モデルはそのままで、各約2.7 MBの話者データだけ取得します。Apache-2.0 · hexgrad / FluidInference。追加話者の実機音声品質は未確認です。").font(.caption)
+                ForEach(NeuralSpeaker.allCases.filter { $0.supplementalManifest != nil }) { speaker in
+                    VStack(alignment: .leading) {
+                        Text(speaker.title)
+                        if speech.installedSpeakers.contains(speaker) {
+                            Button("追加話者を削除", role: .destructive) { requestedSpeaker = speaker; confirmSpeakerRemove = true }
+                        } else {
+                            Button("話者データをダウンロード") { requestedSpeaker = speaker; confirmSpeakerDownload = true }
+                                .disabled(!speech.installed.contains(.kokoro))
+                        }
+                    }.disabled(speech.busy)
                 }
             }
             if speech.busy {
@@ -63,18 +94,26 @@ struct TTSModelsView: View {
         .confirmationDialog("保存済みモデルを削除しますか？", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("削除", role: .destructive) { if let requested { speech.remove(requested) } }
         }
+        .confirmationDialog("追加話者データを取得しますか？", isPresented: $confirmSpeakerDownload, titleVisibility: .visible) {
+            Button("ダウンロード開始") { if let requestedSpeaker { speech.prepareSpeaker(requestedSpeaker) } }
+        } message: { Text("Hugging Faceから固定版の話者データを取得し、SHA-256を検証します。英文は送信しません。") }
+        .confirmationDialog("追加話者データを削除しますか？", isPresented: $confirmSpeakerRemove, titleVisibility: .visible) {
+            Button("削除", role: .destructive) { if let requestedSpeaker { speech.removeSpeaker(requestedSpeaker) } }
+        }
     }
 }
 struct TTSComparisonView: View {
     let speech: TTSTrainingModel
     @AppStorage("tts-comparison-text") private var text = "Could you reschedule the meeting for Thursday?"
     @AppStorage("tts-comparison-group") private var group = UUID().uuidString
+    @State private var editingNote: TTSMeasurement?
     var body: some View {
         Form {
             Section("同じ英文で聴き比べる") {
                 TextField("比較する英文", text: $text, axis: .vertical).textInputAutocapitalization(.sentences)
                     .disabled(speech.busy).onChange(of: text) { _, _ in group = UUID().uuidString }
                 ForEach(NeuralVoice.allCases) { voice in
+                    if speech.installed.contains(voice) { TTSSpeakerPicker(speech: speech, engine: voice) }
                     Button(voice.title + "で生成・再生") { speech.speak(text, speed: 1, engine: voice.id, comparisonID: UUID(uuidString: group)) }
                         .disabled(speech.busy || !speech.installed.contains(voice) || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
@@ -93,12 +132,42 @@ struct TTSComparisonView: View {
                             Text("プロセスRSS観測ピーク：" + ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))
                         }
                         Text(result.generatedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                        if let note = result.listeningNote { Text(note).font(.subheadline) }
+                        Button(result.listeningNote == nil ? "聴き心地のメモを追加" : "比較メモを編集") { editingNote = result }
                     }.padding(.vertical, 5)
                 }
                 Text("生成時間はモデル読込を含みません。RTFは生成時間÷音声長で、小さいほど高速です。RSSは50ms間隔の観測値で、モデル単体の使用量ではありません。").font(.caption)
                 Text("測定値はこの端末の結果です。音声品質は実際に聴いて確認してください。").font(.caption)
             }
         }.navigationTitle("TTS聴き比べ").onDisappear { speech.stop() }
+        .sheet(item: $editingNote) { result in TTSListeningNoteView(speech: speech, result: result) }
+    }
+}
+struct TTSListeningNoteView: View {
+    let speech: TTSTrainingModel
+    let result: TTSMeasurement
+    @Environment(\.dismiss) private var dismiss
+    @State private var note: String
+    init(speech: TTSTrainingModel, result: TTSMeasurement) {
+        self.speech = speech; self.result = result
+        _note = State(initialValue: result.listeningNote ?? "")
+    }
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(result.voice) {
+                    TextField("自然さ・聴き取りやすさ・気になった発音など", text: $note, axis: .vertical).lineLimit(5...12).accessibilityIdentifier("tts.listeningNote")
+                    Text("\(note.count) / 2000文字・この端末内に保存").font(.caption)
+                }
+            }.navigationTitle("比較メモ")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("キャンセル") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("保存") { if speech.saveListeningNote(note, measurementID: result.id) { dismiss() } }
+                            .disabled(note.count > 2000)
+                    }
+                }
+        }
     }
 }
 struct TTSNoticesView: View {

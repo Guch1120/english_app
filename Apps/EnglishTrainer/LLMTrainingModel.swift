@@ -224,8 +224,8 @@ import DeviceDiagnostics
                 let modelURL = directory.appendingPathComponent("Models")
                     .appendingPathComponent(candidate.manifest.storageFolder ?? candidate.id)
                     .appendingPathComponent(candidate.filePath)
-                let metrics = try await coordinator.withExclusiveModel { [service] in
-                    try await service.load(modelURL: modelURL)
+                let metrics = try await coordinator.withExclusiveModel(modelID: candidate.id) { [service] in
+                    try await service.load(modelURL: modelURL, modelID: candidate.id)
                     do {
                         let output = try await service.generate(prompt: "Return one short English sentence confirming that the on-device language model is ready. No JSON or explanation.")
                         guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ContentError.invalidJSON }
@@ -250,7 +250,8 @@ import DeviceDiagnostics
     }
 
     func generate(topic: String, difficulty: Int, phrases: [String], kind: String,
-                  save: @escaping @MainActor (GeneratedLesson) -> Void) {
+                  previousContext: String? = nil, sourceWeakPointID: UUID? = nil,
+                  save: @escaping @MainActor (GeneratedLesson) throws -> Void) {
         guard !busy else { return }
         guard let store else { error = "モデル保存領域を利用できません。設定を確認してください。"; return }
         guard let candidate = candidates.first(where: { $0.id == selectedID }), installedIDs.contains(candidate.id) else {
@@ -259,7 +260,7 @@ import DeviceDiagnostics
         guard runtimeIsVerified(candidate) else {
             error = "教材を生成する前に、この端末でモデル動作確認を完了してください。"; return
         }
-        let request = LessonGenerationRequest(topic: topic, difficulty: difficulty, targetPhrases: phrases, kind: kind)
+        let request = LessonGenerationRequest(topic: topic, difficulty: difficulty, targetPhrases: phrases, kind: kind, previousContext: previousContext)
         busy = true; error = nil; status = "モデルを読み込んで教材を生成しています…"
         operation = Task {
             let startedAt = Date()
@@ -270,14 +271,15 @@ import DeviceDiagnostics
                 let modelURL = directory.appendingPathComponent("Models")
                     .appendingPathComponent(candidate.manifest.storageFolder ?? candidate.id)
                     .appendingPathComponent(candidate.filePath)
-                let lesson = try await coordinator.withExclusiveModel { [service] in
+                let lesson = try await coordinator.withExclusiveModel(modelID: candidate.id) { [service] in
                     let loadStartedAt = Date()
                     await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelLoad, model: diagnosticModel, outcome: .started, modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
-                    try await service.load(modelURL: modelURL)
+                    try await service.load(modelURL: modelURL, modelID: candidate.id)
                     await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelLoad, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(loadStartedAt) * 1000), modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
                     do {
                         let generated = try await LessonGenerator(service: service).generate(request)
-                            .attributing(modelID: candidate.id)
+                            .attributing(modelID: candidate.id, sourceWeakPointID: sourceWeakPointID,
+                                promptVersion: previousContext == nil ? "lesson-v1" : "review-example-v1")
                         let unloadStartedAt = Date()
                         await service.unload()
                         await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelUnload, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(unloadStartedAt) * 1000), modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
@@ -290,7 +292,7 @@ import DeviceDiagnostics
                 }
                 _ = try lesson.validated()
                 latestMetrics = await service.inferenceMetrics()
-                save(lesson)
+                try save(lesson)
                 status = "教材を保存しました。"
                 await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .inference, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), peakMemoryBytes: latestMetrics?.peakProcessMemoryBytes, thermalState: .current))
             } catch is CancellationError {

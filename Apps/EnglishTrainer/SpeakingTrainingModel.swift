@@ -303,7 +303,7 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
             diagnosticModel = .appleSpeech
             modelBytes = nil
         }
-        return try await coordinator.withExclusiveModel { [backend] in
+        return try await coordinator.withExclusiveModel(modelID: backend.modelID) { [backend] in
             let memory = ProcessMemorySampler()
             await memory.start()
             let loadStartedAt = Date()
@@ -315,6 +315,9 @@ enum ASREngine: String, CaseIterable, Identifiable, Hashable {
                 let start = ContinuousClock().now
                 let asset = AudioAsset(url: url, duration: duration, sampleRate: 16_000)
                 let result = try await backend.transcribe(asset)
+                if backend.modelID == ParakeetModel.id {
+                    UserDefaults.standard.set(true, forKey: ParakeetModel.verificationKey)
+                }
                 let elapsed = start.duration(to: .now).components
                 let unloadStartedAt = Date()
                 await backend.unload()

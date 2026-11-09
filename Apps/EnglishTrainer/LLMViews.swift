@@ -1,6 +1,72 @@
 import SwiftUI
 import LLMCore
 import ModelManagement
+import LearningCore
+
+struct ReviewExampleView: View {
+    let model: AppModel
+    let point: WeakPoint
+    let original: LearningItem
+    @State private var phrase: String
+    @State private var topic = "元の教材とは異なる日常・仕事の場面"
+    @State private var difficulty: Int
+    init(model: AppModel, point: WeakPoint, original: LearningItem) {
+        self.model = model; self.point = point; self.original = original
+        _phrase = State(initialValue: point.text.count <= 120 ? point.text : "")
+        _difficulty = State(initialValue: original.difficulty ?? 2)
+    }
+    private var canGenerate: Bool {
+        let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && trimmed.count <= 120 && !topic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && topic.count <= 120
+            && model.llm.selectedRuntimeIsVerified && !model.llm.busy
+    }
+    var body: some View {
+        Form {
+            Section("登録した苦手表現") {
+                Text(point.text)
+                Text(point.reason.rawValue).font(.caption).foregroundStyle(.secondary)
+                DisclosureGroup("元の文脈を確認") { Text(original.text) }
+            }
+            Section("別の文脈を作る") {
+                TextField("使いたい単語・フレーズ（120文字以内）", text: $phrase, axis: .vertical)
+                    .accessibilityIdentifier("review.examplePhrase")
+                if point.text.count > 120 { Text("文章全体を登録した項目です。練習したい短い表現を入力してください。").font(.caption) }
+                TextField("新しい場面（120文字以内）", text: $topic)
+                Stepper("難易度: \(difficulty) / 5", value: $difficulty, in: 1...5)
+                Button("別の用例を端末内で生成") {
+                    model.llm.generate(topic: topic, difficulty: difficulty, phrases: [phrase], kind: "review example",
+                        previousContext: original.text, sourceWeakPointID: point.id, save: model.persistGenerated)
+                }.disabled(!canGenerate)
+                if !model.llm.selectedRuntimeIsVerified {
+                    Text("確認済みのLLMモデルが必要です。モデル管理で準備・端末確認を行ってください。").font(.caption)
+                }
+                NavigationLink("LLMモデル管理") { LLMModelsView(model: model.llm) }
+                Text("元の復習予定は変えず、生成した用例を別教材として保存します。生成内容は正確さを保証できないため、教材画面で修正・問題メモを残せます。").font(.caption)
+            }.disabled(model.llm.busy)
+            if model.llm.busy {
+                Section { ProgressView(); Text(model.llm.status); Button("生成を中断") { model.llm.cancelCurrentOperation() } }
+            } else if !model.llm.status.isEmpty { Section { Text(model.llm.status) } }
+            Section("この表現から作った用例") {
+                let lessons = model.visibleGeneratedLessons.filter { $0.sourceWeakPointID == point.id }
+                ForEach(lessons) { lesson in
+                    if let item = model.items.first(where: { $0.id == lesson.id }) {
+                        NavigationLink { LessonView(model: model, item: item) } label: {
+                            VStack(alignment: .leading) {
+                                Text("用例でリスニング・スピーキング")
+                                Text(lesson.generatedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption)
+                            }
+                        }
+                    }
+                }
+                if lessons.isEmpty { Text("まだ用例はありません。生成後はここから学習でき、学習一覧にも保存されます。").font(.caption) }
+            }
+        }.navigationTitle("新しい用例で復習")
+            .onDisappear { model.llm.cancelCurrentOperation() }
+            .alert("用例を生成できませんでした", isPresented: Binding(get: { model.llm.error != nil }, set: { if !$0 { model.llm.error = nil } })) {
+                Button("閉じる") { model.llm.error = nil }
+            } message: { Text(model.llm.error ?? "") }
+    }
+}
 
 struct LLMModelsView: View {
     @Bindable var model: LLMTrainingModel
@@ -82,7 +148,7 @@ struct LLMModelsView: View {
 struct LLMLessonGenerationView: View {
     @Bindable var model: LLMTrainingModel
     let lessons: [GeneratedLesson]
-    let save: @MainActor (GeneratedLesson) -> Void
+    let save: @MainActor (GeneratedLesson) throws -> Void
     @State private var topic = "出張先でのホテル予約"
     @State private var phrases = "confirm the reservation, check in"
     @State private var kind = "business conversation"
@@ -105,7 +171,7 @@ struct LLMLessonGenerationView: View {
                     lesson = nil
                     model.generate(topic: topic, difficulty: difficulty,
                                    phrases: phrases.split(separator: ",").map(String.init), kind: kind, save: { generated in
-                        save(generated)
+                        try save(generated)
                         lesson = generated
                     })
                 } label: {

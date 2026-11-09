@@ -94,7 +94,7 @@ struct LessonEditorView: View {
             targetPhrases: phrases.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
             question: question, choices: choices, answerIndex: answer, explanation: explanation,
             modelID: original.modelID, promptVersion: original.promptVersion,
-            generatedAt: original.generatedAt, editedAt: Date())
+            generatedAt: original.generatedAt, editedAt: Date(), sourceWeakPointID: original.sourceWeakPointID)
     }
     private var valid: Bool {
         if let draft { return (try? draft.validated()) != nil }
