@@ -348,12 +348,12 @@ final class EnglishTrainerUITests: XCTestCase {
         let setting = app.switches["recording.retainOnRestart"]
         scrollTo(setting)
         if setting.value as? String == "0" {
-            setting.tap()
+            setting.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
             expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: setting)
             waitForExpectations(timeout: 5)
         }
         XCTAssertEqual(setting.value as? String, "1")
-        setting.tap()
+        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
         expectation(for: NSPredicate(format: "value == '0'"), evaluatedWith: setting)
         waitForExpectations(timeout: 5)
         XCTAssertEqual(setting.value as? String, "0")
