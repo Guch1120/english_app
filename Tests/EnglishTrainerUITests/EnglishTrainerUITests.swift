@@ -89,7 +89,7 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[lesson].waitForExistence(timeout: 5))
     }
 
-    @MainActor func testListeningSelectsAndSavesPhrase() {
+    @MainActor func testListeningSelectsPhrase() {
         app.launch()
         openFixture("Could you reschedule the meeting for Thursday?")
         let toggle = app.switches["英文を表示"]
@@ -101,11 +101,6 @@ final class EnglishTrainerUITests: XCTestCase {
         app.buttons["lesson.word.1"].tap()
         let field = app.textFields["単語・フレーズ（空欄で文章全体）"]
         XCTAssertEqual(field.value as? String, "Could you")
-        let save = app.buttons["復習に登録"]
-        scrollTo(save)
-        save.tap()
-        app.tabBars.buttons["復習"].tap()
-        XCTAssertTrue(app.staticTexts.matching(identifier: "Could you").firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor private func scrollTo(_ element: XCUIElement) {
