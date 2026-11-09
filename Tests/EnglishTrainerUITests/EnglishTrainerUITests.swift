@@ -35,6 +35,7 @@ final class EnglishTrainerUITests: XCTestCase {
 
         let speechRate = app.sliders["読み上げ速度"]
         XCTAssertTrue(speechRate.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["音声を繰り返す"].exists)
         guard let currentRate = Double((speechRate.value as? String ?? "").replacingOccurrences(of: "倍", with: "")) else {
             XCTFail("Could not read the current speaking rate: \(speechRate.debugDescription)")
             return

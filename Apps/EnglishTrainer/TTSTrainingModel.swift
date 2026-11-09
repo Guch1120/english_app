@@ -16,7 +16,7 @@ import DeviceDiagnostics
     var selectedSpeakers: [String: String] = UserDefaults.standard.dictionary(forKey: "tts-speakers") as? [String: String] ?? [:]
     var measurements: [TTSMeasurement] = []
     var cacheBytes = 0
-    var repeats = false { didSet { player.setRepeating(repeats) } }
+    var repeats = false { didSet { player.setRepeating(repeats); speaker.setRepeating(repeats) } }
     var error: String?
     private let speaker: any SpeechPlayback
     private let player = AudioFilePlayback()

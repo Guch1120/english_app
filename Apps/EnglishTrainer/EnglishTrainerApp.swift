@@ -350,9 +350,7 @@ struct LessonView: View {
                     Spacer()
                     Button("再開") { model.speech.resume() }
                 }
-                if model.speech.selected != "apple" {
-                    Toggle("生成音声を繰り返す", isOn: Binding(get: { model.speech.repeats }, set: { model.speech.repeats = $0 }))
-                }
+                Toggle("音声を繰り返す", isOn: Binding(get: { model.speech.repeats }, set: { model.speech.repeats = $0 }))
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("読み上げ速度")

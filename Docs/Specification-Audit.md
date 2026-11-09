@@ -12,13 +12,15 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §15.3 診断情報エクスポート | PR #53で固定項目のみの診断共有を実装。音声・文字起こしは含めない | 実機で共有シートと出力を確認 |
 | §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装 | 画面ロック、割り込み、音声経路喪失の実機確認 |
 | Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1の報告済みクラッシュを対象とした | 151.1を実機に導入して権限許可・拒否後の再試行を確認 |
+| §6.3 全TTSの繰り返し再生 | 現行実装はニューラル音声だけにrepeat toggleがあり、Apple音声には適用されなかった。今回、Apple synthesizerの完了delegateで再生ループを追加 | 次回TestFlight buildでApple/ニューラル双方の繰り返し・停止・画面ロックを確認 |
+| §15.1 LLM decode tokens/sec | LiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返るときに表示。実験APIを明示opt-in | macOS CIでAPI compile/UIを確認し、iPhone上で値・生成動作を確認。値が返らない場合は非表示 |
 
 ## 仕様本文の照合
 
 | 仕様 | 実装・証拠 | 残る確認 |
 |---|---|---|
 | §5 共通AI操作・モデル情報 | 共通サービスprotocol、モデル情報、検証付きダウンロード、排他実行、cancel/unload。Model-Information.md参照 | 実機のロード状態・失敗回復 |
-| §6 TTS | Kokoro、Pocket TTS、Apple音声、話者選択、再生制御、速度、キャッシュ、比較、生成時間/RTF/RSS/音声長/サンプルレート、主観メモを実装 | 対応話者データの実機取得・再生品質、長時間安定性 |
+| §6 TTS | Kokoro、Pocket TTS、Apple音声、話者選択、再生制御、全engine repeat、速度、キャッシュ、比較、生成時間/RTF/RSS/音声長/サンプルレート、主観メモを実装 | PR CIとiPhoneでのrepeat、話者データ、再生品質、長時間安定性 |
 | §7 ASR | Parakeetと端末内Apple Speech、録音、再認識、同一録音比較 | 実機での認識品質、遅延、中断回復 |
 | §8 RE-USE | 任意設定、固定音声による端末検証gate、5分上限、元音声保持、ASRによる比較を実装 | 固定音声の実機推論・品質・時間・メモリ |
 | §9 LLM | Gemma 4 E2B教材生成、構造/難易度/日本語存在gate、教材編集、問題メモ、非表示、弱点から新しい用例を生成 | 実機の完全モデル識別、オフライン生成、意味品質と再起動復元 |
@@ -27,7 +29,7 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §12 復習 | 決定的スケジューラ、履歴、習熟度、教材versionと回答記録 | 実機アップグレード時の復元 |
 | §13 保存 | SQLite transaction、保護領域、schema migration、教材と回答履歴 | 古いデータからの実機アップグレード・復元 |
 | §14 UI | 学習、復習、設定、モデル管理と診断の各画面 | 実機操作性・アクセシビリティ |
-| §15 診断 | 固定fieldの端末内ログ、計測、共有用エクスポート。RSSはプロセス全体の観測値として表示 | 実機での画面と共有確認。RSSをモデル単体メモリと解釈しない |
+| §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 実機での値・画面・共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
 | §17 CI/CD | PR必須check、保護されたmacOS build/archive、TestFlight upload。run 42699460096とupload run 42699366994 | Apple処理・配布可否はupload成功だけでは確認できない |
 | §18 実機 | iPhone 16/iOS 26.4.2での過去の操作・モデル確認をAcceptance.mdに記録 | 151.1でのApple Speech修正を含むPhase 6/7受け入れ |
