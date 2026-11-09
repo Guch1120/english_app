@@ -1,17 +1,74 @@
 import Foundation
 
+public enum LearningCategory: String, Codable, CaseIterable, Sendable {
+    case word, phrase, sentence, conversation
+    public var title: String {
+        switch self {
+        case .word: "単語"
+        case .phrase: "フレーズ"
+        case .sentence: "文章"
+        case .conversation: "会話"
+        }
+    }
+}
+
 public struct LearningItem: Identifiable, Codable, Sendable, Equatable {
     public let id: UUID
     public var text: String
     public var translation: String
     public var updatedAt: Date
-    public init(id: UUID = UUID(), text: String, translation: String, updatedAt: Date = Date()) {
+    public var category: LearningCategory
+    public var difficulty: Int?
+    public var toeicPart: Int?
+    public init(id: UUID = UUID(), text: String, translation: String, updatedAt: Date = Date(),
+                category: LearningCategory = .sentence, difficulty: Int? = nil, toeicPart: Int? = nil) {
         self.id = id; self.text = text; self.translation = translation; self.updatedAt = updatedAt
+        self.category = category; self.difficulty = difficulty; self.toeicPart = toeicPart
+    }
+    private enum CodingKeys: String, CodingKey { case id, text, translation, updatedAt, category, difficulty, toeicPart }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        text = try values.decode(String.self, forKey: .text)
+        translation = try values.decode(String.self, forKey: .translation)
+        updatedAt = try values.decode(Date.self, forKey: .updatedAt)
+        category = try values.decodeIfPresent(LearningCategory.self, forKey: .category) ?? .sentence
+        difficulty = try values.decodeIfPresent(Int.self, forKey: .difficulty)
+        toeicPart = try values.decodeIfPresent(Int.self, forKey: .toeicPart)
     }
     public static let samples = [
         LearningItem(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!, text: "Could you reschedule the meeting for Thursday?", translation: "会議を木曜日に変更していただけますか？"),
         LearningItem(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!, text: "Please submit the expense report by Friday.", translation: "金曜日までに経費報告書を提出してください。")
     ]
+}
+
+/// Local learner feedback, never uploaded to a reporting service.
+public struct LessonPreferences: Codable, Sendable, Equatable {
+    public let itemID: UUID
+    public var hidden: Bool
+    public var issueNote: String
+    public var updatedAt: Date
+    public init(itemID: UUID, hidden: Bool = false, issueNote: String = "", updatedAt: Date = Date()) {
+        self.itemID = itemID; self.hidden = hidden; self.issueNote = issueNote; self.updatedAt = updatedAt
+    }
+}
+
+public struct QuizAttempt: Identifiable, Codable, Sendable, Equatable {
+    public let id: UUID
+    public let itemID: UUID
+    public let itemUpdatedAt: Date
+    public let selectedIndex: Int
+    public let correctIndex: Int
+    public let answeredAt: Date
+    public let question: String
+    public let choices: [String]
+    public var correct: Bool { selectedIndex == correctIndex }
+    public init(id: UUID = UUID(), itemID: UUID, itemUpdatedAt: Date,
+                selectedIndex: Int, correctIndex: Int, answeredAt: Date = Date(), question: String = "", choices: [String] = []) {
+        self.id = id; self.itemID = itemID; self.itemUpdatedAt = itemUpdatedAt
+        self.selectedIndex = selectedIndex; self.correctIndex = correctIndex; self.answeredAt = answeredAt
+        self.question = question; self.choices = choices
+    }
 }
 public enum WeakReason: String, Codable, CaseIterable, Sendable {
     case listening = "聞き取れなかった", meaning = "意味がわからなかった", speaking = "発音に自信がない", remember = "覚えておきたい", other = "その他"
@@ -74,7 +131,7 @@ public struct ReviewEvent: Identifiable, Codable, Sendable, Equatable {
         self.reviewedAt = reviewedAt; self.nextReviewAt = nextReviewAt
     }
 }
-public enum LearningActivity: String, Codable, CaseIterable, Sendable { case listening, speaking }
+public enum LearningActivity: String, Codable, CaseIterable, Sendable { case listening, speaking, quiz }
 public struct LearningActivityEvent: Identifiable, Codable, Sendable, Equatable {
     public let id: UUID
     public let itemID: UUID?

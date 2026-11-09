@@ -3,7 +3,7 @@ import CSQLite
 import LearningCore
 import LLMCore
 
-public enum StoreError: Error { case sqlite(String), corruptRecord }
+public enum StoreError: Error { case sqlite(String), corruptRecord, invalidRecord }
 /// Confined to the UI actor; statements are always bound, never interpolated.
 @MainActor public final class LearningStore {
     private final class Connection: @unchecked Sendable {
@@ -39,8 +39,23 @@ public enum StoreError: Error { case sqlite(String), corruptRecord }
             try execute("INSERT OR IGNORE INTO schema_migrations VALUES(1)")
             try execute("INSERT OR IGNORE INTO schema_migrations VALUES(2)")
             try execute("INSERT OR IGNORE INTO schema_migrations VALUES(3)")
+            if try !hasMigration(4) {
+                try execute("CREATE TABLE lesson_preferences(item_id TEXT PRIMARY KEY REFERENCES learning_items(id) ON DELETE CASCADE, payload TEXT NOT NULL)")
+                try execute("CREATE TABLE quiz_attempts(id TEXT PRIMARY KEY, item_id TEXT NOT NULL REFERENCES learning_items(id) ON DELETE CASCADE, answered_at REAL NOT NULL, payload TEXT NOT NULL)")
+                try execute("CREATE INDEX quiz_attempts_by_date ON quiz_attempts(answered_at DESC)")
+                try execute("INSERT INTO schema_migrations VALUES(4)")
+            }
             try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); sqlite3_close(db); db = nil; throw error }
+    }
+    private func hasMigration(_ version: Int32) throws -> Bool {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT 1 FROM schema_migrations WHERE version = ?", -1, &statement, nil) == SQLITE_OK else { throw failure() }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_bind_int(statement, 1, version) == SQLITE_OK else { throw failure() }
+        let result = sqlite3_step(statement)
+        guard result == SQLITE_ROW || result == SQLITE_DONE else { throw failure() }
+        return result == SQLITE_ROW
     }
     private func execute(_ sql: String, values: [String] = [], nullableValueIndex: Int? = nil) throws {
         var statement: OpaquePointer?
@@ -59,7 +74,33 @@ public enum StoreError: Error { case sqlite(String), corruptRecord }
     private func failure() -> StoreError { .sqlite(String(cString: sqlite3_errmsg(db))) }
     private func payload<T: Encodable>(_ value: T) throws -> String { String(decoding: try JSONEncoder().encode(value), as: UTF8.self) }
     public func save(_ item: LearningItem) throws {
+        guard !item.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              item.difficulty.map({ (1...5).contains($0) }) ?? true,
+              item.toeicPart.map({ (1...4).contains($0) }) ?? true else { throw StoreError.invalidRecord }
         try execute("INSERT INTO learning_items VALUES(?, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload", values: [item.id.uuidString, try payload(item)])
+    }
+    public func save(_ preferences: LessonPreferences) throws {
+        guard preferences.issueNote.count <= 2_000 else { throw StoreError.invalidRecord }
+        try execute("INSERT INTO lesson_preferences VALUES(?, ?) ON CONFLICT(item_id) DO UPDATE SET payload=excluded.payload",
+                    values: [preferences.itemID.uuidString, try payload(preferences)])
+    }
+    public func lessonPreferences() throws -> [LessonPreferences] {
+        try load("SELECT payload FROM lesson_preferences ORDER BY item_id")
+    }
+    public func save(_ attempt: QuizAttempt) throws {
+        guard (0..<4).contains(attempt.selectedIndex), (0..<4).contains(attempt.correctIndex),
+              attempt.question.count <= 400,
+              attempt.choices.isEmpty || (attempt.choices.count == 4 && attempt.choices.allSatisfy({ $0.count <= 240 })) else { throw StoreError.invalidRecord }
+        try execute("BEGIN IMMEDIATE")
+        do {
+            try execute("INSERT INTO quiz_attempts VALUES(?, ?, ?, ?)", values: [attempt.id.uuidString,
+                attempt.itemID.uuidString, String(attempt.answeredAt.timeIntervalSince1970), try payload(attempt)])
+            try recordActivity(.quiz, itemID: attempt.itemID, at: attempt.answeredAt)
+            try execute("COMMIT")
+        } catch { try? execute("ROLLBACK"); throw error }
+    }
+    public func quizAttempts() throws -> [QuizAttempt] {
+        try load("SELECT payload FROM quiz_attempts ORDER BY answered_at DESC")
     }
     public func save(_ point: WeakPoint) throws {
         try execute("INSERT INTO weak_points VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload", values: [point.id.uuidString, point.itemID.uuidString, try payload(point)])
@@ -171,6 +212,7 @@ public enum StoreError: Error { case sqlite(String), corruptRecord }
     public func deleteAll() throws {
         try execute("BEGIN IMMEDIATE")
         do {
+            try execute("DELETE FROM quiz_attempts"); try execute("DELETE FROM lesson_preferences")
             try execute("DELETE FROM review_history"); try execute("DELETE FROM study_history"); try execute("DELETE FROM generated_content"); try execute("DELETE FROM weak_points"); try execute("DELETE FROM learning_items"); try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); throw error }
     }
