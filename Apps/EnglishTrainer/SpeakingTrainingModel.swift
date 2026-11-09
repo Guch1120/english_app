@@ -359,7 +359,7 @@ struct ASRComparisonResult: Identifiable {
             } catch let failure as AppleSpeechASRError {
                 error = failure.localizedDescription
             } catch {
-                error = "音声認識の比較に失敗しました。録音は保持されています。"
+                self.error = "音声認識の比較に失敗しました。録音は保持されています。"
             }
         }
     }
