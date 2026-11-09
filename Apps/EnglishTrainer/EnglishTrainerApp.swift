@@ -195,7 +195,9 @@ struct RootView: View {
         } message: { Text(model.error ?? model.speech.error ?? model.speaking.error ?? model.speaking.reuse.error ?? "") }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
-                model.speech.stop()
+                // Keep already-started playback alive for lock screen / background listening.
+                // Generation and downloads cannot be assumed to complete in the background.
+                model.speech.cancelWork()
                 model.speaking.handleBackground()
                 model.llm.cancelCurrentOperation()
             }
