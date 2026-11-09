@@ -16,7 +16,7 @@ Phase 1〜7の実装PRがマージ済みでも、仕様書全体の完了を意�
 
 | 仕様 | 現状と証拠 | 残る作業 |
 |---|---|---|
-| §5 共通AI操作・メタデータ | サービスprotocol、検証ダウンロード、排他lease、cancel/unloadがある。ModelDescriptorはID/名/種別/runtime/実機確認boolのみで、manifest等に情報が分散 | §5.2の開発元・言語・OS・対応機能・ロード状態等を統一表示/保持する仕組みは不足。既存descriptorだけでは完了と言えない。実機のエラー回復も必要 |
+| §5 共通AI操作・メタデータ | サービスprotocol、検証ダウンロード、排他lease、cancel/unload。model-information branchでdescriptor全欄・共通画面・SDK load/unload状態を追加（Model-Information.md） | Docker41 tests/quality成功。最新iOS CI、状態表示・失敗回復の実機確認が必要。まだmainの完了証拠ではない |
 | §6 TTS | Kokoro/Pocket/Apple、速度・キャッシュ・比較・計測を実装 | 現状は各ニューラルモデル1話者に固定。話者変更と主観評価メモは不足。対応SDKと取得済みファイル・ライセンスを確認して実装する |
 | §7 ASR | Parakeet/端末内Apple Speech、録音・再認識・比較 | 143.1は利用者が切替と録音後結果表示を確認。録音と教材の対応付けは今回追加し、実機は未確認 |
 | §8 RE-USE | 任意ON/OFF、固定音声確認gate、元音声とのASR比較を実装 | 利用者のモデル取得報告あり。固定テスト・比較・時間/メモリの証拠が必要 |

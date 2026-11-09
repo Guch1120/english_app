@@ -300,6 +300,23 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "tts.listeningNote").firstMatch.value as? String, "Clear and natural")
     }
 
+    @MainActor func testModelInformationSeparatesUnpreparedFilesAndUnloadedRuntime() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let information = app.buttons["AIモデル情報・状態"]
+        scrollTo(information); information.tap()
+        XCTAssertTrue(app.navigationBars["AIモデル情報・状態"].waitForExistence(timeout: 5))
+        let kokoro = app.buttons["model.info.kokoro"]
+        XCTAssertTrue(kokoro.waitForExistence(timeout: 5)); kokoro.tap()
+        XCTAssertTrue(app.staticTexts["hexgrad / FluidInference"].waitForExistence(timeout: 5))
+        let unloaded = app.staticTexts["未ロード"]
+        scrollTo(unloaded)
+        XCTAssertTrue(unloaded.exists)
+        XCTAssertTrue(app.staticTexts["未準備"].exists)
+        XCTAssertTrue(app.staticTexts["このrevisionの端末生成記録なし。"].exists)
+    }
+
     func testASRModelManagementIsReachableFromSettings() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))

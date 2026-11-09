@@ -135,11 +135,13 @@ public actor FluidTTSBackend: TTSService {
             try await manager.initialize()
         }
         try Task.checkCancellation(); if cancelled { throw CancellationError() }
+        await ModelRuntimeCoordinator.shared.didLoad(modelID)
     }
     public func unload() async {
         if let kokoro { await kokoro.cleanup() }
         if let pocket { await pocket.cleanup() }
         kokoro = nil; pocket = nil
+        await ModelRuntimeCoordinator.shared.didUnload(modelID)
     }
     public func cancel() async { cancelled = true }
     public func synthesizeData(_ text: String) async throws -> Data {

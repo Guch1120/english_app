@@ -209,7 +209,7 @@ import DeviceDiagnostics
                     }
                     let backend = NeuralRuntime.backend(voice: voice, directory: directory, speaker: chosenSpeaker, speakerDirectory: speakerDirectory)
                     activeBackend = backend
-                    let result: (Data, Double, UInt64?) = try await coordinator.withExclusiveModel {
+                    let result: (Data, Double, UInt64?) = try await coordinator.withExclusiveModel(modelID: voice.id) {
                         let monitor = ProcessMemorySampler(); await monitor.start()
                         let loadStartedAt = Date()
                         await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .tts, action: .modelLoad, model: diagnosticModel, outcome: .started, modelBytes: UInt64(max(0, manifest.sizeBytes)), thermalState: .current))

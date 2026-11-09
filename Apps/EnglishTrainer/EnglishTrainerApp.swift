@@ -908,6 +908,7 @@ struct SettingsView: View {
                 }
                 NavigationLink("RE-USE音声強調モデル") { REUSESettingsView(model: model.speaking.reuse) }
                 NavigationLink("オフライン利用の準備") { OfflineReadinessView(model: model) }
+                NavigationLink("AIモデル情報・状態") { ModelInformationView(model: model) }
                 Text("Kokoro / Pocket TTS、Parakeet ASR、LiteRT-LM、RE-USEを端末内で使用します。")
                 Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
             }

@@ -224,8 +224,8 @@ import DeviceDiagnostics
                 let modelURL = directory.appendingPathComponent("Models")
                     .appendingPathComponent(candidate.manifest.storageFolder ?? candidate.id)
                     .appendingPathComponent(candidate.filePath)
-                let metrics = try await coordinator.withExclusiveModel { [service] in
-                    try await service.load(modelURL: modelURL)
+                let metrics = try await coordinator.withExclusiveModel(modelID: candidate.id) { [service] in
+                    try await service.load(modelURL: modelURL, modelID: candidate.id)
                     do {
                         let output = try await service.generate(prompt: "Return one short English sentence confirming that the on-device language model is ready. No JSON or explanation.")
                         guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ContentError.invalidJSON }
@@ -271,10 +271,10 @@ import DeviceDiagnostics
                 let modelURL = directory.appendingPathComponent("Models")
                     .appendingPathComponent(candidate.manifest.storageFolder ?? candidate.id)
                     .appendingPathComponent(candidate.filePath)
-                let lesson = try await coordinator.withExclusiveModel { [service] in
+                let lesson = try await coordinator.withExclusiveModel(modelID: candidate.id) { [service] in
                     let loadStartedAt = Date()
                     await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelLoad, model: diagnosticModel, outcome: .started, modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
-                    try await service.load(modelURL: modelURL)
+                    try await service.load(modelURL: modelURL, modelID: candidate.id)
                     await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .modelLoad, model: diagnosticModel, outcome: .succeeded, elapsedMilliseconds: Int(Date().timeIntervalSince(loadStartedAt) * 1000), modelBytes: UInt64(max(0, candidate.sizeBytes)), thermalState: .current))
                     do {
                         let generated = try await LessonGenerator(service: service).generate(request)
