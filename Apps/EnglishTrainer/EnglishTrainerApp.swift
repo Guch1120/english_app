@@ -286,6 +286,8 @@ struct LessonView: View {
     @State private var showTranslation = false
     @AppStorage("listening-speed") private var speed = 1.0
     @State private var selected = ""
+    @State private var selectionStart: Int?
+    @State private var selectionEnd: Int?
     @State private var reason = WeakReason.listening
     @State private var saved = false
     private var nextItem: LearningItem? {
@@ -383,13 +385,35 @@ struct LessonView: View {
             }
             Section("苦手箇所を保存") {
                 if showEnglish {
+                    Text("最初と最後の単語を選ぶと、間のフレーズを選択できます。もう一度選ぶと新しい選択になります。")
+                        .font(.caption)
                     ScrollView(.horizontal) { HStack {
-                        ForEach(Array(item.text.split(separator: " ").enumerated()), id: \.offset) { _, word in
-                            Button(String(word)) { selected = String(word); saved = false }.buttonStyle(.bordered)
+                        ForEach(Array(LessonTextSelection.words(in: item.text).enumerated()), id: \.offset) { index, word in
+                            Button(String(word)) {
+                                if let start = selectionStart, selectionEnd == nil {
+                                    selectionEnd = index
+                                    selected = LessonTextSelection.phrase(in: item.text, from: start, through: index) ?? ""
+                                } else {
+                                    selectionStart = index; selectionEnd = nil
+                                    selected = String(word)
+                                }
+                                saved = false
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(isSelectedWord(index) ? .accentColor : .secondary)
+                            .accessibilityIdentifier("lesson.word.\(index)")
+                            .accessibilityValue(isSelectedWord(index) ? "選択中" : "未選択")
                         }
                     } }
                 }
                 TextField("単語・フレーズ（空欄で文章全体）", text: $selected)
+                    .onChange(of: selected) { _, value in
+                        saved = false
+                        guard let start = selectionStart else { return }
+                        if value != LessonTextSelection.phrase(in: item.text, from: start, through: selectionEnd ?? start) {
+                            selectionStart = nil; selectionEnd = nil
+                        }
+                    }
                 Picker("理由", selection: $reason) { ForEach(WeakReason.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                 Button(saved ? "保存しました" : "復習に登録", systemImage: "bookmark") {
                     model.mark(item, text: selected.isEmpty ? item.text : selected, reason: reason)
@@ -402,7 +426,14 @@ struct LessonView: View {
                         .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording)
                 }
             }
+        }.onChange(of: item.text) { _, _ in
+            selectionStart = nil; selectionEnd = nil; selected = ""; saved = false
         }.onDisappear { model.stop() }
+    }
+    private func isSelectedWord(_ index: Int) -> Bool {
+        guard let start = selectionStart else { return false }
+        let end = selectionEnd ?? start
+        return (min(start, end)...max(start, end)).contains(index)
     }
 }
 struct SpeakingPreview: View {

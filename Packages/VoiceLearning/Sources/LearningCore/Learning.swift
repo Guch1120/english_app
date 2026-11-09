@@ -1,5 +1,18 @@
 import Foundation
 
+/// Select an inclusive range of whitespace-delimited words without changing the source text.
+public enum LessonTextSelection {
+    public static func words(in text: String) -> [Substring] {
+        text.split(whereSeparator: \.isWhitespace)
+    }
+    public static func phrase(in text: String, from first: Int, through last: Int) -> String? {
+        let tokens = words(in: text)
+        let lower = min(first, last), upper = max(first, last)
+        guard lower >= 0, upper < tokens.count else { return nil }
+        return String(text[tokens[lower].startIndex..<tokens[upper].endIndex])
+    }
+}
+
 public enum LearningCategory: String, Codable, CaseIterable, Sendable {
     case word, phrase, sentence, conversation
     public var title: String {
