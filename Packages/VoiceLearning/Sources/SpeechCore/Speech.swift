@@ -1,4 +1,23 @@
 import Foundation
+public enum AudioPreprocessingDecision: Equatable, Sendable {
+    case bypass, enhance, modelNotReady, recordingTooLong
+
+    public static func decide(enabled: Bool, installed: Bool, verified: Bool, duration: Double) -> Self {
+        guard enabled else { return .bypass }
+        guard installed && verified else { return .modelNotReady }
+        guard duration.isFinite && duration > 0 && duration <= 300 else { return .recordingTooLong }
+        return .enhance
+    }
+}
+
+/// The default preserves the latest recording. When disabled, remove it at the next app launch.
+public enum RecordingRetention {
+    public static let preferenceKey = "retain-recording-on-restart"
+    public static func prepareForLaunch(recordingURL: URL, retain: Bool, fileManager: FileManager = .default) throws {
+        guard !retain, fileManager.fileExists(atPath: recordingURL.path) else { return }
+        try fileManager.removeItem(at: recordingURL)
+    }
+}
 public struct AudioAsset: Sendable { public let url: URL; public let duration: Double; public let sampleRate: Double
     public init(url: URL, duration: Double, sampleRate: Double) { self.url = url; self.duration = duration; self.sampleRate = sampleRate }
 }

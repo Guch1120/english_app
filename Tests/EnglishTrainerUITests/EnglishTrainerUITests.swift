@@ -281,7 +281,7 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertFalse(app.buttons["録音をRE-USEなし／ありで比較"].isEnabled)
         reuseSettings.tap()
         XCTAssertTrue(app.navigationBars["RE-USE設定"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.switches["比較機能でRE-USEを使用"].exists)
+        XCTAssertTrue(app.switches["文字起こしでRE-USEを使用"].exists)
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "初回ダウンロード後はオフラインで処理できます")).firstMatch.exists)
     }
 
@@ -327,6 +327,36 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(unloaded.exists)
         XCTAssertTrue(app.staticTexts["未準備"].exists)
         XCTAssertTrue(app.staticTexts["このrevisionの端末生成記録なし。"].exists)
+    }
+
+    @MainActor func testASRComparisonRequiresRecordingAndModels() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let link = app.buttons["ASR聴き取り比較"]
+        scrollTo(link); link.tap()
+        XCTAssertTrue(app.navigationBars["ASR比較"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["先に教材のスピーキング画面で録音してください。"].exists)
+        XCTAssertFalse(app.buttons["2つのASRを比較"].isEnabled)
+    }
+
+    @MainActor func testRecordingRetentionSettingPersists() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        let setting = app.switches["recording.retainOnRestart"]
+        scrollTo(setting)
+        if setting.value as? String == "0" { setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        XCTAssertEqual(setting.value as? String, "1")
+        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(setting.value as? String, "0")
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        scrollTo(setting)
+        XCTAssertEqual(setting.value as? String, "0")
+        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(setting.value as? String, "1")
     }
 
     func testASRModelManagementIsReachableFromSettings() {

@@ -6,9 +6,34 @@ import LLMCore
 import ModelManagement
 import AudioEnhancementBackends
 import DeviceDiagnostics
+import SpeechCore
 
 // Stateless test case; individual async tests own their actor-confined fixtures.
 final class CoreTests: XCTestCase, @unchecked Sendable {
+    func testEnhancementPolicyNeverSilentlyBypassesEnabledUnreadyModel() {
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: false, installed: false, verified: false, duration: 301), .bypass)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: false, verified: false, duration: 1), .modelNotReady)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: false, duration: 1), .modelNotReady)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: 300), .enhance)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: 301), .recordingTooLong)
+        XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: true, verified: true, duration: .nan), .recordingTooLong)
+    }
+
+    func testRecordingRetentionRemovesOnlyRequestedFileAtLaunch() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let recording = root.appendingPathComponent("latest.wav")
+        let unrelated = root.appendingPathComponent("other.wav")
+        try Data([1, 2]).write(to: recording); try Data([3]).write(to: unrelated)
+        try RecordingRetention.prepareForLaunch(recordingURL: recording, retain: true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: recording.path))
+        try RecordingRetention.prepareForLaunch(recordingURL: recording, retain: false)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: recording.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: unrelated.path))
+        XCTAssertNoThrow(try RecordingRetention.prepareForLaunch(recordingURL: recording, retain: false))
+    }
+
     func testLessonTextSelectionPreservesOriginalPhraseAndHandlesBounds() {
         let text = "Could  you\nreschedule the meeting?"
         XCTAssertEqual(LessonTextSelection.phrase(in: text, from: 1, through: 3), "you\nreschedule the")

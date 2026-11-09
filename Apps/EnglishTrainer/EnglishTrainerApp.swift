@@ -461,6 +461,10 @@ struct SpeakingPreview: View {
                         .font(.caption).foregroundStyle(.orange)
                 }
                 NavigationLink("ASRモデル管理") { ASRModelsView(model: model) }
+                if model.reuse.enabled {
+                    Text("通常の文字起こしにもRE-USEを適用します。事前のモデル取得と端末確認が必要です。")
+                        .font(.caption)
+                }
             }
             Section("録音して話す") {
                 if model.recording {
@@ -497,7 +501,8 @@ struct SpeakingPreview: View {
             transcriptionResults
             Section("音声強調の比較") {
                 Toggle("RE-USEを使う", isOn: $model.reuse.enabled)
-                Text("同じ録音を、音声強調なし／ありで同じASRにかけて比較します。発話音声と学習文は端末内で処理します。")
+                    .disabled(model.busy || model.recording || model.reuse.busy)
+                Text("オンでは通常の文字起こしに音声強調を適用できます。同じ録音を強調なし／ありで比較することもできます。発話音声と学習文は端末内で処理します。")
                     .font(.caption).foregroundStyle(.secondary)
                 if model.reuse.installed && !model.reuse.verified {
                     Text("この端末で固定音声の動作確認を完了すると比較を利用できます。")
@@ -510,7 +515,7 @@ struct SpeakingPreview: View {
                            model.audioDuration > 300 || model.recordingItemID != item.id)
                 NavigationLink("RE-USEモデルと端末確認の設定") { REUSESettingsView(model: model.reuse) }
                 if model.audioDuration > 300 {
-                    Text("RE-USEは5分以内の録音に対応します。通常の文字起こしは引き続き利用できます。")
+                    Text("RE-USEは5分以内の録音に対応します。長い録音はRE-USEをオフにすると認識できます。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if let metrics = model.reuse.lastMetrics {
@@ -574,6 +579,8 @@ struct SpeakingPreview: View {
         } else {
             let result = WordAlignment.compare(expected: item.text, recognized: model.transcript)
             Section("文字起こし・評価") {
+                Text(model.transcriptUsesREUSE ? "RE-USEで強調した音声を認識" : "元の録音を認識")
+                    .font(.caption).foregroundStyle(.secondary)
                 Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
                     .font(.headline)
                     .accessibilityIdentifier("speaking.wordErrorRate")
@@ -919,6 +926,7 @@ struct SettingsView: View {
     let model: AppModel
     @State private var confirmDelete = false
     @State private var diagnosticEvents: [DiagnosticEvent] = []
+    @AppStorage(RecordingRetention.preferenceKey) private var retainRecording = true
     @State private var diagnosticExport: String?
     private var appVersion: String {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -937,6 +945,7 @@ struct SettingsView: View {
                 NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
                 NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
                 NavigationLink("ASRモデル管理") { ASRModelsView(model: model.speaking) }
+                NavigationLink("ASR聴き取り比較") { ASRComparisonView(appModel: model) }
                 NavigationLink("LLM教材生成・モデル管理") {
                     LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.persistGenerated)
                 }
@@ -1002,6 +1011,10 @@ struct SettingsView: View {
             }
             Section("データ") {
                 Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
+                Toggle("次回起動後も最新の録音を保持", isOn: $retainRecording)
+                    .accessibilityIdentifier("recording.retainOnRestart")
+                Text("オフの場合、最新録音は次回アプリ起動時に削除します。今回の練習中は再生・再認識でき、新しい録音は前の録音を置き換えます。")
+                    .font(.caption)
                 Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
                     .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
             }
@@ -1010,5 +1023,64 @@ struct SettingsView: View {
         .confirmationDialog("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("削除", role: .destructive) { model.deleteAllLearningData() }
         }
+    }
+}
+
+struct ASRComparisonView: View {
+    let appModel: AppModel
+    private var model: SpeakingTrainingModel { appModel.speaking }
+    private var reference: LearningItem? {
+        appModel.items.first { $0.id == model.recordingItemID }
+    }
+    var body: some View {
+        Form {
+            Section("同じ録音で比較") {
+                Text("直近の録音をParakeetとApple Speechで順番に端末内認識します。文字起こしはこの画面の間だけ保持し、送信しません。")
+                if let reference {
+                    Text("お手本：\(reference.text)").textSelection(.enabled)
+                    LabeledContent("録音時間", value: model.audioDuration.formatted(.number.precision(.fractionLength(1))) + "秒")
+                } else {
+                    Text("先に教材のスピーキング画面で録音してください。")
+                }
+                if !model.installed { Text("Parakeetモデルを準備してください。") }
+                if !model.comparisonAvailable && model.installed && reference != nil {
+                    Text("Apple Speechの端末内認識がこの端末で利用可能か確認してください。")
+                }
+                Button("2つのASRを比較") { model.compareASREngines() }
+                    .disabled(!model.comparisonAvailable || reference == nil || model.busy || model.recording)
+                if model.comparingEngines {
+                    ProgressView(); Text(model.status)
+                    Button("比較を中断") { model.cancel() }
+                }
+            }
+            if let reference {
+                ForEach(model.comparisonResults) { result in
+                    Section(result.engine.title) {
+                        Text(result.transcript.isEmpty ? "認識結果は空でした。" : result.transcript).textSelection(.enabled)
+                        let alignment = WordAlignment.compare(expected: reference.text, recognized: result.transcript)
+                        LabeledContent("単語誤り率", value: alignment.wordErrorRate.formatted(.percent.precision(.fractionLength(0))))
+                        LabeledContent("認識時間", value: result.seconds.formatted(.number.precision(.fractionLength(2))) + "秒")
+                        if model.audioDuration > 0 {
+                            LabeledContent("RTF", value: (result.seconds / model.audioDuration).formatted(.number.precision(.fractionLength(2))))
+                        }
+                        if let bytes = result.peakProcessBytes {
+                            LabeledContent("プロセスRSS観測ピーク", value: ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .memory))
+                        }
+                    }
+                }
+                if !model.comparisonResults.isEmpty {
+                    Text("単語誤り率はお手本との文字起こしの差で、発音の採点ではありません。RSSはアプリ全体の観測値です。")
+                        .font(.caption)
+                }
+            }
+        }
+        .navigationTitle("ASR比較")
+        .onDisappear {
+            if model.comparingEngines { model.cancel() }
+            model.comparisonResults = []
+        }
+        .alert("ASR比較", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+            Button("閉じる") { model.error = nil }
+        } message: { Text(model.error ?? "") }
     }
 }
