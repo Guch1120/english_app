@@ -29,3 +29,9 @@ The Simulator UI suite checks the in-place mode switch and Settings route. CI do
 ## Verification limits
 
 GitHub CI compiles the iOS app and runs Package tests. iPhone verification is still required for each engine's model/permission path, microphone signal and format, transcript quality, model switching and repeat transcription, stop/cancel behavior, playback, and offline recognition. Batch recognition is sufficient for this phase; streaming/VAD and pronunciation scoring remain outside the initial release. Optional RE-USE audio enhancement is implemented separately in [REUSE.md](REUSE.md) and requires its own fixed-sample device check.
+
+## iOS 26.4.2 authorization crash (2026-11-09)
+
+Two private crash reports from TestFlight 0.1.0 (145.1) on iPhone 16 showed the same `EXC_BREAKPOINT` in the TCC authorization callback path. Symbolication with the matching 145.1 dSYM located the Swift executor-isolation failure in the `SFSpeechRecognizer.requestAuthorization` continuation inside `AppleOnDeviceASRBackend.load()`. The callback ran on a background queue while its closure inherited `MainActor` isolation. The authorization request now runs through a non-actor async helper so the callback can safely resume its continuation from the queue supplied by Speech.
+
+Docker tests and quality checks do not compile the app target or execute iOS TCC permission callbacks. The macOS Simulator CI verifies compilation and app launch, but not this first-use permission path. Install the fixed TestFlight build and verify Apple Speech permission grant, denial/retry, and recording start on iPhone before claiming the crash is resolved on device. Crash reports and identifying device data are retained outside the repository.
