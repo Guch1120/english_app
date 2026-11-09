@@ -532,8 +532,6 @@ struct SpeakingPreview: View {
             Section("文字起こし・評価") { Text("この教材を録音すると、結果がここに表示されます。") }
         } else if model.transcript.isEmpty {
             Section("文字起こし・評価") {
-                Text(model.transcriptUsesREUSE ? "RE-USEで強調した音声を認識" : "元の録音を認識")
-                    .font(.caption).foregroundStyle(.secondary)
                 if model.busy && model.status.localizedCaseInsensitiveContains("文字起こし") {
                     ProgressView(model.status)
                         .accessibilityIdentifier("speaking.transcriptionProgress")
@@ -548,6 +546,8 @@ struct SpeakingPreview: View {
         } else {
             let result = WordAlignment.compare(expected: item.text, recognized: model.transcript)
             Section("文字起こし・評価") {
+                Text(model.transcriptUsesREUSE ? "RE-USEで強調した音声を認識" : "元の録音を認識")
+                    .font(.caption).foregroundStyle(.secondary)
                 Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
                     .font(.headline)
                     .accessibilityIdentifier("speaking.wordErrorRate")
