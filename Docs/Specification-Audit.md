@@ -31,8 +31,8 @@ Phase 0〜7と、仕様本文の追加機能をmain commit fd16acfのコード�
 | §14 UI | 学習、復習、設定、モデル管理と診断の各画面 | 実機操作性・アクセシビリティ |
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
-| §17 CI/CD | PR #94のquality/core/iOS Simulator UI/unsigned archive/review-gate [run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)成功。PR #100 docs-only quality/review-gate [run 42835937937](https://github.com/Guch1120/english_app/actions/runs/42835937937)成功。PRを含むmain `973d388`のTestFlight upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)が成功。190.1はTestFlightで表示され、iPhone 16へ導入済み | 将来のアプリコード変更時に新buildを配布・インストール |
-| §18 実機 | iPhone 16/iOS 26.4.2で160.1のオンライン/オフラインGemma、保存復元・性能表示、Kokoro/Pocket TTS、ASR、RE-USE、Kokoro repeatを確認。190.1をTestFlightから導入・起動し、レビュー回答で予定更新と履歴表示、機内モードON・Wi‑Fi OFF中の回答・SIGKILL・再起動後の履歴保持、Gemma検索9件を確認。試験項目・履歴のcascade削除後、保存済み0件・既存学習操作履歴保持を確認 | Parakeetの別録音での精度・再現性、新規モデル取得・削除、RE-USEのWER差・実聴効果、LLM意味品質、割り込み・長時間・熱挙動 |
+| §17 CI/CD | PR #94のquality/core/iOS Simulator UI/unsigned archive/review-gate [run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)成功。PR #100 docs-only quality/review-gate [run 42835937937](https://github.com/Guch1120/english_app/actions/runs/42835937937)成功。PR #102 docs-only workflow [run 42846010844](https://github.com/Guch1120/english_app/actions/runs/42846010844)のquality/review-gateと、同headに対するフルDocker/macOS Validate [run 42845728398](https://github.com/Guch1120/english_app/actions/runs/42845728398)が成功。PR #102は`e6877bf`でマージ済み。PRを含むmain `973d388`のTestFlight upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)が成功。190.1はTestFlightで表示され、iPhone 16へ導入済み | 将来のアプリコード変更時に新buildを配布・インストール |
+| §18 実機 | iPhone 16/iOS 26.4.2で160.1のオンライン/オフラインGemma、保存復元・性能表示、Kokoro/Pocket TTS、ASR、RE-USE、Kokoro repeatを確認。190.1をTestFlightから導入・起動し、レビュー回答で予定更新と履歴表示、機内モードON・Wi‑Fi OFF中の回答・SIGKILL・再起動後の履歴保持、Gemma検索9件を確認。試験項目・履歴のcascade削除後、保存済み0件・既存学習操作履歴保持を確認 | Parakeetの別録音での精度・再現性、新規モデル取得・削除、RE-USEのWER差・実聴効果、LLM意味品質、割り込み・長時間・熱挙動。Bluetooth経路は利用者の希望により未試験で、通常利用で問題が出た場合に調査する |
 
 ## 完了判定
 
@@ -47,9 +47,9 @@ Phase 0〜7と、仕様本文の追加機能をmain commit fd16acfのコード�
 | §3 参照プロジェクト | upstreamコード・SDK・モデルの利用箇所とrevision/licenseをcomponent docsへ記録 | 参照プロジェクトは変更していない。依存追加時はAPIと各モデル重みの条件を再確認 |
 | §4 アーキテクチャ | LearningCore/LearningPersistenceとSpeechCore・各推論backendがSwift Packageで分離され、SwiftUI層から学習スケジューリングを独立 | Package testとmacOS compileで確認。別アプリからの再利用は未検証 |
 | §19 開発フェーズ | Phase 0〜7と安定化の実装PRはmainへマージ済み。mainに未完了PRはない | 実装フェーズ完了と実機受け入れ完了は別。仕様で必要な端末確認は残る |
-| §20 初期版の完了条件 | 18条件を[Acceptance.md](Acceptance.md)の表で個別追跡 | CI、TestFlight、複数の実機フローを確認したが、全条件はまだ受け入れ完了ではない |
+| §20 初期版の完了条件 | 18条件を[Acceptance.md](Acceptance.md)の表で個別追跡 | CI、TestFlight、複数の実機フローを確認したが、全条件はまだ受け入れ完了ではない。Bluetoothは利用者の希望により通常利用で問題が出た場合の調査へ延期 |
 | §21 対象外 | クラウド推論、同期、リアルタイム会話、ロボット接続、厳密な発音採点、一般公開はv1対象外 | 未実装として扱い、対応済みと表示していない |
-| §22 開発指示 | AGENTS.mdのDocker、GitHub macOS、codex branch/PR、秘匿、license要件に従う | PR #99は必須gate成功後にマージ済み。今後の変更も同じ運用にする |
+| §22 開発指示 | AGENTS.mdのDocker、GitHub macOS、codex branch/PR、秘匿、license要件に従う | PR #102はqualityとreview-gate成功後にマージ済み。PR headでフルDocker/macOS Validateも成功。今後の変更も同じ運用にする |
 | §23 参考資料 | TTS/ASR/RE-USE/LLMのcomponent docsにupstream資料と採用revisionを記録 | upstream情報は変わり得るため、変更時に再確認 |
 
 利用者はRE-USEの主観音質比較を「実聴なしで記録」と指定した。その項目は未評価として残し、初期版の完了条件を満たした証拠には数えない。
