@@ -783,13 +783,20 @@ struct ReviewView: View {
                             Text("未復習 · 次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                        if let item = model.item(for: point) {
-                            NavigationLink("元の教材を開く") { LessonView(model: model, item: item) }
-                            NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
-                        }
-                        Button("復習項目を削除", systemImage: "trash", role: .destructive) { pointToDelete = point }
                     }
                     .padding(.vertical, 5)
+                    .listRowSeparator(.hidden)
+
+                    if let item = model.item(for: point) {
+                        NavigationLink("元の教材を開く") { LessonView(model: model, item: item) }
+                            .listRowSeparator(.hidden)
+                        NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
+                            .listRowSeparator(.hidden)
+                    }
+                    Button("復習項目を削除", systemImage: "trash", role: .destructive) { pointToDelete = point }
+                        .accessibilityIdentifier("review.delete.\(point.id.uuidString)")
+                        .buttonStyle(.borderless)
+                        .listRowSeparator(.hidden)
                 }
                 if model.points.isEmpty { ContentUnavailableView("復習項目はありません", systemImage: "bookmark", description: Text("リスニングやスピーキングから苦手な表現を登録できます。")) }
             }
@@ -804,6 +811,7 @@ struct ReviewView: View {
                 if let pointToDelete { model.delete(pointToDelete) }
                 pointToDelete = nil
             }
+            .accessibilityIdentifier("review.delete.confirm")
         } message: {
             Text("関連する復習履歴も削除されます。この操作は取り消せません。")
         }
