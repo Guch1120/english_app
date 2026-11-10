@@ -4,6 +4,8 @@
 
 2026-11-10 follow-up：PR [#94](https://github.com/Guch1120/english_app/pull/94) はiPhone Simulator UIテストで、評価済み苦手項目の履歴がアプリ再起動後も残り、項目削除後に同項目の復習履歴も消えることを確認した。quality、Docker Core tests、macOS package tests、iOS Simulator build/analyze、起動、UIテスト、未署名distribution archive、review-gateは[run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)で成功し、PRは`973d388`としてマージ済み。これはSimulator上の操作確認であり、iPhone実機での削除確認ではない。2026-11-10の後続WDA接続試行は`Device is not connected`となり、実機操作はできなかった。
 
+2026-11-10 follow-up：PR #94を含むmain commit `973d388`をTestFlight manual upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)から**0.1.0 (190.1)**としてアップロードした。GitHub upload jobは成功したが、Apple側の処理完了・TestFlight表示・iPhoneへのインストールはまだ確認していない。
+
 2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。再起動後の別の成功生成で、model-load 1.5秒、最初の応答0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを性能欄で確認。端末診断には先の成功生成の`LLM · inference · succeeded`とRSS 567.8 MBも記録された。教材本文・プロンプトは記録・共有していない。各値は一回の観測であり、一般的な性能や意味品質を保証しない。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
 
 2026-11-10 follow-up：後続のオフラインTTS確認のため一時的に機内モードを有効化し、試験後に機内モードをOFF、Wi‑Fiを`suruga-kenkoland`へ再接続した。BluetoothはOFFのまま。比較入力は既定の英文へ復元した。
@@ -67,7 +69,7 @@
 | モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト | 実機で再起動復元 |
 | エラー後の安定性 | cancellation/coordinator/integrity tests、対話UI | 通信中断、推論取消、バックグラウンド復帰 |
-| GitHub Actionsビルド | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)成功。TestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)で160.1をアップロード | アップロード成功とApple処理は別確認 |
+| GitHub Actionsビルド | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)成功。TestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)で160.1、PR #94を含むmain `973d388`はmanual upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)で190.1をアップロード | 190.1のApple処理・TestFlight表示・実機インストール |
 | 実機インストール | TestFlight 154.1と160.1をiPhone 16へ導入。160.1はTestFlight画面とUSB queryで確認 | 次buildが必要な変更後の反復導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
 
