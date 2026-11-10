@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-11-11 (JST). The phase implementation is merged in main through Phase 7 and follow-up stabilization. The section-by-section audit began at `fd16acf` (PR #100); documentation follow-ups #101–#103 and settings-data UI follow-up #105 are merged, with main at `aa9fe44`. Phase completion means the planned implementation and required CI scope was merged; it does not mean all iPhone acceptance checks are complete.
+Updated 2026-11-11 (JST). The phase implementation is merged in main through Phase 7 and follow-up stabilization. The section-by-section audit began at `fd16acf` (PR #100); documentation follow-ups #101–#106 are merged, with main at `f6c7903`. Phase completion means the planned implementation and required CI scope was merged; it does not mean all iPhone acceptance checks are complete.
 
 ## Delivery and verification
 
@@ -12,6 +12,8 @@ Updated 2026-11-11 (JST). The phase implementation is merged in main through Pha
 - **Acceptance and Bluetooth deferral follow-up:** PR #103 merged as `d3e0137`. PR checks [run 42856332110](https://github.com/Guch1120/english_app/actions/runs/42856332110) passed quality/review-gate, with Core/iOS correctly skipped for docs-only changes. Full Validate [run 42855477925](https://github.com/Guch1120/english_app/actions/runs/42855477925) also passed quality, Docker Core, GitHub macOS package/Simulator/UI/unsigned archive checks and review-gate.
 - **Settings data section and delete cancellation:** PR [#105](https://github.com/Guch1120/english_app/pull/105) merged as `aa9fe44`. Full Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021) passed quality, Docker Core, macOS package, Simulator build/analyze/launch, all 15 UI tests, unsigned archive and review-gate. The data controls now precede diagnostic history and the confirmation alert exposes Cancel explicitly. Simulator UI validated cancellation; destructive deletion was not performed on the device.
 - **TestFlight:** run [42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281) uploaded 0.1.0 (201.1) from the post-#105 main. TestFlight offered the update; USB installed-app query confirmed 201.1 on iPhone 16 / iOS 26.4.2. Post-update launch remained alive (PID 4258), emitted one appLaunch diagnostic event, with observed RSS peak 109,838,336 bytes and nominal thermal state. This is a short launch check, not full device acceptance.
+- **Latest documentation update:** PR #106 merged as `f6c7903`; Validate [run 42901278396](https://github.com/Guch1120/english_app/actions/runs/42901278396) passed quality and review-gate. Core/iOS skipped because the PR only changed documentation.
+- **Current Docker run:** `bash Scripts/test.sh` passed all 46 package tests on the current `origin/main` code. This does not replace the GitHub macOS iOS build/UI gate; the latest full code gate remains PR #105 run 42888324021.
 - **Docker:** run `bash Scripts/test.sh` and `bash Scripts/quality.sh` before every PR. iOS builds and UI validation remain GitHub macOS work; Linux/Docker success is not iOS build evidence.
 
 ## Current physical-device evidence
