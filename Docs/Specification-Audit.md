@@ -20,7 +20,7 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | 仕様 | 実装・証拠 | 残る確認 |
 |---|---|---|
 | §5 共通AI操作・モデル情報 | 共通サービスprotocol、モデル情報、検証付きダウンロード、排他実行、cancel/unload。Model-Information.md参照 | 実機のロード状態・失敗回復 |
-| §6 TTS | Kokoro、Pocket TTS、Apple音声、話者選択、再生制御、全engine repeat、速度、キャッシュ、比較、生成時間/RTF/RSS/音声長/サンプルレート、主観メモを実装。160.1でrepeat switchをOFFからONへ切替可能なことを座標タッチで確認（プロセス再起動後はOFFに戻る）。同ビルドのTTS比較画面からKokoro（15:58、125 ms）とPocket（16:04、129 ms／16:05、117 ms）を実行し、端末診断に`TTS · inference · succeeded`を確認（cache 373 KB、熱状態 nominal）。機内モード・Wi‑Fi OFF中に同じ固定入力を両モデルへ渡し、Kokoro生成0.84秒、Pocket生成1.31秒・音声長2.00秒・24,000 Hzを確認。WDA値に日本語1字の末尾残留があり、英文のみのオフライン試験とは断定しない。比較測定行は画面下のアクセシビリティ階層に存在するが、表示範囲外だった。コード上、successイベントは`AVAudioPlayer.play()`の成功後に記録される。実聴音質は未確認 | 英文でのオフライン生成、ループ再生そのもの、iPhoneでの実聴品質、話者データ、長時間安定性。iOS 26.4.2ではCoreDevice音声ストリームは非対応 |
+| §6 TTS | Kokoro、Pocket TTS、Apple音声、話者選択、再生制御、全engine repeat、速度、キャッシュ、比較、生成時間/RTF/RSS/音声長/サンプルレート、主観メモを実装。160.1でrepeat switchをOFFからONへ切替可能なことを座標タッチで確認（プロセス再起動後はOFFに戻る）。同ビルドのTTS比較画面からKokoro（15:58、125 ms）とPocket（16:04、129 ms／16:05、117 ms）を実行し、端末診断に`TTS · inference · succeeded`を確認（cache 373 KB、熱状態 nominal）。機内モード・Wi‑Fi OFF中に純英語の固定文で再試験し、Kokoro生成1.14秒／音声3.32秒／24,000 Hz／RTF 0.343／process RSS 551.6 MB、Pocket生成1.48秒／音声2.48秒／24,000 Hz／RTF 0.599／RSS 751.1 MBを比較画面で確認。両方の診断successも取得し、実装上は`AVAudioPlayer.play()`の成功後に記録される。実聴音質とrepeat loopは未確認 | ループ再生そのもの、iPhoneでの実聴品質、話者データ、長時間安定性。iOS 26.4.2ではCoreDevice音声ストリームは非対応 |
 | §7 ASR | Parakeetと端末内Apple Speech、録音、再認識、同一録音比較。143.1でParakeetの録音・文字起こし画面を確認。160.1でApple Speech選択後に録音を開始・保存し、アプリ継続を確認 | 実音声での認識品質、遅延、中断回復、権限拒否後の再試行 |
 | §8 RE-USE | 任意設定、固定音声による端末検証gate、5分上限、元音声保持、ASRによる比較を実装 | 固定音声の実機推論・品質・時間・メモリ |
 | §9 LLM | Gemma 4 E2B教材生成、構造/難易度/日本語存在gate、教材編集、問題メモ、非表示、弱点から新しい用例を生成。160.1でオンライン/機内モード中の教材生成に成功し、オフライン生成直後のプロセス再起動後も保存一覧から復元 | 実機の完全モデル識別、意味品質、異なる条件・熱状態での反復性能 |
@@ -32,8 +32,8 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
 | §17 CI/CD | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)とTestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)が成功。160.1を実機に導入 | Apple処理・配布可否は後続buildで継続確認 |
-| §18 実機 | iPhone 16/iOS 26.4.2で160.1の起動、オンライン/機内モード中のGemma生成成功、オフラインでのプロセス再起動・保存復元とLLM性能表示を確認。機内モード・Wi‑Fi OFF中のKokoro/Pocket生成測定も確認したが、入力末尾に日本語IME残留文字があり、英語のみのオフラインTTSとは断定しない。160.1でApple Speech選択後の録音開始・停止とアプリ継続を確認。Kokoro inference successは154.1で確認。repeat switchのON操作を確認。Acceptance.md参照 | 英文でのオフラインTTS、実聴音声とループ再生、英語実音声のASR品質、LLM意味品質、オフラインASR/復習、割り込み・長時間・熱挙動 |
+| §18 実機 | iPhone 16/iOS 26.4.2で160.1の起動、オンライン/機内モード中のGemma生成成功、オフラインでのプロセス再起動・保存復元とLLM性能表示を確認。機内モード・Wi‑Fi OFF中の純英語固定文でKokoro/Pocket生成と測定を確認。160.1でApple Speech選択後の録音開始・停止とアプリ継続を確認。Kokoro inference successは154.1で確認。repeat switchのON操作を確認。Acceptance.md参照 | TTSの実聴音声とループ再生、英語実音声のASR品質、LLM意味品質、オフラインASR/復習、割り込み・長時間・熱挙動 |
 
 ## 完了判定
 
-自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1ではオンライン/機内モード中のGemma教材生成に成功し、オフラインでのプロセス再起動後も保存済みGemma教材を復元した。機内モード・Wi‑Fi OFF中のKokoro/Pocket TTS生成と比較測定も確認したが、WDAの入力値にIME残留文字があったため、純英語でのオフライン生成は未確認。再起動後の成功生成でmodel-load/TTFT/decode throughputとprocess RSSを一度観測した。TTS実音声・repeat loop、ASR実音声、教材意味品質、オフラインASR/復習、バックグラウンド再生、割り込み、反復性能・熱挙動などが残るため、アプリ全体の実機受け入れ完了とは扱わない。
+自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1ではオンライン/機内モード中のGemma教材生成に成功し、オフラインでのプロセス再起動後も保存済みGemma教材を復元した。機内モード・Wi‑Fi OFF中の純英語固定文でKokoro/Pocket TTS生成と比較測定も確認した。再起動後の成功生成でmodel-load/TTFT/decode throughputとprocess RSSを一度観測した。TTS実聴・repeat loop、ASR実音声、教材意味品質、オフラインASR/復習、バックグラウンド再生、割り込み、反復性能・熱挙動などが残るため、アプリ全体の実機受け入れ完了とは扱わない。
