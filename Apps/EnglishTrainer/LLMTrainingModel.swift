@@ -261,7 +261,7 @@ import DeviceDiagnostics
             error = "教材を生成する前に、この端末でモデル動作確認を完了してください。"; return
         }
         let request = LessonGenerationRequest(topic: topic, difficulty: difficulty, targetPhrases: phrases, kind: kind, previousContext: previousContext)
-        busy = true; error = nil; status = "モデルを読み込んで教材を生成しています…"
+        busy = true; error = nil; latestMetrics = nil; status = "モデルを読み込んで教材を生成しています…"
         operation = Task {
             let startedAt = Date()
             let diagnosticModel: DiagnosticModel = candidate.repository.contains("gemma-4-E2B") ? .gemmaE2B : .system
@@ -300,7 +300,8 @@ import DeviceDiagnostics
                 status = "教材生成を中断しました。"
             }
             catch {
-                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .inference, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), thermalState: .current))
+                latestMetrics = await service.inferenceMetrics()
+                await DiagnosticEventLog.shared.record(DiagnosticEvent(subsystem: .llm, action: .inference, model: diagnosticModel, outcome: .failed, elapsedMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1000), peakMemoryBytes: latestMetrics?.peakProcessMemoryBytes, thermalState: .current))
                 if Task.isCancelled { status = "教材生成を中断しました。" }
                 else { self.error = "教材の生成に失敗しました: \(error.localizedDescription)" }
             }

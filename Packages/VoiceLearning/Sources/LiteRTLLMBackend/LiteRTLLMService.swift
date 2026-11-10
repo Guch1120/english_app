@@ -31,6 +31,7 @@ public actor LiteRTLLMService: ManagedLLMService {
     }
 
     public func load(modelURL: URL, modelID: String) async throws {
+        latestMetrics = nil
         guard FileManager.default.fileExists(atPath: modelURL.path) else { throw LiteRTLLMError.modelMissing }
         guard self.modelURL != modelURL || trackedModelID != modelID else { return }
         await unload()
@@ -53,6 +54,7 @@ public actor LiteRTLLMService: ManagedLLMService {
     }
 
     public func generate(prompt: String) async throws -> String {
+        latestMetrics = nil
         guard let modelURL else { throw LiteRTLLMError.modelMissing }
         let size = try modelURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size > 0, size <= 6_000_000_000 else { throw LiteRTLLMError.modelMissing }
