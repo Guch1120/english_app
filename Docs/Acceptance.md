@@ -2,6 +2,8 @@
 
 仕様書 [Specification-v1.md](Specification-v1.md) §20の18条件を、コード・CIと実機の証拠で確認する。フェーズのコードがマージ済みであることと、実機の受け入れ完了は分けて記録する。
 
+2026-11-10 follow-up：PR [#94](https://github.com/Guch1120/english_app/pull/94) はiPhone Simulator UIテストで、評価済み苦手項目の履歴がアプリ再起動後も残り、項目削除後に同項目の復習履歴も消えることを確認した。quality、Docker Core tests、macOS package tests、iOS Simulator build/analyze、起動、UIテスト、未署名distribution archive、review-gateは[run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)で成功し、PRは`973d388`としてマージ済み。これはSimulator上の操作確認であり、iPhone実機での削除確認ではない。2026-11-10の後続WDA接続試行は`Device is not connected`となり、実機操作はできなかった。
+
 2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。再起動後の別の成功生成で、model-load 1.5秒、最初の応答0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを性能欄で確認。端末診断には先の成功生成の`LLM · inference · succeeded`とRSS 567.8 MBも記録された。教材本文・プロンプトは記録・共有していない。各値は一回の観測であり、一般的な性能や意味品質を保証しない。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
 
 2026-11-10 follow-up：後続のオフラインTTS確認のため一時的に機内モードを有効化し、試験後に機内モードをOFF、Wi‑Fiを`suruga-kenkoland`へ再接続した。BluetoothはOFFのまま。比較入力は既定の英文へ復元した。
@@ -58,7 +60,7 @@
 | 苦手単語・文章登録 | 保存tests、Simulator復習登録テスト | 実機で登録 |
 | マイクをローカルASRで認識 | Parakeet録音・停止後の表示を143.1で確認。160.1でApple Speech選択後の録音・文字起こしを確認。依頼英文の再録音で両エンジンの結果表示を確認し、アプリ画面はApple Speech WER 0%、Parakeet WER 57%を表示。同じ録音のParakeet再認識でもWER 57%を表示。利用者は「両方一致」は両方で結果が出た意味と訂正しており、本文を独立確認していない | 別音声でのParakeet精度・再現性、文字列レベルの再認識比較、権限拒否後の再試行 |
 | お手本との文字差分 | alignment unit tests、結果UIを実装 | 録音停止後の結果・評価表示 |
-| 苦手項目を繰り返し復習 | scheduling/persistence tests、Simulator復習テスト | 実機で復習と予定更新 |
+| 苦手項目を繰り返し復習 | scheduling/persistence tests、Simulator復習テスト。PR #94のiPhone Simulator UIテストで評価履歴の再起動保持と項目削除時の履歴連動削除を確認 | 実機で復習・予定更新・削除確認 |
 | Gemma E2Bで英文生成 | 154.1で同条件2回失敗。160.1ではオンライン/オフライン双方で成功し、プロセス再起動後も保存一覧に残ることを確認。2回目の成功生成で1.5秒load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB process RSSを観測 | 教材品質の意味評価、異なる条件・熱状態での反復性能 |
 | モデル検索・取得・削除 | カタログ、SHA-256、再開・削除処理とtests | 対応画面から操作、削除後の無効化 |
 | RE-USE ON/OFF | 任意比較・固定音声確認gateを実装。143.1で設定OFFと保存済み端末確認状態を確認。160.1では同梱固定音声によるオフライン比較（3.02秒、RTF 0.278、モデル読込1.87秒、MLXピーク1.01 GB、process RSS観測ピーク452.5 MB）に加え、利用者の3.9秒実録音をApple Speechで比較し、両経路の結果表示を確認。実録音のRE‑USE処理1.24秒、RTF 0.321、モデル読込0.14秒、MLXピーク1.39 GB、認識時間はなし0.16秒／あり0.13秒。試験後に設定をOFFへ戻し録音を保持 | 実録音でのWER差、実聴での明瞭さ・学習上の効果、反復性能・熱挙動 |
