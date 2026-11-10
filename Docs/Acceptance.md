@@ -2,6 +2,10 @@
 
 仕様書 [Specification-v1.md](Specification-v1.md) §20の18条件を、コード・CIと実機の証拠で確認する。フェーズのコードがマージ済みであることと、実機の受け入れ完了は分けて記録する。
 
+2026-11-11 follow-up：PR [#105](https://github.com/Guch1120/english_app/pull/105)で設定画面の「データ」操作を診断履歴より上へ移し、削除確認に明示的なキャンセル操作を追加した。GitHub macOS Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality、Docker Core、macOS package、Simulator build/analyze/launch、15件のUI test、unsigned archive、review-gateが成功。UI testは診断一覧の下でもデータ削除導線へ到達できることと、削除確認のキャンセル動作を確認した。実機で実データの全削除は行っていない。PRは`aa9fe44`を含むmainへマージ済み。
+
+2026-11-11 follow-up：TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)が0.1.0 (201.1)をアップロードし、Apple処理後にiPhone 16／iOS 26.4.2のTestFlight画面へ更新が表示された。利用者の事前許可に基づき更新を開始。USB installed-app queryで201.1を確認し、English Trainerを起動後もPID 4258で稼働、起動診断イベント1件、RSS peak 109,838,336 bytes、thermal state nominalを検証した。学習データ・録音は変更していない。これは更新後の起動・診断確認で、長時間安定性や全機能の回帰試験ではない。
+
 2026-11-11 JST follow-up：iPhone 16 / iOS 26.4.2 / TestFlight 190.1で、設定画面のWi‑FiスイッチがOFF（値0）であることを確認してから機内モードをON（値1）にした。この状態でサンプル教材から一時レビュー項目を登録して「普通」と回答した。画面の復習回数は1回、成功1 / 失敗0、習熟度100%、次回予定は2026-11-13 00:24。学習・復習履歴画面に同じ評価と次回日時が表示された。English TrainerプロセスをSIGKILLし、機内モードON・Wi‑Fi OFFのまま再起動した後も、保存済み1件、評価イベント、次回予定が残っていた。確認後、この試験項目だけを削除し、cascade確認を経て保存済み0件、試験用復習イベントなしへ戻した。既存の学習操作履歴は保持された。機内モードOFF、Wi‑Fi ONへ戻し、設定画面のWi‑Fi行に接続中のネットワークが表示されることを確認した。文字起こし本文・録音は取得・変更していない。
 
 2026-11-11 JST follow-up：USBケーブル再接続後、Docker内のWDAからiPhone 16／iOS 26.4.2で`ready: true`を確認した。復習タブの画面を読み取った後、Homeを押してEnglish Trainerを前面へ戻し、学習タブが表示されることを確認した。保存済み復習項目は0件のままで、学習データを変更する操作はしていない。これは短いHome→前面復帰の確認であり、音声のバックグラウンド再生、画面ロック中の再生、音声割り込みは確認していない。Bluetooth経路の確認は利用者の希望で保留し、通常利用時に問題が出れば調査する。WDA runnerを停止し、一時スクリーンショットとログを削除した。
@@ -83,8 +87,8 @@
 | モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト。190.1で回答・次回予定・履歴が記録され、機内モードON・Wi‑Fi OFF中のSIGKILL・再起動後も維持された。試験用項目・履歴だけを削除し、保存済み0件、試験イベントなし、既存の学習操作履歴保持を確認 | 過去バージョンから更新した実機データの復元 |
 | エラー後の安定性 | cancellation/coordinator/integrity tests、対話UI | 通信中断、推論取消、バックグラウンド復帰 |
-| GitHub Actionsビルド | PR #94のquality/core/iOS/review-gate [run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)成功。PR #100 docs-only gate [run 42835937937](https://github.com/Guch1120/english_app/actions/runs/42835937937)でquality/review-gate成功、core/iOSは仕様どおりskip。TestFlight upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)で190.1をアップロード
-| 実機インストール | TestFlight 154.1、160.1、190.1をiPhone 16へ導入。190.1はTestFlight画面、USB installed-app query、アプリ起動で確認 | 将来の変更buildの再導入 |
+| GitHub Actionsビルド | PR #105のfull Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality/core/macOS package/Simulator UI 15件/unsigned archive/review-gate成功。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)で201.1をアップロード
+| 実機インストール | TestFlight 154.1、160.1、190.1をiPhone 16へ導入。さらに201.1をTestFlight画面から更新し、USB installed-app query・アプリ起動・appLaunch診断イベント1件を確認 | 将来の変更buildの再導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
 
 ## 最新ビルドで実行する順序
