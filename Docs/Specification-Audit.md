@@ -11,9 +11,9 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §13.3・§14.2 録音保持 | PR #58で保持を既定とし、無効化時は次回起動時に削除 | 設定変更・再起動後の実機挙動 |
 | §15.3 診断情報エクスポート | PR #53で固定項目のみの診断共有を実装。音声・文字起こしは含めない | 実機で共有シートと出力を確認 |
 | §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装 | 画面ロック、割り込み、音声経路喪失の実機確認 |
-| Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1の報告済みクラッシュを対象とした | 151.1を実機に導入して権限許可・拒否後の再試行を確認 |
-| §6.3 全TTSの繰り返し再生 | 現行実装はニューラル音声だけにrepeat toggleがあり、Apple音声には適用されなかった。今回、Apple synthesizerの完了delegateで再生ループを追加 | 次回TestFlight buildでApple/ニューラル双方の繰り返し・停止・画面ロックを確認 |
-| §15.1 LLM decode tokens/sec | LiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返るときに表示。実験APIを明示opt-in | macOS CIでAPI compile/UIを確認し、iPhone上で値・生成動作を確認。値が返らない場合は非表示 |
+| Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1で報告されたクラッシュを対象とした | 利用者が151.1へ更新済みと報告。次の154.1以降で権限許可・拒否後の再試行とモデル選択後の録音開始を確認 |
+| §6.3 全TTSの繰り返し再生 | PR #60でApple synthesizerの完了delegateによるrepeat loopを追加。ニューラル音声を含め全engineにtoggleを適用 | TestFlight 154.1以降でApple/ニューラル双方の繰り返し・停止・画面ロックを確認 |
+| §15.1 LLM decode tokens/sec | PR #60でLiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返る場合のみ表示。実験APIを明示opt-in | macOS CIでAPI compile/UIを確認済み。TestFlight 154.1以降の実機で値と生成動作を確認。値が返らない場合は非表示 |
 
 ## 仕様本文の照合
 
@@ -31,9 +31,9 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §14 UI | 学習、復習、設定、モデル管理と診断の各画面 | 実機操作性・アクセシビリティ |
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 実機での値・画面・共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
-| §17 CI/CD | PR必須check、保護されたmacOS build/archive、TestFlight upload。run 42699460096とupload run 42699366994 | Apple処理・配布可否はupload成功だけでは確認できない |
-| §18 実機 | iPhone 16/iOS 26.4.2での過去の操作・モデル確認をAcceptance.mdに記録 | 151.1でのApple Speech修正を含むPhase 6/7受け入れ |
+| §17 CI/CD | PR #60のrequired checks [run 42734887369](https://github.com/Guch1120/english_app/actions/runs/42734887369)と、TestFlight upload [run 42740151555](https://github.com/Guch1120/english_app/actions/runs/42740151555)が成功 | Apple処理・配布可否はupload成功だけでは確認できない |
+| §18 実機 | iPhone 16/iOS 26.4.2での過去の操作・モデル確認と、151.1への更新完了報告をAcceptance.mdに記録 | 154.1のインストール後にApple Speech、TTS repeat、LLM throughputを確認 |
 
 ## 完了判定
 
-自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。現状、Phase 0〜7の実装PRはmainにマージ済みで、TestFlight 151.1のupload jobも成功した。一方、Apple処理後のインストール、Apple Speechクラッシュ修正、オフライン動作、モデル推論品質、バックグラウンド再生と安定性は未確認であり、アプリ全体の実機受け入れ完了とは扱わない。
+自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #60までの実装PRはmainにマージ済み。TestFlight 154.1のupload jobも成功した。利用者は151.1への更新完了を報告しているが、154.1のApple処理後のインストール、Apple Speechクラッシュ修正、繰り返し再生、実測LLM速度、オフライン動作、モデル推論品質、バックグラウンド再生と安定性は未確認であり、アプリ全体の実機受け入れ完了とは扱わない。
