@@ -6,6 +6,8 @@
 
 2026-11-10 follow-up：PR #94を含むmain commit `973d388`をTestFlight manual upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)から**0.1.0 (190.1)**としてアップロードした。GitHub upload jobは成功したが、Apple側の処理完了・TestFlight表示・iPhoneへのインストールはまだ確認していない。
 
+2026-11-10 later follow-up：利用者がUSBケーブルを抜き差しした後、Docker内pymobiledevice3からiPhone 16 (`iPhone17,3`)、iOS 26.4.2を再検出し、WDA `ready: true`を確認した。TestFlightに表示されたEnglish learning App **0.1.0 (190.1)**を更新し、USB installed-app queryで190.1を確認。English Trainerはクラッシュせず起動した。復習画面に残っていた前回受け入れ試験用の唯一の苦手項目（復習1回）を対象に、削除確認ダイアログと履歴cascadeの説明を確認して削除した。保存済み苦手項目は0件、復習履歴は空になり、アプリを再起動した後も両方の状態が維持された。これはTestFlight 190.1の実機削除・履歴cascade・再起動保持の確認である。ユーザー録音や別の学習項目は削除していない。録音・文字起こし本文は記録・共有していない。
+
 2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。再起動後の別の成功生成で、model-load 1.5秒、最初の応答0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを性能欄で確認。端末診断には先の成功生成の`LLM · inference · succeeded`とRSS 567.8 MBも記録された。教材本文・プロンプトは記録・共有していない。各値は一回の観測であり、一般的な性能や意味品質を保証しない。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
 
 2026-11-10 follow-up：後続のオフラインTTS確認のため一時的に機内モードを有効化し、試験後に機内モードをOFF、Wi‑Fiを`suruga-kenkoland`へ再接続した。BluetoothはOFFのまま。比較入力は既定の英文へ復元した。
@@ -62,15 +64,15 @@
 | 苦手単語・文章登録 | 保存tests、Simulator復習登録テスト | 実機で登録 |
 | マイクをローカルASRで認識 | Parakeet録音・停止後の表示を143.1で確認。160.1でApple Speech選択後の録音・文字起こしを確認。依頼英文の再録音で両エンジンの結果表示を確認し、アプリ画面はApple Speech WER 0%、Parakeet WER 57%を表示。同じ録音のParakeet再認識でもWER 57%を表示。利用者は「両方一致」は両方で結果が出た意味と訂正しており、本文を独立確認していない | 別音声でのParakeet精度・再現性、文字列レベルの再認識比較、権限拒否後の再試行 |
 | お手本との文字差分 | alignment unit tests、結果UIを実装 | 録音停止後の結果・評価表示 |
-| 苦手項目を繰り返し復習 | scheduling/persistence tests、Simulator復習テスト。PR #94のiPhone Simulator UIテストで評価履歴の再起動保持と項目削除時の履歴連動削除を確認 | 実機で復習・予定更新・削除確認 |
+| 苦手項目を繰り返し復習 | scheduling/persistence tests、PR #94のiPhone Simulator UIテストで評価履歴の再起動保持と項目削除時の履歴連動削除を確認。TestFlight 190.1のiPhone 16で前回試験用項目を削除し、関連履歴の消去とアプリ再起動後の空状態を確認 | 実機で新たな復習回答・予定更新、通常の利用履歴復元 |
 | Gemma E2Bで英文生成 | 154.1で同条件2回失敗。160.1ではオンライン/オフライン双方で成功し、プロセス再起動後も保存一覧に残ることを確認。2回目の成功生成で1.5秒load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB process RSSを観測 | 教材品質の意味評価、異なる条件・熱状態での反復性能 |
 | モデル検索・取得・削除 | カタログ、SHA-256、再開・削除処理とtests | 対応画面から操作、削除後の無効化 |
 | RE-USE ON/OFF | 任意比較・固定音声確認gateを実装。143.1で設定OFFと保存済み端末確認状態を確認。160.1では同梱固定音声によるオフライン比較（3.02秒、RTF 0.278、モデル読込1.87秒、MLXピーク1.01 GB、process RSS観測ピーク452.5 MB）に加え、利用者の3.9秒実録音をApple Speechで比較し、両経路の結果表示を確認。実録音のRE‑USE処理1.24秒、RTF 0.321、モデル読込0.14秒、MLXピーク1.39 GB、認識時間はなし0.16秒／あり0.13秒。試験後に設定をOFFへ戻し録音を保持 | 実録音でのWER差、実聴での明瞭さ・学習上の効果、反復性能・熱挙動 |
 | モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
-| 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト | 実機で再起動復元 |
+| 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト。190.1で苦手項目削除後の復習履歴なし状態がアプリ再起動後も維持された | 既存の通常学習履歴・別の回答履歴に対する実機アップグレード復元 |
 | エラー後の安定性 | cancellation/coordinator/integrity tests、対話UI | 通信中断、推論取消、バックグラウンド復帰 |
 | GitHub Actionsビルド | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)成功。TestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)で160.1、PR #94を含むmain `973d388`はmanual upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)で190.1をアップロード | 190.1のApple処理・TestFlight表示・実機インストール |
-| 実機インストール | TestFlight 154.1と160.1をiPhone 16へ導入。160.1はTestFlight画面とUSB queryで確認 | 次buildが必要な変更後の反復導入 |
+| 実機インストール | TestFlight 154.1、160.1、190.1をiPhone 16へ導入。190.1はTestFlight画面、USB installed-app query、アプリ起動で確認 | 将来の変更buildの再導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
 
 ## 最新ビルドで実行する順序
