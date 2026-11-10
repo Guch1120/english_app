@@ -249,6 +249,24 @@ final class EnglishTrainerUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(reviewEvent.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["reschedule"].exists)
+
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["復習"].waitForExistence(timeout: 5))
+        let deleteButton = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "review.delete.")
+        ).firstMatch
+        scrollTo(deleteButton)
+        XCTAssertTrue(deleteButton.isHittable, app.debugDescription)
+        deleteButton.tap()
+        let confirmDelete = app.buttons["review.delete.confirm"]
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), app.debugDescription)
+        confirmDelete.tap()
+        XCTAssertFalse(app.staticTexts["reschedule"].waitForExistence(timeout: 2))
+
+        let historyLink = app.buttons["復習履歴を表示"]
+        scrollTo(historyLink)
+        historyLink.tap()
+        XCTAssertTrue(app.staticTexts["復習履歴はありません"].waitForExistence(timeout: 5))
     }
 
     func testSpeakingAndReuseScreensExposeOnDeviceSafetyGates() {

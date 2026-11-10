@@ -788,6 +788,7 @@ struct ReviewView: View {
                             NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
                         }
                         Button("復習項目を削除", systemImage: "trash", role: .destructive) { pointToDelete = point }
+                            .accessibilityIdentifier("review.delete.\(point.id.uuidString)")
                     }
                     .padding(.vertical, 5)
                 }
@@ -804,6 +805,7 @@ struct ReviewView: View {
                 if let pointToDelete { model.delete(pointToDelete) }
                 pointToDelete = nil
             }
+            .accessibilityIdentifier("review.delete.confirm")
         } message: {
             Text("関連する復習履歴も削除されます。この操作は取り消せません。")
         }
