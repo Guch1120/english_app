@@ -31,9 +31,9 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §14 UI | 学習、復習、設定、モデル管理と診断の各画面 | 実機操作性・アクセシビリティ |
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
-| §17 CI/CD | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)とTestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)が成功。160.1を実機に導入 | Apple処理・配布可否は後続buildで継続確認 |
+| §17 CI/CD | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)とTestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)が成功。0.1.0 (160.1)はApple処理後、iPhone 16へTestFlightで導入済み | 160.1より後のTestFlight buildは未作成・未配布 |
 | §18 実機 | iPhone 16/iOS 26.4.2で160.1の起動、オンライン/機内モード中のGemma生成成功、オフラインでのプロセス再起動・保存復元とLLM性能表示を確認。機内モード・Wi‑Fi OFF中の純英語固定文でKokoro/Pocket TTS生成と測定、同梱固定音声でParakeet/Apple Speechのオフライン認識結果表示とRE‑USEあり／なし比較を確認。テスト音声の削除、設定OFF、機内モードOFF、Wi‑Fi復帰も確認。160.1でApple Speech選択後の録音開始・停止とアプリ継続を確認。repeat switchのON操作を確認。Acceptance.md参照 | TTSの実聴音声とループ再生、実際の発話に対するASR/RE‑USE品質、LLM意味品質、オフライン復習、割り込み・長時間・熱挙動 |
 
 ## 完了判定
 
-自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1ではオンライン/機内モード中のGemma教材生成に成功し、オフラインでのプロセス再起動後も保存済みGemma教材を復元した。機内モード・Wi‑Fi OFF中の純英語固定文でKokoro/Pocket TTS生成と比較測定も確認した。再起動後の成功生成でmodel-load/TTFT/decode throughputとprocess RSSを一度観測した。TTS実聴・repeat loop、ASR実音声、教材意味品質、オフラインASR/復習、バックグラウンド再生、割り込み、反復性能・熱挙動などが残るため、アプリ全体の実機受け入れ完了とは扱わない。
+自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1ではオンライン/機内モード中のGemma教材生成に成功し、オフラインでのプロセス再起動後も保存済みGemma教材を復元した。機内モード・Wi‑Fi OFF中の純英語固定文でKokoro/Pocket TTS生成と比較測定、同梱固定音声でのオフラインParakeet/Apple Speech認識とRE‑USE比較も確認した。再起動後のGemma成功生成でmodel-load/TTFT/decode throughputとprocess RSSを一度観測した。TTS実聴・repeat loop、実際の英語マイク入力によるASR品質、教材意味品質、復習・回答履歴の実機復元、バックグラウンド再生、割り込み、反復性能・熱挙動などが残るため、アプリ全体の実機受け入れ完了とは扱わない。
