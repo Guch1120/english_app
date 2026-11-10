@@ -2,7 +2,7 @@
 
 仕様書 [Specification-v1.md](Specification-v1.md) §20の18条件を、コード・CIと実機の証拠で確認する。フェーズのコードがマージ済みであることと、実機の受け入れ完了は分けて記録する。
 
-2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。端末診断には`LLM · inference · succeeded`とプロセスRSS 567.8 MBが記録された。教材本文・プロンプトは記録・共有していない。model-load/TTFT/decode tokens/secの値は画面上で確認できなかったため、速度受け入れは未完了。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
+2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。再起動後の別の成功生成で、model-load 1.5秒、最初の応答0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを性能欄で確認。端末診断には先の成功生成の`LLM · inference · succeeded`とRSS 567.8 MBも記録された。教材本文・プロンプトは記録・共有していない。各値は一回の観測であり、一般的な性能や意味品質を保証しない。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
 
 2026-11-08のUSB確認：iPhone 16 (`iPhone17,3`)、iOS 26.4.2、English Trainer build **141.2** がインストール済み。過去の起動観察は [Status.md](Status.md) に記録。利用者はKokoro、Pocket TTS、Parakeet、RE-USEの取得完了を報告し、続いて2026-11-09にGemmaの取得と端末動作確認の成功を報告した。その後、Gemma教材を生成し、学習一覧から開けたことも利用者が確認した。他モデルの実機確認は別途記録する。
 
@@ -37,10 +37,10 @@
 | マイクをローカルASRで認識 | Parakeet録音・停止後の表示を143.1で確認。154.1でApple Speechのモデル選択後に録音開始・停止し、クラッシュは再現せず | 実音声の認識結果と権限拒否後の再試行 |
 | お手本との文字差分 | alignment unit tests、結果UIを実装 | 録音停止後の結果・評価表示 |
 | 苦手項目を繰り返し復習 | scheduling/persistence tests、Simulator復習テスト | 実機で復習と予定更新 |
-| Gemma E2Bで英文生成 | 154.1で同条件2回失敗。160.1では生成成功し、アプリ再起動後も保存一覧に残ることを確認。診断はinference success、RSS 567.8 MB | 教材品質の意味評価、オフライン生成、model-load/TTFT/decode tokens/secの実測 |
+| Gemma E2Bで英文生成 | 154.1で同条件2回失敗。160.1では成功し、再起動後も保存一覧に残ることを確認。2回目の成功生成で1.5秒load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB process RSSを観測 | 教材品質の意味評価、オフライン生成、異なる条件・熱状態での反復性能 |
 | モデル検索・取得・削除 | カタログ、SHA-256、再開・削除処理とtests | 対応画面から操作、削除後の無効化 |
 | RE-USE ON/OFF | 任意比較・固定音声確認gateを実装。143.1の実機で保存された推論確認済み表示とOFF状態を確認 | 新規の固定音声処理の観察と同一録音比較 |
-| モデル時間・メモリ確認 | 160.1 Gemma成功イベントとprocess RSS 567.8 MBを固定field診断で確認 | model-load/TTFT/tokens-secの実測値表示。RSSはアプリ全体の値として解釈 |
+| モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト | 実機で再起動復元 |
 | エラー後の安定性 | cancellation/coordinator/integrity tests、対話UI | 通信中断、推論取消、バックグラウンド復帰 |
 | GitHub Actionsビルド | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)成功。TestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)で160.1をアップロード | アップロード成功とApple処理は別確認 |
