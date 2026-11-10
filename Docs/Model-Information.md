@@ -31,6 +31,6 @@ RE-USE manifestは既存の同じModelCatalog/ModelSourceからSDK非依存で�
 
 ## 検証状況
 
-Docker41 tests成功。旧descriptor互換とmetadata往復、RE-USE catalogの固定版/サイズ、lease失敗後のloaded状態、unload・回復、キャンセルとエラーの区別を検証した。quality成功、Swift構文parse成功。新画面のSimulator UIテストを追加したが、最新iOSビルド・UI・native adapter型検査と実機の状態表示はまだ未検証。
+Docker41 tests成功。旧descriptor互換とmetadata往復、RE-USE catalogの固定版/サイズ、lease失敗後のloaded状態、unload・回復、キャンセルとエラーの区別を検証した。quality成功、Swift構文parse成功。当時は新画面のSimulator UIとiOSビルドが未検証だった。その後の macOS CI [run 42734887369](https://github.com/Guch1120/english_app/actions/runs/42734887369) でiOS Simulator build/analyze、アプリ起動、Simulator UI suite、unsigned distribution archiveが成功し、native adapterの型検査を含むiOSビルド経路を確認した。iPhone 16上でのモデル情報表示や実モデル状態の一致は引き続き実機確認が必要。
 
-作業場所は`/tmp/english_app_model_information`、`codex/model-information-completion`。先行する教材管理PR #51と、TTS/用例復習のbranchに積んだ実装。先行PRの検証/マージ状況を確認してからPRの単位を確定し、未検証のまま配布しない。
+この機能は後続の統合PRでmainへマージ済み。過去の作業場所とブランチ情報は当時の履歴であり、現在の作業状態を表さない。
