@@ -82,7 +82,7 @@
 | Kokoro/Pocket切替・生成・比較 | 160.1で両モデルへ同じ純英語固定文を入力し、機内モード・Wi‑Fi OFF中に生成。Kokoro 1.14秒／音声3.32秒／RTF 0.343／RSS 551.6 MB、Pocket 1.48秒／音声2.48秒／RTF 0.599／RSS 751.1 MB。利用者がPocket TTSの動作とKokoroのrepeat再生2回分の聴取を確認 | 音質・発音の専門評価、中断・音声経路変更、長時間安定性 |
 | 英文を聞きテキスト表示 | 160.1でKokoro/Pocket音声の生成を確認し、利用者が再生を聴取。190.1ではサンプル教材の英文表示を画面で確認 | 速度・訳表示を含む実機一連操作、音声経路変更 |
 | 苦手単語・文章登録 | 保存tests、Simulator復習登録テスト。iPhone 16 / 190.1でサンプル教材の単語を一時登録し、「普通」で回答後に関連履歴とともに削除して0件へ復帰 | 文章全体登録、理由選択の実機確認 |
-| マイクをローカルASRで認識 | Parakeet録音・停止後の表示を143.1で確認。160.1でApple Speech選択後の録音・文字起こしを確認。依頼英文の再録音で両エンジンの結果表示を確認し、アプリ画面はApple Speech WER 0%、Parakeet WER 57%を表示。同じ録音のParakeet再認識でもWER 57%を表示。利用者は「両方一致」は両方で結果が出た意味と訂正しており、本文を独立確認していない | 別音声でのParakeet精度・再現性、文字列レベルの再認識比較、権限拒否後の再試行 |
+| マイクをローカルASRで認識 | Parakeet録音・停止後の表示を143.1で確認。160.1でApple Speech選択後の録音・文字起こしを確認。依頼英文の再録音で両エンジンの結果表示を確認し、アプリ画面はApple Speech WER 0%、Parakeet WER 57%を表示。同じ録音のParakeet再認識でもWER 57%を表示。利用者は「両方一致」は両方で結果が出た意味と訂正しており、本文を独立確認していない | 別音声でのParakeet精度・再現性、文字列レベルの再認識比較。マイク権限拒否後の再試行は利用者の希望で試験を見送り、未確認 |
 | お手本との文字差分 | alignment unit tests、結果UIを実装 | 録音停止後の結果・評価表示 |
 | 苦手項目を繰り返し復習 | scheduling/persistence testsとPR #94のSimulator UIテストで回答履歴・削除cascade・再起動保持を確認。iPhone 16 / 190.1で一時登録した項目に「普通」と回答し、復習1回、成功1 / 失敗0、習熟度100%、次回予定を確認。2026-11-11は機内モードON・Wi‑Fi OFF中に同様の回答を行い、SIGKILL・再起動後も履歴と予定が残ることを確認。試験項目と履歴を削除後、保存済み0件・試験イベントなし・既存の学習操作履歴保持を確認 | 複数評価段階での長期予定推移 |
 | Gemma E2Bで英文生成 | 154.1で同条件2回失敗。160.1ではオンライン/オフライン双方で成功し、プロセス再起動後も保存一覧に残ることを確認。2回目の成功生成で1.5秒load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB process RSSを観測 | 教材品質の意味評価、異なる条件・熱状態での反復性能 |
@@ -90,8 +90,8 @@
 | RE-USE ON/OFF | 任意比較・固定音声確認gateを実装。143.1で設定OFFと保存済み端末確認状態を確認。160.1では同梱固定音声によるオフライン比較（3.02秒、RTF 0.278、モデル読込1.87秒、MLXピーク1.01 GB、process RSS観測ピーク452.5 MB）に加え、利用者の3.9秒実録音をApple Speechで比較し、両経路の結果表示を確認。実録音のRE‑USE処理1.24秒、RTF 0.321、モデル読込0.14秒、MLXピーク1.39 GB、認識時間はなし0.16秒／あり0.13秒。試験後に設定をOFFへ戻し録音を保持 | 実録音でのWER差、実聴での明瞭さ・学習上の効果、反復性能・熱挙動 |
 | モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト。190.1で回答・次回予定・履歴が記録され、機内モードON・Wi‑Fi OFF中のSIGKILL・再起動後も維持された。試験用項目・履歴だけを削除し、保存済み0件、試験イベントなし、既存の学習操作履歴保持を確認 | 過去バージョンから更新した実機データの復元 |
-| エラー後の安定性 | cancellation/coordinator/integrity tests。キャンセル済みleaseをbusy競合より先に判定する回帰testを追加。SpeakingTrainingModelは実行中ASR backendにもcancelを転送 | 変更のGitHub macOS compile/UI gate、iPhoneのASR中断・復帰。Parakeet TDTのネイティブ推論は即時停止APIがなく、SDK呼び出し終了後に結果を破棄してアンロードする |
-| GitHub Actionsビルド | PR #105のfull Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality/core/macOS package/Simulator UI 15件/unsigned archive/review-gate成功。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)で201.1をアップロード
+| エラー後の安定性 | cancellation/coordinator/integrity tests。キャンセル済みleaseをbusy競合より先に判定する回帰testを追加。SpeakingTrainingModelは実行中ASR backendにもcancelを転送。PR #110 Validate run 42907001478でquality、Docker Core、macOS package、Simulator build/analyze/launch/UI、unsigned archive、review gateが成功 | iPhoneのASR中断・復帰。Parakeet TDTのネイティブ推論は即時停止APIがなく、SDK呼び出し終了後に結果を破棄してアンロードする |
+| GitHub Actionsビルド | PR #105のfull Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality/core/macOS package/Simulator UI 15件/unsigned archive/review-gate成功。PR #110のValidate [run 42907001478](https://github.com/Guch1120/english_app/actions/runs/42907001478)でDocker Core、macOS package、Simulator build/analyze/launch/UI、unsigned archive、quality、review-gateすべて成功。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)で201.1をアップロード
 | 実機インストール | TestFlight 154.1、160.1、190.1をiPhone 16へ導入。さらに201.1をTestFlight画面から更新し、USB installed-app query・アプリ起動・appLaunch診断イベント1件を確認 | 将来の変更buildの再導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
 
@@ -101,7 +101,7 @@
 2. 設定 → ASRモデル管理でParakeetの検証済み表示を確認する。
 3. 教材を開き、上部のリスニング／スピーキングを往復する。録音して停止し、認識結果と単語誤り率が手動スクロールなしで表示されるか確認する。これは文字の一致度で、発音採点ではない。
 4. KokoroとPocketで同じ英文を再生し、速度・停止・キャッシュ再生を確認する。
-5. Apple Speechでモデルを選択後に録音を開始し、権限許可・拒否後の再試行を確認する。Apple Speechとニューラル音声のrepeat toggle、停止、画面ロック時の動作を確認する。LLM管理画面では実測値が返る場合だけdecode tokens/secが表示されることを確認する。
+5. Apple Speechでモデルを選択後に録音を開始する。権限拒否後の再試行は利用者の希望で見送り、未確認として扱う。Apple Speechとニューラル音声のrepeat toggle、停止、画面ロック時の動作を確認する。LLM管理画面では実測値が返る場合だけdecode tokens/secが表示されることを確認する。
 6. RE-USEの固定音声確認と同じ録音の比較、Gemmaの固定プロンプト確認と教材生成を行う。
 7. 機内モードへ切り替え、アプリ再起動後に3〜6と復習・履歴復元を確認する。
 

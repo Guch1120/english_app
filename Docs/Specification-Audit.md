@@ -1,6 +1,6 @@
-# 仕様照合と未完了項目（2026-11-11、main 6481762／app code f6c7903）
+# 仕様照合と未完了項目（2026-11-11、main 25ddb31／app code 22438f4）
 
-Phase 0〜7と、仕様本文の追加機能をmain commit 6481762の文書とapplication code baseline f6c7903、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #109のValidate run 42905343196ではquality/review-gateが成功した（docs-onlyのためCore/iOSはskip）。作業中の`codex/propagate-asr-cancellation`では、仕様 §5／Phase 7 のキャンセル経路を修正し、DockerとmacOS CIの確認を進めている。
+Phase 0〜7と、仕様本文の追加機能をmain commit 25ddb31の文書とapplication code baseline 22438f4、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #110のValidate run 42907001478ではquality、Docker Core、macOS package、Simulator build/analyze/launch、UI tests、unsigned archive、review-gateがすべて成功した。Docker `bash Scripts/test.sh`は46件、`bash Scripts/quality.sh`は18件のpolicy testとshellcheck/actionlint/Gitleaks/vendor snapshot checksが成功した。
 
 ## Phase 0〜7後に追加した仕様項目
 
@@ -11,7 +11,7 @@ Phase 0〜7と、仕様本文の追加機能をmain commit 6481762の文書とap
 | §13.3・§14.2 録音保持 | PR #58で保持を既定とし、無効化時は次回起動時に削除 | 設定変更・再起動後の実機挙動 |
 | §15.3 診断情報エクスポート | PR #53で固定項目のみの診断共有を実装。音声・文字起こしは含めない | 実機で共有シートと出力を確認 |
 | §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装。2026-11-11にHomeからアプリ前面へ戻る短い遷移を確認 | 画面ロック中の再生、音声割り込み、音声経路喪失、バックグラウンド再生の実機確認 |
-| Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1で報告されたクラッシュを対象とした。160.1のiPhone 16でApple Speech選択後の録音開始・停止、アプリ継続を確認。無音入力の文字起こしは失敗 | 英語実音声の文字起こし品質、権限拒否後の再試行 |
+| Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1で報告されたクラッシュを対象とした。160.1のiPhone 16でApple Speech選択後の録音開始・停止、アプリ継続を確認。指定英文の録音とApple Speech結果表示を後続buildで確認 | 英語実音声の反復精度。権限拒否後の再試行は利用者の希望で試験を見送り、未確認 |
 | §6.3 全TTSの繰り返し再生 | PR #60でApple synthesizerの完了delegateによるrepeat loopを追加。ニューラル音声を含め全engineにtoggleを適用 | TestFlight 154.1以降でApple/ニューラル双方の繰り返し・停止・画面ロックを確認 |
 | §15.1 LLM decode tokens/sec | PR #60でLiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返る場合のみ表示。実験APIを明示opt-in | 160.1でload 1.5秒、TTFT 0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを一回観測。反復性能・熱比較は未確認 |
 
@@ -19,7 +19,7 @@ Phase 0〜7と、仕様本文の追加機能をmain commit 6481762の文書とap
 
 | 仕様 | 実装・証拠 | 残る確認 |
 |---|---|---|
-| §5 共通AI操作・モデル情報 | 共通サービスprotocol、モデル情報、検証付きダウンロード、排他実行、cancel/unload。キャンセル済みタスクをlease競合より先に判定する修正と、実行中ASR backendへのcancel伝播を`codex/propagate-asr-cancellation`で実装中。201.1オフライン準備画面でTTS/ASR/LLM/RE-USEの端末状態を確認。Model-Information.md参照 | 当該PRのmacOS CIと実機のASR中断・復帰。ParakeetのFluidAudio TDT推論はAPI上、進行中計算を同期停止できず、呼び出し復帰後にキャンセル結果を破棄してアンロードする |
+| §5 共通AI操作・モデル情報 | 共通サービスprotocol、モデル情報、検証付きダウンロード、排他実行、cancel/unload。キャンセル済みタスクをlease競合より先に判定し、実行中ASR backendへcancelを伝える修正をPR #110で実装。Validate run 42907001478の必須CIが全件成功。201.1オフライン準備画面でTTS/ASR/LLM/RE-USEの端末状態を確認。Model-Information.md参照 | iPhone実機のASR中断・復帰。ParakeetのFluidAudio TDT推論はAPI上、進行中計算を同期停止できず、呼び出し復帰後にキャンセル結果を破棄してアンロードする |
 | §6 TTS | Kokoro、Pocket TTS、Apple音声、話者選択、再生制御、全engine repeat、速度、キャッシュ、比較、生成時間/RTF/RSS/音声長/サンプルレート、主観メモを実装。160.1のオフライン計測をAcceptance.mdに記録。repeat switchをOFFからONへ操作し、Kokoroを2回再生して両方聞こえたと利用者が確認。Pocket TTSも利用者が正常動作を確認 | 中断・音声経路変更、長時間安定性、専門的な発音・音質評価。iOS 26.4.2ではCoreDevice音声ストリームは非対応 |
 | §7 ASR | Parakeetと端末内Apple Speech、録音、再認識、同一録音比較。143.1でParakeetの録音・文字起こし画面を確認。160.1でApple Speech選択後の録音・文字起こしを確認。指定英文による3.9秒再録音で両エンジンの結果表示を確認し、画面上でApple Speech WER 0%／0.13秒／178.5 MB、Parakeet WER 57%／0.03秒／179 MBを表示。利用者は「両方一致」は両方から結果が出た意味と訂正した。文字起こし本文を独立に確認していないため、WER値はアプリ表示として記録し、利用者による文字列一致確認とは扱わない。同じ録音をParakeetで再認識した2回目もWER 57%を表示したが、文字列の一致や別録音での再現性を示すものではない。Apple Speech録音3.863秒、単独認識184 ms／186.2 MBも診断で成功。音声ファイルは端末内に保持し、本文は保存・共有しない | Parakeetの誤り原因・別録音での再現性、文字列の反復一致、権限拒否後の再試行、ASR取消・中断回復 |
 | §8 RE-USE | 任意設定、固定音声による端末検証gate、5分上限、元音声保持、ASRによる比較を実装。同梱固定音声を機内モードで比較し、RE‑USE処理3.02秒／RTF 0.278／モデルload1.87秒／MLX peak1.01 GB／process RSS peak452.5 MB。さらにiPhone 16／160.1で利用者の3.9秒録音をApple Speechにより比較し、両経路の結果表示を確認。処理1.24秒／RTF 0.321／model load0.14秒／MLX peak1.39 GB、認識時間はなし0.16秒／あり0.13秒。設定をOFFに戻し、元録音は保持 | 各結果のWER差、実聴での明瞭さ・学習上の効果、反復性能・熱挙動 |
@@ -31,7 +31,7 @@ Phase 0〜7と、仕様本文の追加機能をmain commit 6481762の文書とap
 | §14 UI | 学習、復習、設定、モデル管理と診断の各画面。PR #105で設定のデータ領域を診断一覧より上へ移し、明示キャンセル付き確認alertを追加。GitHub macOS Validate run 42888324021で15件のSimulator UI testが成功し、iPhone 16／201.1でもデータ削除導線が診断履歴より上にあり、確認alertのキャンセルで閉じることを確認 | 実機操作性・アクセシビリティ。実機での破壊的な全データ削除は未実施 |
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
-| §17 CI/CD | PR #105のフル Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality、Docker Core、GitHub macOS package/Simulator UI 15件/unsigned archive/review-gate成功。PR #105は`aa9fe44`でマージ。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)成功し、201.1をアップロード・実機導入。PR #106は`f6c7903`、PR #107は`d0febd3`、PR #108は`7021b2e`、PR #109は`6481762`でマージ。run 42901278396・42902332632・42904366798・42905343196はquality/review-gate成功（docs-onlyのためCore/iOS skip）。Docker `bash Scripts/test.sh`は既存mainで46件成功。ASRキャンセル追跡の追加変更はDockerとGitHub macOS CI pending | キャンセル修正のCI、実機ASR中断動作、新しいTestFlight buildの確認 |
+| §17 CI/CD | PR #105のフル Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality、Docker Core、GitHub macOS package/Simulator UI 15件/unsigned archive/review-gate成功。PR #105は`aa9fe44`でマージ。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)成功し、201.1をアップロード・実機導入。PR #106は`f6c7903`、PR #107は`d0febd3`、PR #108は`7021b2e`、PR #109は`6481762`、PR #110は`25ddb31`でマージ。run 42901278396・42902332632・42904366798・42905343196・42907001478は各対象check成功。#110 runではquality/Core/iOS/macOS package/Simulator/UI/unsigned archive/review-gateすべてpass。Docker tests 46件、quality policy tests 18件もpass | PR #110変更のiPhone ASR中断動作と新しいTestFlight buildでの確認 |
 | §18 実機 | iPhone 16/iOS 26.4.2で201.1をTestFlightから導入し、USB installed-app queryでbuild確認。アプリ起動後もPID 4258で稼働し、appLaunch診断イベント1件、RSS peak 109,838,336 bytes、thermal nominalを確認。設定でデータ削除導線の順序と確認alertのキャンセルを検証し、オフライン準備画面のTTS/ASR/LLM/RE-USE状態と手動チェックリスト表示を確認。従来のTTS/ASR/RE-USE/Gemma/review実機証拠はAcceptance.mdを参照 | Parakeetの別録音での精度・再現性、新規モデル取得・削除、RE-USEのWER差・実聴効果、LLM意味品質、再生中断・画面ロック・バックグラウンド音声、長時間・熱挙動。Bluetooth経路は利用者の希望により未試験で、通常利用で問題が出た場合に調査する |
 
 ## 完了判定
