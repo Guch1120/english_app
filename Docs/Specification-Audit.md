@@ -1,6 +1,6 @@
-# 仕様照合と未完了項目（2026-11-11、main d3e0137）
+# 仕様照合と未完了項目（2026-11-11、main aa9fe44）
 
-Phase 0〜7と、仕様本文の追加機能をmain commit d3e0137のコード、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。
+Phase 0〜7と、仕様本文の追加機能をmain commit aa9fe44のコード、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。
 
 ## Phase 0〜7後に追加した仕様項目
 
@@ -28,11 +28,11 @@ Phase 0〜7と、仕様本文の追加機能をmain commit d3e0137のコード�
 | §11 スピーキング | お手本再生、録音、文字起こし比較、単語差分/WERと正規化 | 実機での録音中断・機内モード。厳密な音素/発音採点は初期要件外 |
 | §12 復習 | 決定的スケジューラ、履歴、習熟度、教材versionと回答記録。PR #94のSimulator UIテストと190.1実機で履歴保持・削除cascadeを確認。2026-11-10に「普通」で成功1/失敗0、習熟度100%、2日後予定を確認。2026-11-11は機内モードON・Wi‑Fi OFF中に同じ評価を行い、SIGKILL・再起動後も回答イベントと予定が残ることを確認。両試験項目・履歴は削除済み | 他の評価段階、長期予定推移、旧buildからのデータ移行 |
 | §13 保存 | SQLite transaction、保護領域、schema migration、教材と回答履歴 | 古いデータからの実機アップグレード・復元 |
-| §14 UI | 学習、復習、設定、モデル管理と診断の各画面 | 実機操作性・アクセシビリティ |
+| §14 UI | 学習、復習、設定、モデル管理と診断の各画面。PR #105で設定のデータ領域を診断一覧より上へ移し、明示キャンセル付き確認alertを追加。GitHub macOS Validate run 42888324021で15件のSimulator UI testが成功し、診断一覧後の削除導線とキャンセルを検証 | 実機操作性・アクセシビリティ。実機での破壊的な全データ削除は未実施 |
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
-| §17 CI/CD | PR #94のquality/core/iOS Simulator UI/unsigned archive/review-gate [run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)成功。PR #100 docs-only quality/review-gate [run 42835937937](https://github.com/Guch1120/english_app/actions/runs/42835937937)成功。PR #102 docs-only workflow [run 42846010844](https://github.com/Guch1120/english_app/actions/runs/42846010844)のquality/review-gateと、同headに対するフルDocker/macOS Validate [run 42845728398](https://github.com/Guch1120/english_app/actions/runs/42845728398)が成功。PR #103のquality/review-gate [run 42856332110](https://github.com/Guch1120/english_app/actions/runs/42856332110)と、同headのフルDocker/macOS Validate [run 42855477925](https://github.com/Guch1120/english_app/actions/runs/42855477925)も成功。PR #103は`d3e0137`でマージ済み。PRを含むmain `973d388`のTestFlight upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)が成功。190.1はTestFlightで表示され、iPhone 16へ導入済み | 将来のアプリコード変更時に新buildを配布・インストール |
-| §18 実機 | iPhone 16/iOS 26.4.2で160.1のオンライン/オフラインGemma、保存復元・性能表示、Kokoro/Pocket TTS、ASR、RE-USE、Kokoro repeatを確認。190.1をTestFlightから導入・起動し、レビュー回答で予定更新と履歴表示、機内モードON・Wi‑Fi OFF中の回答・SIGKILL・再起動後の履歴保持、Gemma検索9件を確認。試験項目・履歴のcascade削除後、保存済み0件・既存学習操作履歴保持を確認。Homeからアプリへの短い前面復帰も確認 | Parakeetの別録音での精度・再現性、新規モデル取得・削除、RE-USEのWER差・実聴効果、LLM意味品質、再生中断・画面ロック・バックグラウンド音声、長時間・熱挙動。Bluetooth経路は利用者の希望により未試験で、通常利用で問題が出た場合に調査する |
+| §17 CI/CD | PR #105のフル Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality、Docker Core、GitHub macOS package/Simulator UI 15件/unsigned archive/review-gate成功。PR #105は`aa9fe44`でマージ。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)成功し、201.1をアップロード・実機導入 | 将来のアプリコード変更時に新buildを配布・インストール |
+| §18 実機 | iPhone 16/iOS 26.4.2で201.1をTestFlightから導入し、USB installed-app queryでbuild確認。アプリ起動後もPID 4258で稼働し、appLaunch診断イベント1件、RSS peak 109,838,336 bytes、thermal nominalを確認。従来のTTS/ASR/RE-USE/Gemma/review実機証拠はAcceptance.mdを参照 | Parakeetの別録音での精度・再現性、新規モデル取得・削除、RE-USEのWER差・実聴効果、LLM意味品質、再生中断・画面ロック・バックグラウンド音声、長時間・熱挙動。Bluetooth経路は利用者の希望により未試験で、通常利用で問題が出た場合に調査する |
 
 ## 完了判定
 
