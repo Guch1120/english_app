@@ -11,7 +11,7 @@ This is the final implementation phase for the initial specification, not an exp
 5. **Distribution and documentation:** PR/main CI, TestFlight numbering, device installation, permission prompts, model preparation, data deletion, offline operation, and known hardware-validation limits are documented accurately. Tests and the iOS Simulator/archive workflow pass.
 6. **Evidence:** Docker tests and quality checks pass; GitHub macOS checks pass. Any operation that requires physical audio or Core ML/MLX is marked as needing iPhone confirmation until performed.
 
-The cancellation follow-up currently on `codex/propagate-asr-cancellation` adds explicit ASR backend cancellation and a coordinator regression test. Docker and GitHub macOS CI results are recorded in [Status.md](Status.md) after the PR gate completes. Parakeet's pinned FluidAudio API has no synchronous cancellation primitive for an in-flight TDT decode; cancellation is observed when that call returns, after which the cancelled result is discarded and the model is unloaded.
+PR [#110](https://github.com/Guch1120/english_app/pull/110), merged as `25ddb31`, adds explicit ASR backend cancellation and a coordinator regression test. Docker tests, quality, macOS package tests, Simulator build/analyze/launch, UI tests, unsigned archive, and review gate all passed in Validate run [42907001478](https://github.com/Guch1120/english_app/actions/runs/42907001478). Parakeet's pinned FluidAudio API has no synchronous cancellation primitive for an in-flight TDT decode; cancellation is observed when that call returns, after which the cancelled result is discarded and the model is unloaded. iPhone ASR cancellation and interruption recovery remain unverified.
 
 ## Explicitly out of scope
 
