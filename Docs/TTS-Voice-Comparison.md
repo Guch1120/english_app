@@ -26,3 +26,7 @@ Docker testsは34件成功。追加テストは旧JSON互換・メモ保存復�
 Simulatorには固定の計測メタデータだけを使うメモ編集→再起動復元テストを追加。Debug Simulatorの明示引数に限定し、Release・物理端末では生成しない。macOSのopt-in native smoke testを4話者の固定公開文生成へ拡張した。
 
 [run 42498088478](https://github.com/Guch1120/english_app/actions/runs/42498088478)、commit `b03d7f4`：macOS34 tests成功、4話者の実生成smoke成功（85.804秒）。iOS Simulatorのbuild/analyze・単一起動確認成功、比較メモの再起動復元UIテスト成功（38.617秒）。ただし別の非表示教材UIテストがスイッチをオンにできず、全runは失敗。archiveと音声artifact uploadには進んでいない。実機の追加話者品質と最新headの全必須CIは未確認で、配布はまだ行わない。
+
+## Subsequent merge and device status (2026-11-10)
+
+The initial failed run above is historical. The implementation was subsequently merged in PR [#52](https://github.com/Guch1120/english_app/pull/52); its `quality`, `core`, `ios`, and `review-gate` checks passed in [run 42639013934](https://github.com/Guch1120/english_app/actions/runs/42639013934). The later source-changing PR #66 also passed the macOS build/archive gates, and TestFlight **0.1.0 (160.1)** was installed on iPhone 16. The 160.1 device comparison recorded in [Acceptance.md](Acceptance.md) exercises the default Kokoro Heart and Pocket Alba voices. It does not establish the audible quality of Kokoro Bella/Michael, their install/delete flows, or on-device persistence of comparison notes; those remain unverified.
