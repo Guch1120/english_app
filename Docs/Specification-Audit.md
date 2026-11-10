@@ -13,7 +13,7 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装 | 画面ロック、割り込み、音声経路喪失の実機確認 |
 | Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1で報告されたクラッシュを対象とした | 利用者が151.1へ更新済みと報告。次の154.1以降で権限許可・拒否後の再試行とモデル選択後の録音開始を確認 |
 | §6.3 全TTSの繰り返し再生 | PR #60でApple synthesizerの完了delegateによるrepeat loopを追加。ニューラル音声を含め全engineにtoggleを適用 | TestFlight 154.1以降でApple/ニューラル双方の繰り返し・停止・画面ロックを確認 |
-| §15.1 LLM decode tokens/sec | PR #60でLiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返る場合のみ表示。実験APIを明示opt-in | 160.1のGemma生成は成功。process RSS 567.8 MBを診断で確認したが、model-load/TTFT/decode tokens/sec表示は未確認 |
+| §15.1 LLM decode tokens/sec | PR #60でLiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返る場合のみ表示。実験APIを明示opt-in | 160.1でload 1.5秒、TTFT 0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを一回観測。反復性能・熱比較は未確認 |
 
 ## 仕様本文の照合
 
@@ -29,11 +29,11 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §12 復習 | 決定的スケジューラ、履歴、習熟度、教材versionと回答記録 | 実機アップグレード時の復元 |
 | §13 保存 | SQLite transaction、保護領域、schema migration、教材と回答履歴 | 古いデータからの実機アップグレード・復元 |
 | §14 UI | 学習、復習、設定、モデル管理と診断の各画面 | 実機操作性・アクセシビリティ |
-| §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 実機での値・画面・共有確認。RSSをモデル単体メモリと解釈しない |
+| §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
 | §17 CI/CD | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)とTestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)が成功。160.1を実機に導入 | Apple処理・配布可否は後続buildで継続確認 |
-| §18 実機 | iPhone 16/iOS 26.4.2で160.1の起動、Gemma生成成功、保存後のアプリ再起動・復元を確認。Apple Speechの録音開始/停止、Kokoro inference successは154.1で確認。Acceptance.md参照 | repeat switch操作と音声ループ、LLM throughput/意味品質、オフライン・割り込み・長時間・熱挙動 |
+| §18 実機 | iPhone 16/iOS 26.4.2で160.1の起動、Gemma生成成功、保存後のアプリ再起動・復元とLLM性能表示を確認。Apple Speechの録音開始/停止、Kokoro inference successは154.1で確認。Acceptance.md参照 | repeat switch操作と音声ループ、LLM意味品質、オフライン・割り込み・長時間・熱挙動 |
 
 ## 完了判定
 
-自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1では154.1で失敗した同条件のGemma教材生成に成功し、アプリプロセス終了後も保存済み教材を復元した。端末診断でinference successとprocess RSS 567.8 MBを確認した一方、model-load/TTFT/decode tokens/sec表示、意味品質、オフライン生成は未確認である。繰り返し再生、バックグラウンド再生、割り込み、熱挙動なども残るため、アプリ全体の実機受け入れ完了とは扱わない。
+自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1では154.1で失敗した同条件のGemma教材生成に成功し、アプリプロセス終了後も保存済み教材を復元した。再起動後の成功生成でmodel-load/TTFT/decode throughputとprocess RSSを一度観測したが、意味品質、オフライン生成、繰り返し再生、バックグラウンド再生、割り込み、反復性能・熱挙動などが残るため、アプリ全体の実機受け入れ完了とは扱わない。
