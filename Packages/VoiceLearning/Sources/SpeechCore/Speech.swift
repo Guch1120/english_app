@@ -60,7 +60,11 @@ public actor MockASR: ASRService {
 /// Playback-only system fallback; neural TTS engines produce AudioAsset separately.
 @MainActor public protocol SpeechPlayback: AnyObject {
     func speak(_ text: String, speed: Double) throws
+    func setRepeating(_ repeating: Bool)
     func stop()
     func pause()
     func resume()
+}
+public extension SpeechPlayback {
+    func setRepeating(_ repeating: Bool) {}
 }

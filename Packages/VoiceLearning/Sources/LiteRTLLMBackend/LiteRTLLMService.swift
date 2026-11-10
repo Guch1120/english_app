@@ -36,6 +36,9 @@ public actor LiteRTLLMService: ManagedLLMService {
         await unload()
         let started = ContinuousClock.now
         #if canImport(LiteRTLM)
+        // LiteRT-LM 0.19.1 exposes decode throughput through its experimental benchmark API.
+        ExperimentalFlags.optIntoExperimentalAPIs()
+        ExperimentalFlags.enableBenchmark = true
         let config = try EngineConfig(modelPath: modelURL.path, backend: .gpu, maxNumTokens: 2048)
         let loaded = Engine(engineConfig: config)
         try await loaded.initialize()
@@ -79,15 +82,17 @@ public actor LiteRTLLMService: ManagedLLMService {
             }
         } catch {
             conversation = nil
+            let decodeTokensPerSecond = try? active.getBenchmarkInfo().lastDecodeTokensPerSecond
             let peak = await memorySampler.stop()
             saveMetrics(loadSeconds: loadSeconds, first: firstResponse, started: started,
-                        characters: response.count, peak: peak)
+                        characters: response.count, decodeTokensPerSecond: decodeTokensPerSecond, peak: peak)
             throw error
         }
+        let decodeTokensPerSecond = try? active.getBenchmarkInfo().lastDecodeTokensPerSecond
         conversation = nil
         let peak = await memorySampler.stop()
         saveMetrics(loadSeconds: loadSeconds, first: firstResponse, started: started,
-                    characters: response.count, peak: peak)
+                    characters: response.count, decodeTokensPerSecond: decodeTokensPerSecond, peak: peak)
         guard !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ContentError.invalidJSON }
         return response
         #else
@@ -118,12 +123,13 @@ public actor LiteRTLLMService: ManagedLLMService {
 
     #if canImport(LiteRTLM)
     private func saveMetrics(loadSeconds: Double?, first: Duration?, started: ContinuousClock.Instant,
-                             characters: Int, peak: UInt64?) {
+                             characters: Int, decodeTokensPerSecond: Double?, peak: UInt64?) {
         latestMetrics = LLMInferenceMetrics(
             modelLoadSeconds: loadSeconds,
             timeToFirstResponseSeconds: first?.seconds,
             generationSeconds: started.duration(to: .now).seconds,
             outputCharacters: characters,
+            decodeTokensPerSecond: decodeTokensPerSecond.flatMap { $0.isFinite && $0 > 0 ? $0 : nil },
             peakProcessMemoryBytes: peak
         )
     }

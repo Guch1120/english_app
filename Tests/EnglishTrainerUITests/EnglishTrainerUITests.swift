@@ -35,6 +35,7 @@ final class EnglishTrainerUITests: XCTestCase {
 
         let speechRate = app.sliders["読み上げ速度"]
         XCTAssertTrue(speechRate.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["音声を繰り返す"].exists)
         guard let currentRate = Double((speechRate.value as? String ?? "").replacingOccurrences(of: "倍", with: "")) else {
             XCTFail("Could not read the current speaking rate: \(speechRate.debugDescription)")
             return
@@ -346,16 +347,26 @@ final class EnglishTrainerUITests: XCTestCase {
         app.tabBars.buttons["設定"].tap()
         let setting = app.switches["recording.retainOnRestart"]
         scrollTo(setting)
-        if setting.value as? String == "0" { setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        let tapRetentionSwitch = {
+            XCTAssertTrue(setting.isHittable, setting.debugDescription)
+            setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
+        if setting.value as? String == "0" {
+            tapRetentionSwitch()
+            expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: setting)
+            waitForExpectations(timeout: 5)
+        }
         XCTAssertEqual(setting.value as? String, "1")
-        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        tapRetentionSwitch()
+        expectation(for: NSPredicate(format: "value == '0'"), evaluatedWith: setting)
+        waitForExpectations(timeout: 5)
         XCTAssertEqual(setting.value as? String, "0")
         app.terminate(); app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
         app.tabBars.buttons["設定"].tap()
         scrollTo(setting)
         XCTAssertEqual(setting.value as? String, "0")
-        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        tapRetentionSwitch()
         XCTAssertEqual(setting.value as? String, "1")
     }
 

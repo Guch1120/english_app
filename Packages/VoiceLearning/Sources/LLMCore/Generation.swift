@@ -11,11 +11,14 @@ public struct LLMInferenceMetrics: Sendable, Equatable {
     public let timeToFirstResponseSeconds: Double?
     public let generationSeconds: Double
     public let outputCharacters: Int
+    /// LiteRT-LM's measured decode throughput. Nil when the runtime does not expose it.
+    public let decodeTokensPerSecond: Double?
     public let peakProcessMemoryBytes: UInt64?
     public init(modelLoadSeconds: Double?, timeToFirstResponseSeconds: Double?, generationSeconds: Double,
-                outputCharacters: Int, peakProcessMemoryBytes: UInt64?) {
+                outputCharacters: Int, decodeTokensPerSecond: Double? = nil, peakProcessMemoryBytes: UInt64?) {
         self.modelLoadSeconds = modelLoadSeconds; self.timeToFirstResponseSeconds = timeToFirstResponseSeconds
         self.generationSeconds = generationSeconds; self.outputCharacters = outputCharacters
+        self.decodeTokensPerSecond = decodeTokensPerSecond
         self.peakProcessMemoryBytes = peakProcessMemoryBytes
     }
 }

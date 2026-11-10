@@ -10,6 +10,16 @@ import SpeechCore
 
 // Stateless test case; individual async tests own their actor-confined fixtures.
 final class CoreTests: XCTestCase, @unchecked Sendable {
+    func testLLMPerformanceMetricsRetainMeasuredDecodeThroughput() {
+        let metrics = LLMInferenceMetrics(modelLoadSeconds: 2, timeToFirstResponseSeconds: 0.8,
+            generationSeconds: 3.5, outputCharacters: 240, decodeTokensPerSecond: 27.4,
+            peakProcessMemoryBytes: 1_024)
+        XCTAssertEqual(metrics.decodeTokensPerSecond, 27.4)
+        let legacy = LLMInferenceMetrics(modelLoadSeconds: nil, timeToFirstResponseSeconds: nil,
+            generationSeconds: 0, outputCharacters: 0, peakProcessMemoryBytes: nil)
+        XCTAssertNil(legacy.decodeTokensPerSecond)
+    }
+
     func testEnhancementPolicyNeverSilentlyBypassesEnabledUnreadyModel() {
         XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: false, installed: false, verified: false, duration: 301), .bypass)
         XCTAssertEqual(AudioPreprocessingDecision.decide(enabled: true, installed: false, verified: false, duration: 1), .modelNotReady)

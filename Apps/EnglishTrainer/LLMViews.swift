@@ -124,8 +124,13 @@ struct LLMModelsView: View {
                     if let first = metrics.timeToFirstResponseSeconds { LabeledContent("最初の応答", value: String(format: "%.1f秒", first)) }
                     LabeledContent("生成時間", value: String(format: "%.1f秒", metrics.generationSeconds))
                     LabeledContent("出力", value: "\(metrics.outputCharacters)文字")
+                    if let speed = metrics.decodeTokensPerSecond {
+                        LabeledContent("デコード速度", value: String(format: "%.1f tokens/sec", speed))
+                    }
                     if let memory = metrics.peakProcessMemoryBytes { LabeledContent("プロセス最大メモリ", value: ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory)) }
                     Text("メモリは音声処理などを含むアプリ全体のRSSです。モデル単体の割当量ではありません。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("デコード速度はLiteRT-LMの実測値です。対応する値が得られない場合は表示されません。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
