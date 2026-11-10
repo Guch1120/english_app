@@ -4,6 +4,8 @@
 
 2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。再起動後の別の成功生成で、model-load 1.5秒、最初の応答0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを性能欄で確認。端末診断には先の成功生成の`LLM · inference · succeeded`とRSS 567.8 MBも記録された。教材本文・プロンプトは記録・共有していない。各値は一回の観測であり、一般的な性能や意味品質を保証しない。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
 
+2026-11-10 follow-up：160.1でオフライン受け入れを試すためiOS設定を開き、機内モードがOFF、Wi‑Fiが`suruga-kenkoland`へ接続、BluetoothがOFFであることを確認した。WDAから機内モードの設定switchを操作しても値が変わらず、Wi‑Fiも切断していない。ネットワーク状態を変更せずアプリを前面へ戻したため、オフライン動作は未検証のまま。TTS比較画面ではKokoro/Pocketのファイルが検証済みと表示された一方、実機音声検証は未完了の表示で、今回の操作から生成・再生成功や性能値を確認できなかった。端末画面のユーザー教材本文は記録していない。
+
 2026-11-08のUSB確認：iPhone 16 (`iPhone17,3`)、iOS 26.4.2、English Trainer build **141.2** がインストール済み。過去の起動観察は [Status.md](Status.md) に記録。利用者はKokoro、Pocket TTS、Parakeet、RE-USEの取得完了を報告し、続いて2026-11-09にGemmaの取得と端末動作確認の成功を報告した。その後、Gemma教材を生成し、学習一覧から開けたことも利用者が確認した。他モデルの実機確認は別途記録する。
 
 2026-11-09：利用者が143.1でリスニング／スピーキング切替と、Parakeetの録音停止後の評価・文字起こし結果表示を確認。USBでもインストール版143.1を確認した。これは通常操作の成功報告であり、機内モードや中断時の検証とは別。
