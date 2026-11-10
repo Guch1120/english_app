@@ -36,4 +36,4 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 
 ## 完了判定
 
-自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1ではオンライン/機内モード中のGemma教材生成と保存復元、機内モード・Wi‑Fi OFF中のKokoro/Pocket TTS生成、固定サンプルによるParakeet/Apple Speech認識とRE‑USE比較を確認した。追加の実機確認ではKokoro repeat再生が2回聞こえ、利用者所有録音で両ASRの結果表示を確認した。指定文と比較参照が一致することを確認できず、認識精度は未検証。RE‑USEの実録音品質、LLM意味品質、復習・回答履歴の実機復元、バックグラウンド再生、割り込み、反復性能・熱挙動などが残るため、アプリ全体の実機受け入れ完了とは扱わない。試験後、機内モードOFF、Wi‑Fi ON、`suruga-kenkoland`接続を再確認した。
+自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #66をDocker testsとGitHub macOS CI成功後にmainへマージし、TestFlight 160.1をiPhone 16へ導入した。160.1ではオンライン/機内モード中のGemma教材生成と保存復元、機内モード・Wi‑Fi OFF中のKokoro/Pocket TTS生成、固定サンプルによるParakeet/Apple Speech認識とRE‑USE比較を確認した。追加の実機確認ではKokoro repeat再生が2回聞こえ、依頼した英文を録音した利用者所有音声で両ASRの結果表示を確認した。参照文は依頼文と一致し、WERはApple Speech 0%、Parakeet 57%だった。本文を保存・共有せずに照合し、Apple Speechのみ参照文と一致した。この一回の結果はParakeetの精度や再現性を確立しない。RE‑USEの実録音品質、LLM意味品質、復習・回答履歴の実機復元、バックグラウンド再生、割り込み、反復性能・熱挙動などが残るため、アプリ全体の実機受け入れ完了とは扱わない。試験後、機内モードOFF、Wi‑Fi ON、`suruga-kenkoland`接続を再確認した。
