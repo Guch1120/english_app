@@ -21,8 +21,8 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 |---|---|---|
 | §5 共通AI操作・モデル情報 | 共通サービスprotocol、モデル情報、検証付きダウンロード、排他実行、cancel/unload。Model-Information.md参照 | 実機のロード状態・失敗回復 |
 | §6 TTS | Kokoro、Pocket TTS、Apple音声、話者選択、再生制御、全engine repeat、速度、キャッシュ、比較、生成時間/RTF/RSS/音声長/サンプルレート、主観メモを実装。160.1でrepeat switchをOFFからONへ切替可能なことを座標タッチで確認（プロセス再起動後はOFFに戻る）。同ビルドのTTS比較画面からKokoro（15:58、125 ms）とPocket（16:04、129 ms／16:05、117 ms）を実行し、端末診断に`TTS · inference · succeeded`を確認（cache 373 KB、熱状態 nominal）。機内モード・Wi‑Fi OFF中に純英語の固定文で再試験し、Kokoro生成1.14秒／音声3.32秒／24,000 Hz／RTF 0.343／process RSS 551.6 MB、Pocket生成1.48秒／音声2.48秒／24,000 Hz／RTF 0.599／RSS 751.1 MBを比較画面で確認。両方の診断successも取得し、実装上は`AVAudioPlayer.play()`の成功後に記録される。実聴音質とrepeat loopは未確認 | ループ再生そのもの、iPhoneでの実聴品質、話者データ、長時間安定性。iOS 26.4.2ではCoreDevice音声ストリームは非対応 |
-| §7 ASR | Parakeetと端末内Apple Speech、録音、再認識、同一録音比較。143.1でParakeetの録音・文字起こし画面を確認。160.1でApple Speech選択後に録音を開始・保存し、アプリ継続を確認 | 実音声での認識品質、遅延、中断回復、権限拒否後の再試行 |
-| §8 RE-USE | 任意設定、固定音声による端末検証gate、5分上限、元音声保持、ASRによる比較を実装 | 固定音声の実機推論・品質・時間・メモリ |
+| §7 ASR | Parakeetと端末内Apple Speech、録音、再認識、同一録音比較。143.1でParakeetの録音・文字起こし画面を確認。160.1でApple Speech選択後に録音を開始・保存し、アプリ継続を確認。2026-11-10に同梱固定`sample_noisy.wav`を機内モード・Wi‑Fi OFF中にParakeet 110MとApple Speechで認識し、双方の結果表示を確認（Parakeet初回約5.35秒／model load約5.28秒／process RSS peak392.2 MB、Apple Speech約0.81秒／RSS peak180.9 MB） | 実際の英語発話とマイク入力での品質、遅延、中断回復、権限拒否後の再試行。比較画面WERは音声と異なる教材参照に対する値のため品質評価に使わない |
+| §8 RE-USE | 任意設定、固定音声による端末検証gate、5分上限、元音声保持、ASRによる比較を実装。2026-11-10に同じ同梱固定音声を機内モード中に比較し、RE‑USE処理3.02秒／RTF 0.278／モデルload1.87秒／MLX peak1.01 GB／process RSS peak452.5 MBを確認。テスト音声はアプリから削除し、設定OFFと機内モードOFF・Wi‑Fi接続を確認 | 実際の英語発話での品質・実用効果、異なる条件での反復性能 |
 | §9 LLM | Gemma 4 E2B教材生成、構造/難易度/日本語存在gate、教材編集、問題メモ、非表示、弱点から新しい用例を生成。160.1でオンライン/機内モード中の教材生成に成功し、オフライン生成直後のプロセス再起動後も保存一覧から復元 | 実機の完全モデル識別、意味品質、異なる条件・熱状態での反復性能 |
 | §10 学習画面 | 再生・速度・原文表示切替・復習登録、カテゴリ/難易度/Part検索、フレーズ選択、弱点からの新規用例、教材移動 | VoiceOver、Dynamic Type、片手操作の実機確認 |
 | §11 スピーキング | お手本再生、録音、文字起こし比較、単語差分/WERと正規化 | 実機での録音中断・機内モード。厳密な音素/発音採点は初期要件外 |
@@ -32,7 +32,7 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
 | §17 CI/CD | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)とTestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)が成功。160.1を実機に導入 | Apple処理・配布可否は後続buildで継続確認 |
-| §18 実機 | iPhone 16/iOS 26.4.2で160.1の起動、オンライン/機内モード中のGemma生成成功、オフラインでのプロセス再起動・保存復元とLLM性能表示を確認。機内モード・Wi‑Fi OFF中の純英語固定文でKokoro/Pocket生成と測定を確認。160.1でApple Speech選択後の録音開始・停止とアプリ継続を確認。Kokoro inference successは154.1で確認。repeat switchのON操作を確認。Acceptance.md参照 | TTSの実聴音声とループ再生、英語実音声のASR品質、LLM意味品質、オフラインASR/復習、割り込み・長時間・熱挙動 |
+| §18 実機 | iPhone 16/iOS 26.4.2で160.1の起動、オンライン/機内モード中のGemma生成成功、オフラインでのプロセス再起動・保存復元とLLM性能表示を確認。機内モード・Wi‑Fi OFF中の純英語固定文でKokoro/Pocket TTS生成と測定、同梱固定音声でParakeet/Apple Speechのオフライン認識結果表示とRE‑USEあり／なし比較を確認。テスト音声の削除、設定OFF、機内モードOFF、Wi‑Fi復帰も確認。160.1でApple Speech選択後の録音開始・停止とアプリ継続を確認。repeat switchのON操作を確認。Acceptance.md参照 | TTSの実聴音声とループ再生、実際の発話に対するASR/RE‑USE品質、LLM意味品質、オフライン復習、割り込み・長時間・熱挙動 |
 
 ## 完了判定
 
