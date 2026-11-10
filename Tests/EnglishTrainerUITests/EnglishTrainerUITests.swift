@@ -347,13 +347,18 @@ final class EnglishTrainerUITests: XCTestCase {
         app.tabBars.buttons["設定"].tap()
         let setting = app.switches["recording.retainOnRestart"]
         scrollTo(setting)
+        let tapRetentionSwitch = {
+            app.swipeUp()
+            XCTAssertTrue(setting.isHittable, setting.debugDescription)
+            setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
         if setting.value as? String == "0" {
-            setting.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+            tapRetentionSwitch()
             expectation(for: NSPredicate(format: "value == '1'"), evaluatedWith: setting)
             waitForExpectations(timeout: 5)
         }
         XCTAssertEqual(setting.value as? String, "1")
-        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        tapRetentionSwitch()
         expectation(for: NSPredicate(format: "value == '0'"), evaluatedWith: setting)
         waitForExpectations(timeout: 5)
         XCTAssertEqual(setting.value as? String, "0")
@@ -362,7 +367,7 @@ final class EnglishTrainerUITests: XCTestCase {
         app.tabBars.buttons["設定"].tap()
         scrollTo(setting)
         XCTAssertEqual(setting.value as? String, "0")
-        setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        tapRetentionSwitch()
         XCTAssertEqual(setting.value as? String, "1")
     }
 
