@@ -10,6 +10,8 @@
 
 2026-11-10追記：PR #60由来のTestFlight build **154.1** はGitHub upload成功後も、USB verifierの追加10分間の確認でiPhone上のinstalled buildが151.1から変化しなかった。TestFlight画面にも154.1が表示されることを確認できておらず、Apple処理・tester割り当て・配布状態は依然不明。WDA再起動は`Timed out while enabling automation mode`でHTTP server起動前に終了した。端末の **Settings → Developer → Enable UI Automation** がOFF、または端末上の確認/パスコード待ちの可能性が残る。必要な利用者操作は、この設定を確認してONにし、端末をunlockしたままにすること。154.1がTestFlightに表示された場合は、先に端末で更新し、USBでinstalled versionを確認してから受け入れ試験を続ける。
 
+同日追記：TestFlightでの更新待ちとは別に、USBの`pymobiledevice3`経由で現在の151.1を起動した。設定画面の端末キャプチャに**0.1.0 (151.1)**が表示され、起動直後のPID 3632が次のUSB process query時にも稼働中で、installed buildも151.1と確認できた。これは151.1での起動・設定表示の証拠であり、154.1や個々の音声/推論機能の確認ではない。
+
 2026-11-09 08:43〜08:46 JST：利用者がUI Automationを有効化した後、Docker内WDAのstatus ready、スクリーンショット取得、設定タブへの遠隔tapを確認。画面に**0.1.0 (143.1)**、Kokoro選択中、Parakeetのモデルファイル検証済みを確認した。RE-USE画面はモデル54.2 MB・コンパイルcache 2.6 MB・「この端末で推論を確認済み」、比較設定はOFF。これは既存の端末確認結果の保存状態であり、新しいRE-USE推論をこの操作中に実行した証拠ではない。
 
 同じ実機のLLM管理画面で、`gemma-4-E2B-it-litert-lm · gemma-4-E2B-it-gpu.litertlm`、約2.01 GB、Apache-2.0、revision表示`3d48132a`が「使用中」「端末確認済み」であることを確認。revisionは画面に出た短縮値であり、完全hashや内部candidate IDの取得はまだ行っていない。WDA/画面ファイルはrepo外のprivate作業領域に保存し、学習文・録音・画面をGitへ含めない。
@@ -20,7 +22,7 @@
 
 | 仕様の条件 | 現在の証拠 | 残る実機確認 |
 |---|---|---|
-| iPhone 16で起動 | 143.1の画面と設定/モデル管理の遠隔操作を2026-11-09に確認。2026-11-10 USBで151.1のインストール済み状態を確認 | 154.1の処理後に導入し、起動と設定画面のバージョンを確認 |
+| iPhone 16で起動 | 2026-11-10 USB起動後のPID継続と設定画面の0.1.0 (151.1)表示を確認 | 154.1がTestFlightで利用可能になった後に導入し、更新版でも確認 |
 | 初回取得後オフライン動作 | モデル保存・オフライン認識制約・準備画面を実装 | 機内モード＋再起動後の学習と推論 |
 | 英文保存と学習 | SQLite tests、Simulator教材保存・再起動テスト | 実機で保存した教材を再表示 |
 | Kokoro/Pocket切替・生成・比較 | バックエンド、検証ダウンロード、比較UIを実装 | 両モデルの生成・再生・同一英文比較 |
