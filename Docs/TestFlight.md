@@ -23,7 +23,7 @@ Do not commit or paste a private key into a PR/chat. An API key's upload permiss
 
 ## Latest upload status (2026-11-10)
 
-[Run 42699366994](https://github.com/Guch1120/english_app/actions/runs/42699366994) completed the protected cloud-sign and upload workflow successfully for version **0.1.0 (151.1)**. Apple processing, internal tester assignment, and installation were not verified by that run. After installation, specifically verify the Apple Speech permission and recording-start fix described in [ASR.md](ASR.md).
+[Run 42740151555](https://github.com/Guch1120/english_app/actions/runs/42740151555) completed the protected cloud-sign and upload workflow successfully for version **0.1.0 (154.1)**. This followed PR #60, which adds Apple Speech repeat playback and measured LLM decode throughput. The user confirmed updating the iPhone to **151.1** before 154.1 was uploaded; Apple processing, assignment, and installation of 154.1 are not yet confirmed. On the next available build, specifically verify the Apple Speech permission and recording-start fix described in [ASR.md](ASR.md), plus repeat playback and the LLM throughput display.
 
 ## Validation and limitations
 
