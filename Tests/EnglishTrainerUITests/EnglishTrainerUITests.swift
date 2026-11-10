@@ -348,7 +348,7 @@ final class EnglishTrainerUITests: XCTestCase {
         let setting = app.switches["recording.retainOnRestart"]
         scrollTo(setting)
         let tapRetentionSwitch = {
-            app.swipeUp()
+            self.app.swipeUp()
             XCTAssertTrue(setting.isHittable, setting.debugDescription)
             setting.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         }
