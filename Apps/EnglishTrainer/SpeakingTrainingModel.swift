@@ -69,6 +69,7 @@ struct ASRComparisonResult: Identifiable {
     private var store: VerifiedModelStore?
     private var recordingURL: URL?
     private var operation: Task<Void, Never>?
+    @ObservationIgnored private var activeASRBackend: (any ASRService)?
     private let coordinator = ModelRuntimeCoordinator.shared
     var recognitionAvailable: Bool {
         switch selectedEngine {
@@ -382,6 +383,8 @@ struct ASRComparisonResult: Identifiable {
             diagnosticModel = .appleSpeech
             modelBytes = nil
         }
+        activeASRBackend = backend
+        defer { activeASRBackend = nil }
         return try await coordinator.withExclusiveModel(modelID: backend.modelID) { [backend] in
             let memory = ProcessMemorySampler()
             await memory.start()
@@ -414,7 +417,9 @@ struct ASRComparisonResult: Identifiable {
 
     func cancel() {
         operation?.cancel()
-        Task { await appleSpeech.cancel() }
+        if let activeASRBackend {
+            Task { await activeASRBackend.cancel() }
+        }
         reuse.cancelInference()
         status = "処理を中断しています"
     }
