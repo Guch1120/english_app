@@ -991,6 +991,12 @@ struct SettingsView: View {
                     .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
             }
             Section {
+                #if DEBUG && targetEnvironment(simulator)
+                if diagnosticEvents.count == 100 {
+                    Text("診断行のテスト用データを読み込みました")
+                        .accessibilityIdentifier("diagnostics.uiTestSeedLoaded")
+                }
+                #endif
                 if diagnosticEvents.isEmpty {
                     Text("記録はありません。")
                 } else {
