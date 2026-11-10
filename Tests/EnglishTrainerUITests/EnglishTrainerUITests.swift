@@ -258,7 +258,7 @@ final class EnglishTrainerUITests: XCTestCase {
         scrollTo(deleteButton)
         XCTAssertTrue(deleteButton.isHittable, app.debugDescription)
         deleteButton.tap()
-        let confirmDelete = app.buttons["review.delete.confirm"]
+        let confirmDelete = app.buttons["review.delete.confirm"].firstMatch
         XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), app.debugDescription)
         confirmDelete.tap()
         XCTAssertFalse(app.staticTexts["reschedule"].waitForExistence(timeout: 2))
