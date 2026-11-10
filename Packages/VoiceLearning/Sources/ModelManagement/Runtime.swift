@@ -67,6 +67,7 @@ public actor ModelRuntimeCoordinator {
     public func didLoad(_ id: String) { loadedModelIDs.insert(id) }
     public func didUnload(_ id: String) { loadedModelIDs.remove(id) }
     public func withExclusiveModel<T: Sendable>(modelID: String? = nil, _ operation: @Sendable () async throws -> T) async throws -> T {
+        try Task.checkCancellation()
         guard active == nil else { throw RuntimeError.busy }
         let lease = UUID(); active = lease; activeModelID = modelID
         defer { if active == lease { active = nil; activeModelID = nil } }

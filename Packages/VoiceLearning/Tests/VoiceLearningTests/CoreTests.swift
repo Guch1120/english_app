@@ -290,6 +290,14 @@ extension CoreTests {
             _ = try await coordinator.withExclusiveModel { 2 }
             XCTFail("Overlapping model operation was admitted")
         } catch RuntimeError.busy { }
+        let cancelled = Task<Int, Error> {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await coordinator.withExclusiveModel { 3 }
+        }
+        do {
+            _ = try await cancelled.value
+            XCTFail("A cancelled operation must not be reported as a runtime conflict")
+        } catch is CancellationError { }
         await gate.release()
         let result = try await first.value
         XCTAssertEqual(result, 1)

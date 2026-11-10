@@ -90,7 +90,7 @@
 | RE-USE ON/OFF | 任意比較・固定音声確認gateを実装。143.1で設定OFFと保存済み端末確認状態を確認。160.1では同梱固定音声によるオフライン比較（3.02秒、RTF 0.278、モデル読込1.87秒、MLXピーク1.01 GB、process RSS観測ピーク452.5 MB）に加え、利用者の3.9秒実録音をApple Speechで比較し、両経路の結果表示を確認。実録音のRE‑USE処理1.24秒、RTF 0.321、モデル読込0.14秒、MLXピーク1.39 GB、認識時間はなし0.16秒／あり0.13秒。試験後に設定をOFFへ戻し録音を保持 | 実録音でのWER差、実聴での明瞭さ・学習上の効果、反復性能・熱挙動 |
 | モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト。190.1で回答・次回予定・履歴が記録され、機内モードON・Wi‑Fi OFF中のSIGKILL・再起動後も維持された。試験用項目・履歴だけを削除し、保存済み0件、試験イベントなし、既存の学習操作履歴保持を確認 | 過去バージョンから更新した実機データの復元 |
-| エラー後の安定性 | cancellation/coordinator/integrity tests、対話UI | 通信中断、推論取消、バックグラウンド復帰 |
+| エラー後の安定性 | cancellation/coordinator/integrity tests。キャンセル済みleaseをbusy競合より先に判定する回帰testを追加。SpeakingTrainingModelは実行中ASR backendにもcancelを転送 | 変更のGitHub macOS compile/UI gate、iPhoneのASR中断・復帰。Parakeet TDTのネイティブ推論は即時停止APIがなく、SDK呼び出し終了後に結果を破棄してアンロードする |
 | GitHub Actionsビルド | PR #105のfull Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality/core/macOS package/Simulator UI 15件/unsigned archive/review-gate成功。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)で201.1をアップロード
 | 実機インストール | TestFlight 154.1、160.1、190.1をiPhone 16へ導入。さらに201.1をTestFlight画面から更新し、USB installed-app query・アプリ起動・appLaunch診断イベント1件を確認 | 将来の変更buildの再導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
