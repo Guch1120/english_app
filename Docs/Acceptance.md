@@ -2,6 +2,8 @@
 
 仕様書 [Specification-v1.md](Specification-v1.md) §20の18条件を、コード・CIと実機の証拠で確認する。フェーズのコードがマージ済みであることと、実機の受け入れ完了は分けて記録する。
 
+2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。端末診断には`LLM · inference · succeeded`とプロセスRSS 567.8 MBが記録された。教材本文・プロンプトは記録・共有していない。model-load/TTFT/decode tokens/secの値は画面上で確認できなかったため、速度受け入れは未完了。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
+
 2026-11-08のUSB確認：iPhone 16 (`iPhone17,3`)、iOS 26.4.2、English Trainer build **141.2** がインストール済み。過去の起動観察は [Status.md](Status.md) に記録。利用者はKokoro、Pocket TTS、Parakeet、RE-USEの取得完了を報告し、続いて2026-11-09にGemmaの取得と端末動作確認の成功を報告した。その後、Gemma教材を生成し、学習一覧から開けたことも利用者が確認した。他モデルの実機確認は別途記録する。
 
 2026-11-09：利用者が143.1でリスニング／スピーキング切替と、Parakeetの録音停止後の評価・文字起こし結果表示を確認。USBでもインストール版143.1を確認した。これは通常操作の成功報告であり、機内モードや中断時の検証とは別。
@@ -26,28 +28,28 @@
 
 | 仕様の条件 | 現在の証拠 | 残る実機確認 |
 |---|---|---|
-| iPhone 16で起動 | USB起動後のPID継続と設定画面の0.1.0 (154.1)表示を確認 | 154.1で長時間安定性を確認 |
+| iPhone 16で起動 | USB/WDAで0.1.0 (160.1)を確認。アプリ終了・再起動後も起動し、保存教材を復元 | 長時間安定性、バックグラウンド復帰 |
 | 初回取得後オフライン動作 | モデル保存・オフライン認識制約・準備画面を実装 | 機内モード＋再起動後の学習と推論 |
-| 英文保存と学習 | SQLite tests、Simulator教材保存・再起動テスト | 実機で保存した教材を再表示 |
+| 英文保存と学習 | SQLite tests、Simulator教材保存・再起動テスト。160.1で生成Gemma教材の保存・アプリ再起動後の一覧復元も確認 | 通常教材の実機回答履歴・復習への反映 |
 | Kokoro/Pocket切替・生成・比較 | バックエンド、検証ダウンロード、比較UIを実装。154.1のKokoro inference successを診断で確認 | 両モデルの実聴品質・再生、同一英文比較 |
 | 英文を聞きテキスト表示 | Simulatorの速度・訳表示テスト | 音声と表示の実機確認 |
 | 苦手単語・文章登録 | 保存tests、Simulator復習登録テスト | 実機で登録 |
 | マイクをローカルASRで認識 | Parakeet録音・停止後の表示を143.1で確認。154.1でApple Speechのモデル選択後に録音開始・停止し、クラッシュは再現せず | 実音声の認識結果と権限拒否後の再試行 |
 | お手本との文字差分 | alignment unit tests、結果UIを実装 | 録音停止後の結果・評価表示 |
 | 苦手項目を繰り返し復習 | scheduling/persistence tests、Simulator復習テスト | 実機で復習と予定更新 |
-| Gemma E2Bで英文生成 | 以前の生成成功報告あり。154.1では同じ条件の2試行がContentErrorで失敗し未保存 | 修正retryのTestFlight導入後に生成成功、教材品質、計測値、再起動復元を確認 |
+| Gemma E2Bで英文生成 | 154.1で同条件2回失敗。160.1では生成成功し、アプリ再起動後も保存一覧に残ることを確認。診断はinference success、RSS 567.8 MB | 教材品質の意味評価、オフライン生成、model-load/TTFT/decode tokens/secの実測 |
 | モデル検索・取得・削除 | カタログ、SHA-256、再開・削除処理とtests | 対応画面から操作、削除後の無効化 |
 | RE-USE ON/OFF | 任意比較・固定音声確認gateを実装。143.1の実機で保存された推論確認済み表示とOFF状態を確認 | 新規の固定音声処理の観察と同一録音比較 |
-| モデル時間・メモリ確認 | 各バックエンドの計測表示を実装。154.1 Gemma生成失敗で固定fieldの処理時間を確認 | 修正版でmodel-load/TTFT/tokens-sec/RSS表示を確認し実測値を記録 |
+| モデル時間・メモリ確認 | 160.1 Gemma成功イベントとprocess RSS 567.8 MBを固定field診断で確認 | model-load/TTFT/tokens-secの実測値表示。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト | 実機で再起動復元 |
 | エラー後の安定性 | cancellation/coordinator/integrity tests、対話UI | 通信中断、推論取消、バックグラウンド復帰 |
-| GitHub Actionsビルド | PR #60の必須check [run 42734887369](https://github.com/Guch1120/english_app/actions/runs/42734887369) 成功。TestFlight upload [run 42740151555](https://github.com/Guch1120/english_app/actions/runs/42740151555) で154.1をアップロード | 実機確認は別途必要 |
-| 実機インストール | USBで141.2/143.1と151.1の導入を確認。利用者から151.1へのTestFlight更新完了報告あり。154.1のupload成功 | 154.1のApple処理・内部配布・導入を確認 |
+| GitHub Actionsビルド | PR #66のquality/core/iOS/review-gate [run 42752311642](https://github.com/Guch1120/english_app/actions/runs/42752311642)成功。TestFlight upload [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010)で160.1をアップロード | アップロード成功とApple処理は別確認 |
+| 実機インストール | TestFlight 154.1と160.1をiPhone 16へ導入。160.1はTestFlight画面とUSB queryで確認 | 次buildが必要な変更後の反復導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
 
 ## 最新ビルドで実行する順序
 
-1. TestFlightで154.1が利用可能になったら更新し、設定のバージョンと取得済みモデル名を記録する。更新自体でアプリを削除しない限り、同じモデルrevisionの取得済みファイルを再取得する設計ではない。
+1. 新しいTestFlight buildが利用可能になったら更新し、設定のバージョンと取得済みモデル名を記録する。更新自体でアプリを削除しない限り、同じモデルrevisionの取得済みファイルを再取得する設計ではない。
 2. 設定 → ASRモデル管理でParakeetの検証済み表示を確認する。
 3. 教材を開き、上部のリスニング／スピーキングを往復する。録音して停止し、認識結果と単語誤り率が手動スクロールなしで表示されるか確認する。これは文字の一致度で、発音採点ではない。
 4. KokoroとPocketで同じ英文を再生し、速度・停止・キャッシュ再生を確認する。
