@@ -8,6 +8,8 @@
 
 2026-11-10：利用者から151.1へのTestFlight更新完了報告あり。続いてUSBで接続中のiPhone 16 (`iPhone17,3`)、iOS 26.4.2を読み取り確認し、English Trainer **151.1** がインストール済みと確認した。最新アップロード154.1はこの端末にまだ入っていない。Apple Speechの録音開始時クラッシュ修正、PR #60のrepeat再生・LLM throughputは実機で未確認。
 
+2026-11-10追記：PR #60由来のTestFlight build **154.1** はGitHub upload成功後も、USB verifierの追加10分間の確認でiPhone上のinstalled buildが151.1から変化しなかった。TestFlight画面にも154.1が表示されることを確認できておらず、Apple処理・tester割り当て・配布状態は依然不明。WDA再起動は`Timed out while enabling automation mode`でHTTP server起動前に終了した。端末の **Settings → Developer → Enable UI Automation** がOFF、または端末上の確認/パスコード待ちの可能性が残る。必要な利用者操作は、この設定を確認してONにし、端末をunlockしたままにすること。154.1がTestFlightに表示された場合は、先に端末で更新し、USBでinstalled versionを確認してから受け入れ試験を続ける。
+
 2026-11-09 08:43〜08:46 JST：利用者がUI Automationを有効化した後、Docker内WDAのstatus ready、スクリーンショット取得、設定タブへの遠隔tapを確認。画面に**0.1.0 (143.1)**、Kokoro選択中、Parakeetのモデルファイル検証済みを確認した。RE-USE画面はモデル54.2 MB・コンパイルcache 2.6 MB・「この端末で推論を確認済み」、比較設定はOFF。これは既存の端末確認結果の保存状態であり、新しいRE-USE推論をこの操作中に実行した証拠ではない。
 
 同じ実機のLLM管理画面で、`gemma-4-E2B-it-litert-lm · gemma-4-E2B-it-gpu.litertlm`、約2.01 GB、Apache-2.0、revision表示`3d48132a`が「使用中」「端末確認済み」であることを確認。revisionは画面に出た短縮値であり、完全hashや内部candidate IDの取得はまだ行っていない。WDA/画面ファイルはrepo外のprivate作業領域に保存し、学習文・録音・画面をGitへ含めない。
