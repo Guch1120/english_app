@@ -4,7 +4,7 @@
 
 2026-11-11 follow-up：iPhone 16／iOS 26.4.2／TestFlight 0.1.0 (201.1)で設定画面のデータ操作が診断一覧より前にあることを確認。`settings.deleteAllData`を押すと確認alertに「キャンセル」と「削除」が表示された。「キャンセル」を選ぶとalertが閉じ、削除操作は実行されなかった。確認時点のホーム画面は今日の復習0件でサンプル教材が表示されていた。実データ削除は実行していない。WDAのスクリーンショットと要素ログは確認後にrepo外の一時領域ごと削除した。
 
-2026-11-11 follow-up：TestFlight run [42917141650](https://github.com/Guch1120/english_app/actions/runs/42917141650)で0.1.0 (208.1)のmacOS archive、cloud signing、App Store Connect uploadが成功し、dSYM artifactも保持された。その後のDocker USB queryはiPhone 16／iOS 26.4.2に201.1がインストール済みと報告した。Apple処理・TestFlight配信・208.1導入は未確認。これは配布アップロードの確認で、実機の新ビルド受け入れではない。
+2026-11-11 follow-up：TestFlight run [42917141650](https://github.com/Guch1120/english_app/actions/runs/42917141650)で0.1.0 (208.1)のmacOS archive、cloud signing、App Store Connect uploadが成功し、dSYM artifactも保持された。TestFlightに208.1が表示された後、利用者の事前許可に基づいてiPhone 16へ更新した。Docker USB queryで208.1を確認し、アプリ起動後も稼働 (PID 4313)、固定fieldのappLaunch診断イベント1件、RSS peak 110,018,560 bytes、thermal nominalを確認した。これは短時間のインストール・起動確認で、全機能や長時間安定性の受け入れではない。
 
 2026-11-11 follow-up：iPhone 16／iOS 26.4.2／201.1の「オフライン利用の準備」画面で、TTS、ASR、LLM、RE-USEの準備状態がいずれも準備済み／利用可能と表示されることを確認した。画面にはモデルをオンラインで取得・端末確認してから機内モードへ切り替え、アプリ再起動後に教材、TTS、ASR、保存教材、復習履歴を確認する4段階の手順と、LLM／RE-USEは固定確認済みの場合に限って試す旨が表示された。画面確認のみで、この操作中にネットワーク設定やモデル状態を変更せず、オフライン推論も再実行していない。過去の実機オフライン推論証拠は上表のとおり。
 
