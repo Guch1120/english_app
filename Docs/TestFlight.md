@@ -27,7 +27,7 @@ Do not commit or paste a private key into a PR/chat. An API key's upload permiss
 
 ## Latest upload status (2026-11-11)
 
-[TestFlight run 42917141650](https://github.com/Guch1120/english_app/actions/runs/42917141650) completed successfully from main commit `c1f4156`, uploading version **0.1.0 (208.1)**. Manual Package tests passed, the macOS 26/Xcode 26.5 archive was cloud-signed and uploaded to App Store Connect, and the matching dSYM artifact `EnglishTrainer-dSYMs-run108-1` was retained for seven days. At the time of the USB device query, iPhone 16 (iOS 26.4.2) still had **201.1** installed. Apple processing, tester availability, and installation of 208.1 have not yet been confirmed. Upload success alone does not establish those later steps.
+[TestFlight run 42917141650](https://github.com/Guch1120/english_app/actions/runs/42917141650) completed successfully from main commit `c1f4156`, uploading version **0.1.0 (208.1)**. Manual Package tests passed, the macOS 26/Xcode 26.5 archive was cloud-signed and uploaded to App Store Connect, and the matching dSYM artifact `EnglishTrainer-dSYMs-run108-1` was retained for seven days. A USB query initially reported 201.1. TestFlight subsequently displayed the 208.1 update; after the user had authorized updating the phone, it was installed through TestFlight. Docker USB verification then confirmed **208.1** on iPhone 16 / iOS 26.4.2. English Trainer launched and remained running (PID 4313), with one new fixed-field `appLaunch` diagnostic event, RSS peak 110,018,560 bytes and thermal state nominal. This is a short launch check, not full device acceptance.
 
 ## Validation and limitations
 
