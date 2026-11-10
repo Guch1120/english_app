@@ -1,6 +1,6 @@
-# 仕様照合と未完了項目（2026-11-11、main f6c7903）
+# 仕様照合と未完了項目（2026-11-11、main d0febd3／app code f6c7903）
 
-Phase 0〜7と、仕様本文の追加機能をmain commit f6c7903のコード、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #106では201.1のTestFlight導入・起動結果を記録し、Validate run 42901278396でquality/review-gateが成功した（docs-onlyのためCore/iOSはskip）。
+Phase 0〜7と、仕様本文の追加機能をmain commit d0febd3の文書とapplication code baseline f6c7903、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #107のValidate run 42902332632ではquality/review-gateが成功した（docs-onlyのためCore/iOSはskip）。
 
 ## Phase 0〜7後に追加した仕様項目
 
@@ -28,11 +28,11 @@ Phase 0〜7と、仕様本文の追加機能をmain commit f6c7903のコード�
 | §11 スピーキング | お手本再生、録音、文字起こし比較、単語差分/WERと正規化 | 実機での録音中断・機内モード。厳密な音素/発音採点は初期要件外 |
 | §12 復習 | 決定的スケジューラ、履歴、習熟度、教材versionと回答記録。PR #94のSimulator UIテストと190.1実機で履歴保持・削除cascadeを確認。2026-11-10に「普通」で成功1/失敗0、習熟度100%、2日後予定を確認。2026-11-11は機内モードON・Wi‑Fi OFF中に同じ評価を行い、SIGKILL・再起動後も回答イベントと予定が残ることを確認。両試験項目・履歴は削除済み | 他の評価段階、長期予定推移、旧buildからのデータ移行 |
 | §13 保存 | SQLite transaction、保護領域、schema migration、教材と回答履歴 | 古いデータからの実機アップグレード・復元 |
-| §14 UI | 学習、復習、設定、モデル管理と診断の各画面。PR #105で設定のデータ領域を診断一覧より上へ移し、明示キャンセル付き確認alertを追加。GitHub macOS Validate run 42888324021で15件のSimulator UI testが成功し、診断一覧後の削除導線とキャンセルを検証 | 実機操作性・アクセシビリティ。実機での破壊的な全データ削除は未実施 |
+| §14 UI | 学習、復習、設定、モデル管理と診断の各画面。PR #105で設定のデータ領域を診断一覧より上へ移し、明示キャンセル付き確認alertを追加。GitHub macOS Validate run 42888324021で15件のSimulator UI testが成功し、iPhone 16／201.1でもデータ削除導線が診断履歴より上にあり、確認alertのキャンセルで閉じることを確認 | 実機操作性・アクセシビリティ。実機での破壊的な全データ削除は未実施 |
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
-| §17 CI/CD | PR #105のフル Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality、Docker Core、GitHub macOS package/Simulator UI 15件/unsigned archive/review-gate成功。PR #105は`aa9fe44`でマージ。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)成功し、201.1をアップロード・実機導入。PR #106は`f6c7903`でマージ、Validate [run 42901278396](https://github.com/Guch1120/english_app/actions/runs/42901278396)でquality/review-gate成功（docs-onlyのためCore/iOS skip）。現mainでDocker `bash Scripts/test.sh`も46件成功 | 将来のアプリコード変更時に新buildを配布・インストール |
-| §18 実機 | iPhone 16/iOS 26.4.2で201.1をTestFlightから導入し、USB installed-app queryでbuild確認。アプリ起動後もPID 4258で稼働し、appLaunch診断イベント1件、RSS peak 109,838,336 bytes、thermal nominalを確認。従来のTTS/ASR/RE-USE/Gemma/review実機証拠はAcceptance.mdを参照 | Parakeetの別録音での精度・再現性、新規モデル取得・削除、RE-USEのWER差・実聴効果、LLM意味品質、再生中断・画面ロック・バックグラウンド音声、長時間・熱挙動。Bluetooth経路は利用者の希望により未試験で、通常利用で問題が出た場合に調査する |
+| §17 CI/CD | PR #105のフル Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality、Docker Core、GitHub macOS package/Simulator UI 15件/unsigned archive/review-gate成功。PR #105は`aa9fe44`でマージ。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)成功し、201.1をアップロード・実機導入。PR #106は`f6c7903`でマージ、PR #107は`d0febd3`でマージ。run 42901278396・42902332632はいずれもquality/review-gate成功（docs-onlyのためCore/iOS skip）。Docker `bash Scripts/test.sh`は46件成功 | 将来のアプリコード変更時に新buildを配布・インストール |
+| §18 実機 | iPhone 16/iOS 26.4.2で201.1をTestFlightから導入し、USB installed-app queryでbuild確認。アプリ起動後もPID 4258で稼働し、appLaunch診断イベント1件、RSS peak 109,838,336 bytes、thermal nominalを確認。設定でデータ削除導線が診断より上にあること、確認alertにキャンセル／削除があること、キャンセル後にalertが閉じデータ削除を実行しないことを確認。従来のTTS/ASR/RE-USE/Gemma/review実機証拠はAcceptance.mdを参照 | Parakeetの別録音での精度・再現性、新規モデル取得・削除、RE-USEのWER差・実聴効果、LLM意味品質、再生中断・画面ロック・バックグラウンド音声、長時間・熱挙動。Bluetooth経路は利用者の希望により未試験で、通常利用で問題が出た場合に調査する |
 
 ## 完了判定
 
@@ -49,7 +49,7 @@ Phase 0〜7と、仕様本文の追加機能をmain commit f6c7903のコード�
 | §19 開発フェーズ | Phase 0〜7と安定化の実装PRはmainへマージ済み。mainに未完了PRはない | 実装フェーズ完了と実機受け入れ完了は別。仕様で必要な端末確認は残る |
 | §20 初期版の完了条件 | 18条件を[Acceptance.md](Acceptance.md)の表で個別追跡 | CI、TestFlight、複数の実機フローを確認したが、全条件はまだ受け入れ完了ではない。Bluetoothは利用者の希望により通常利用で問題が出た場合の調査へ延期 |
 | §21 対象外 | クラウド推論、同期、リアルタイム会話、ロボット接続、厳密な発音採点、一般公開はv1対象外 | 未実装として扱い、対応済みと表示していない |
-| §22 開発指示 | AGENTS.mdのDocker、GitHub macOS、codex branch/PR、秘匿、license要件に従う | PR #105はフルDocker/macOS Validate成功後にマージ。PR #106はquality/review-gate成功後にマージ。今後の変更も同じ運用にする |
+| §22 開発指示 | AGENTS.mdのDocker、GitHub macOS、codex branch/PR、秘匿、license要件に従う | PR #105はフルDocker/macOS Validate成功後にマージ。PR #106・#107はquality/review-gate成功後にマージ。今後の変更も同じ運用にする |
 | §23 参考資料 | TTS/ASR/RE-USE/LLMのcomponent docsにupstream資料と採用revisionを記録 | upstream情報は変わり得るため、変更時に再確認 |
 
 利用者はRE-USEの主観音質比較を「実聴なしで記録」と指定した。その項目は未評価として残し、初期版の完了条件を満たした証拠には数えない。

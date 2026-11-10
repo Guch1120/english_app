@@ -2,6 +2,8 @@
 
 仕様書 [Specification-v1.md](Specification-v1.md) §20の18条件を、コード・CIと実機の証拠で確認する。フェーズのコードがマージ済みであることと、実機の受け入れ完了は分けて記録する。
 
+2026-11-11 follow-up：iPhone 16／iOS 26.4.2／TestFlight 0.1.0 (201.1)で設定画面のデータ操作が診断一覧より前にあることを確認。`settings.deleteAllData`を押すと確認alertに「キャンセル」と「削除」が表示された。「キャンセル」を選ぶとalertが閉じ、削除操作は実行されなかった。確認時点のホーム画面は今日の復習0件でサンプル教材が表示されていた。実データ削除は実行していない。WDAのスクリーンショットと要素ログは確認後にrepo外の一時領域ごと削除した。
+
 2026-11-11 follow-up：PR [#105](https://github.com/Guch1120/english_app/pull/105)で設定画面の「データ」操作を診断履歴より上へ移し、削除確認に明示的なキャンセル操作を追加した。GitHub macOS Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality、Docker Core、macOS package、Simulator build/analyze/launch、15件のUI test、unsigned archive、review-gateが成功。UI testは診断一覧の下でもデータ削除導線へ到達できることと、削除確認のキャンセル動作を確認した。実機で実データの全削除は行っていない。PRは`aa9fe44`を含むmainへマージ済み。
 
 2026-11-11 follow-up：TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)が0.1.0 (201.1)をアップロードし、Apple処理後にiPhone 16／iOS 26.4.2のTestFlight画面へ更新が表示された。利用者の事前許可に基づき更新を開始。USB installed-app queryで201.1を確認し、English Trainerを起動後もPID 4258で稼働、起動診断イベント1件、RSS peak 109,838,336 bytes、thermal state nominalを検証した。学習データ・録音は変更していない。これは更新後の起動・診断確認で、長時間安定性や全機能の回帰試験ではない。
