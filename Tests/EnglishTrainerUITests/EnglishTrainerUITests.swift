@@ -30,13 +30,18 @@ final class EnglishTrainerUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
         app.tabBars.buttons["設定"].tap()
+
         let seededDiagnostics = app.descendants(matching: .any)["diagnostics.uiTestSeedLoaded"]
-        XCTAssertTrue(seededDiagnostics.waitForExistence(timeout: 5))
+        for _ in 0..<8 {
+            if seededDiagnostics.waitForExistence(timeout: 0.5) { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(seededDiagnostics.exists)
 
         let deleteAll = app.buttons["settings.deleteAllData"]
-        for _ in 0..<6 {
+        for _ in 0..<8 {
             if deleteAll.isHittable { break }
-            app.swipeUp()
+            app.swipeDown()
         }
         XCTAssertTrue(deleteAll.isHittable, deleteAll.debugDescription)
         deleteAll.tap()
