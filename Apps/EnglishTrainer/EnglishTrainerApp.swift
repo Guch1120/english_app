@@ -1047,9 +1047,11 @@ struct SettingsView: View {
             }
         }.task { diagnosticEvents = await loadDiagnosticEvents() }
         .navigationTitle("設定")
-        .confirmationDialog("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
+        .alert("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete) {
             Button("削除", role: .destructive) { model.deleteAllLearningData() }
             Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この操作は取り消せません。")
         }
     }
 }
