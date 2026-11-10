@@ -26,12 +26,16 @@ final class EnglishTrainerUITests: XCTestCase {
     }
 
     @MainActor func testSettingsDeleteAllDataOffersConfirmationAndCanBeCancelled() {
+        app.launchArguments = ["--uitest-seed-diagnostics"]
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
         app.tabBars.buttons["設定"].tap()
 
         let deleteAll = app.buttons["settings.deleteAllData"]
-        scrollTo(deleteAll)
+        for _ in 0..<6 {
+            if deleteAll.isHittable { break }
+            app.swipeUp()
+        }
         XCTAssertTrue(deleteAll.isHittable, deleteAll.debugDescription)
         deleteAll.tap()
 

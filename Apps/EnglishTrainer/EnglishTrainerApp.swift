@@ -940,6 +940,20 @@ struct SettingsView: View {
         let build = info["CFBundleVersion"] as? String ?? "不明"
         return "\(version) (\(build))"
     }
+    private func loadDiagnosticEvents() async -> [DiagnosticEvent] {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--uitest-seed-diagnostics") {
+            return (0..<100).map { index in
+                DiagnosticEvent(
+                    timestamp: Date(timeIntervalSince1970: TimeInterval(index)),
+                    subsystem: .app, action: .appLaunch, model: .system, outcome: .observed,
+                    peakMemoryBytes: 100_000_000, thermalState: .nominal
+                )
+            }
+        }
+        #endif
+        return await DiagnosticEventLog.shared.recentEvents()
+    }
     var body: some View {
         Form {
             Section("アプリ") {
@@ -1025,7 +1039,7 @@ struct SettingsView: View {
             } footer: {
                 Text("直近500件を端末内に保存します。教材文、録音、文字起こし、入力内容、エラー文は保存しません。")
             }
-        }.task { diagnosticEvents = await DiagnosticEventLog.shared.recentEvents() }
+        }.task { diagnosticEvents = await loadDiagnosticEvents() }
         .navigationTitle("設定")
         .confirmationDialog("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("削除", role: .destructive) { model.deleteAllLearningData() }
