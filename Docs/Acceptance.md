@@ -10,6 +10,8 @@
 
 2026-11-10 JST follow-up：iPhone 16 / iOS 26.4.2 / TestFlight 190.1で、既存のサンプル教材から単語1件を一時登録。復習画面で「今日の復習 1件」と未復習状態を確認し、「普通」で回答した。表示は復習1回、成功1 / 失敗0、習熟度100%、次回2026-11-12 23:24（回答から2日後）。復習履歴画面にも評価と次回日時が記録された。確認後、今回作成した項目だけを削除し、確認画面の履歴cascade表示を経て、保存済み0件・復習履歴なしへ戻った。既存の学習操作履歴は残り、学習画面の英文表示はOFFに戻した。保存録音、既存教材、他の履歴は削除していない。WDA runnerと一時ログ／スクリーンショットは停止・削除済み。
 
+2026-11-10 JST follow-up：iPhone 16 / iOS 26.4.2 / TestFlight 190.1で設定からLLMモデル管理を開き、「Gemma 4を探す」を実行。画面に対応モデルファイル9件が表示され、候補行にファイルサイズ・Apache-2.0・revision、状態に応じたダウンロード/検証・使用・削除操作が表示された。UIには検索語のみがHugging Faceへ送信され教材文・録音は送信しない旨が示された。既存モデルのダウンロード・削除は行わず、検索画面を閉じた。これはモデル検索画面とメタデータ表示の確認で、個々の候補の端末互換性や新規ダウンロード成功の確認ではない。
+
 2026-11-10 follow-up：PR #66の修正を含むTestFlight **0.1.0 (160.1)** をiPhone 16 (`iPhone17,3`)、iOS 26.4.2へ導入した。TestFlight画面とUSB installed-app queryの両方で160.1を確認。154.1で2回失敗したものと同じGemma教材条件で生成し、生成結果の画面表示、保存一覧への追加、アプリプロセス終了後の再起動でも同じ生成日時・Gemma model IDの教材が残ることを確認した。再起動後の別の成功生成で、model-load 1.5秒、最初の応答0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを性能欄で確認。端末診断には先の成功生成の`LLM · inference · succeeded`とRSS 567.8 MBも記録された。教材本文・プロンプトは記録・共有していない。各値は一回の観測であり、一般的な性能や意味品質を保証しない。TestFlight workflow [run 42758129010](https://github.com/Guch1120/english_app/actions/runs/42758129010) は成功。
 
 2026-11-10 follow-up：後続のオフラインTTS確認のため一時的に機内モードを有効化し、試験後に機内モードをOFF、Wi‑Fiを`suruga-kenkoland`へ再接続した。BluetoothはOFFのまま。比較入力は既定の英文へ復元した。
@@ -68,12 +70,12 @@
 | お手本との文字差分 | alignment unit tests、結果UIを実装 | 録音停止後の結果・評価表示 |
 | 苦手項目を繰り返し復習 | scheduling/persistence testsとPR #94のSimulator UIテストで回答履歴・削除cascade・再起動保持を確認。iPhone 16 / 190.1でサンプル教材から一時登録した項目に「普通」と回答し、復習1回、成功1 / 失敗0、習熟度100%、次回予定が2日後になる表示と履歴を確認。項目とその履歴を削除し、保存済み0件・復習履歴なし・既存の学習操作履歴保持を確認 | オフライン再起動後の通常レビュー回答、複数評価段階での長期予定推移 |
 | Gemma E2Bで英文生成 | 154.1で同条件2回失敗。160.1ではオンライン/オフライン双方で成功し、プロセス再起動後も保存一覧に残ることを確認。2回目の成功生成で1.5秒load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB process RSSを観測 | 教材品質の意味評価、異なる条件・熱状態での反復性能 |
-| モデル検索・取得・削除 | カタログ、SHA-256、再開・削除処理とtests | 対応画面から操作、削除後の無効化 |
+| モデル検索・取得・削除 | カタログ、SHA-256、再開・削除処理とDocker tests。190.1のiPhone 16でGemma検索から9件の候補とサイズ・Apache-2.0・revision、状態に応じた操作を表示 | 実機の新規モデルダウンロード・削除後の無効化と候補ごとの端末確認 |
 | RE-USE ON/OFF | 任意比較・固定音声確認gateを実装。143.1で設定OFFと保存済み端末確認状態を確認。160.1では同梱固定音声によるオフライン比較（3.02秒、RTF 0.278、モデル読込1.87秒、MLXピーク1.01 GB、process RSS観測ピーク452.5 MB）に加え、利用者の3.9秒実録音をApple Speechで比較し、両経路の結果表示を確認。実録音のRE‑USE処理1.24秒、RTF 0.321、モデル読込0.14秒、MLXピーク1.39 GB、認識時間はなし0.16秒／あり0.13秒。試験後に設定をOFFへ戻し録音を保持 | 実録音でのWER差、実聴での明瞭さ・学習上の効果、反復性能・熱挙動 |
 | モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト。190.1で前回項目削除後の空状態が再起動後も維持された。今回の一時項目では回答と2日後の予定、履歴への記録を確認後、その項目・履歴だけを削除し、既存の学習操作履歴が残ることを確認 | 回答済み通常データのオフライン実機アップグレード復元 |
 | エラー後の安定性 | cancellation/coordinator/integrity tests、対話UI | 通信中断、推論取消、バックグラウンド復帰 |
-| GitHub Actionsビルド | PR #94のquality/core/iOS/review-gate [run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)成功。PR #99 docs-only gate [run 42831985097](https://github.com/Guch1120/english_app/actions/runs/42831985097)でquality/review-gate成功、core/iOSは仕様どおりskip。TestFlight upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)で190.1をアップロード | 次のアプリコード変更時に新しいmacOS iOS buildと適用可能な全checkを通す |
+| GitHub Actionsビルド | PR #94のquality/core/iOS/review-gate [run 42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522)成功。PR #100 docs-only gate [run 42835937937](https://github.com/Guch1120/english_app/actions/runs/42835937937)でquality/review-gate成功、core/iOSは仕様どおりskip。TestFlight upload [run 42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942)で190.1をアップロード
 | 実機インストール | TestFlight 154.1、160.1、190.1をiPhone 16へ導入。190.1はTestFlight画面、USB installed-app query、アプリ起動で確認 | 将来の変更buildの再導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
 
