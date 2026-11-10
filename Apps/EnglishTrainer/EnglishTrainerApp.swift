@@ -940,6 +940,20 @@ struct SettingsView: View {
         let build = info["CFBundleVersion"] as? String ?? "不明"
         return "\(version) (\(build))"
     }
+    private func loadDiagnosticEvents() async -> [DiagnosticEvent] {
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--uitest-seed-diagnostics") {
+            return (0..<100).map { index in
+                DiagnosticEvent(
+                    timestamp: Date(timeIntervalSince1970: TimeInterval(index)),
+                    subsystem: .app, action: .appLaunch, model: .system, outcome: .observed,
+                    peakMemoryBytes: 100_000_000, thermalState: .nominal
+                )
+            }
+        }
+        #endif
+        return await DiagnosticEventLog.shared.recentEvents()
+    }
     var body: some View {
         Form {
             Section("アプリ") {
@@ -966,7 +980,23 @@ struct SettingsView: View {
                 LabeledContent("物理メモリ", value: ByteCountFormatter.string(fromByteCount: Int64(ProcessInfo.processInfo.physicalMemory), countStyle: .memory))
                 LabeledContent("発熱状態", value: String(describing: ProcessInfo.processInfo.thermalState))
             }
+            Section("データ") {
+                Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
+                Toggle("次回起動後も最新の録音を保持", isOn: $retainRecording)
+                    .accessibilityIdentifier("recording.retainOnRestart")
+                Text("オフの場合、最新録音は次回アプリ起動時に削除します。今回の練習中は再生・再認識でき、新しい録音は前の録音を置き換えます。")
+                    .font(.caption)
+                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
+                    .accessibilityIdentifier("settings.deleteAllData")
+                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
+            }
             Section {
+                #if DEBUG && targetEnvironment(simulator)
+                if diagnosticEvents.count == 100 {
+                    Text("診断行のテスト用データを読み込みました")
+                        .accessibilityIdentifier("diagnostics.uiTestSeedLoaded")
+                }
+                #endif
                 if diagnosticEvents.isEmpty {
                     Text("記録はありません。")
                 } else {
@@ -1015,19 +1045,13 @@ struct SettingsView: View {
             } footer: {
                 Text("直近500件を端末内に保存します。教材文、録音、文字起こし、入力内容、エラー文は保存しません。")
             }
-            Section("データ") {
-                Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
-                Toggle("次回起動後も最新の録音を保持", isOn: $retainRecording)
-                    .accessibilityIdentifier("recording.retainOnRestart")
-                Text("オフの場合、最新録音は次回アプリ起動時に削除します。今回の練習中は再生・再認識でき、新しい録音は前の録音を置き換えます。")
-                    .font(.caption)
-                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
-                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
-            }
-        }.task { diagnosticEvents = await DiagnosticEventLog.shared.recentEvents() }
+        }.task { diagnosticEvents = await loadDiagnosticEvents() }
         .navigationTitle("設定")
-        .confirmationDialog("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete, titleVisibility: .visible) {
+        .alert("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete) {
             Button("削除", role: .destructive) { model.deleteAllLearningData() }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この操作は取り消せません。")
         }
     }
 }
