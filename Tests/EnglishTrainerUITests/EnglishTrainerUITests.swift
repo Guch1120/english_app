@@ -25,6 +25,26 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["音声とAI"].exists)
     }
 
+    @MainActor func testSettingsDeleteAllDataOffersConfirmationAndCanBeCancelled() {
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+
+        let deleteAll = app.buttons["settings.deleteAllData"]
+        scrollTo(deleteAll)
+        XCTAssertTrue(deleteAll.isHittable, deleteAll.debugDescription)
+        deleteAll.tap()
+
+        let confirm = app.buttons["削除"]
+        let cancel = app.buttons["キャンセル"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(cancel.exists, app.debugDescription)
+        cancel.tap()
+
+        app.tabBars.buttons["学習"].tap()
+        XCTAssertTrue(app.staticTexts["Could you reschedule the meeting for Thursday?"].waitForExistence(timeout: 5))
+    }
+
     func testLessonControlsExposeFineSpeechRateAndTranslation() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
