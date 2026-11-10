@@ -47,4 +47,6 @@ Verified code commit `e638898` on 2026-11-06:
 - SDK layout mapping: the verified Kokoro frontend is copied into the SDK's shared `Models/kokoro` directory; Pocket's manifest explicitly selects `Models/pocket-tts`. Storage folder overrides are validated against path traversal.
 - Full learning-data deletion also clears generated audio, local comparison text and measurement history; downloaded models remain available.
 
-Physical iPhone neural inference, offline execution, interruptions and perceptual audio quality remain unverified. TestFlight builds containing this implementation have been uploaded, but their installation and neural-voice use on the iPhone have not been confirmed.
+## Physical iPhone follow-up (2026-11-10)
+
+TestFlight 0.1.0 (160.1) was installed on iPhone 16 / iOS 26.4.2. With Airplane Mode on and Wi-Fi off, both neural engines generated the same verified pure-English comparison input. Kokoro: 1.14 seconds generation, 3.32 seconds audio, 24 kHz, RTF 0.343 and 551.6 MB process RSS peak. Pocket: 1.48 seconds generation, 2.48 seconds audio, 24 kHz, RTF 0.599 and 751.1 MB process RSS peak. Device diagnostics recorded inference success; application code records that event after `AVAudioPlayer.play()` succeeds. This verifies offline generation and player start, not that audio was audible or perceptually good. Listening quality, repeat-loop completion, interruption/route behavior and longer thermal/memory behavior remain unverified. See [Acceptance.md](Acceptance.md).

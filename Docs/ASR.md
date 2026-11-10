@@ -28,10 +28,16 @@ The Simulator UI suite checks the in-place mode switch and Settings route. CI do
 
 ## Verification limits
 
-GitHub CI compiles the iOS app and runs Package tests. iPhone verification is still required for each engine's model/permission path, microphone signal and format, transcript quality, model switching and repeat transcription, stop/cancel behavior, playback, and offline recognition. Batch recognition is sufficient for this phase; streaming/VAD and pronunciation scoring remain outside the initial release. Optional RE-USE audio enhancement is implemented separately in [REUSE.md](REUSE.md) and requires its own fixed-sample device check.
+GitHub CI compiles the iOS app and runs Package tests but does not provide microphone input or prove real ASR output. Batch recognition is sufficient for this phase; streaming/VAD and pronunciation scoring remain outside the initial release. Optional RE-USE audio enhancement is implemented separately in [REUSE.md](REUSE.md).
 
 ## iOS 26.4.2 authorization crash (2026-11-09)
 
 Two private crash reports from TestFlight 0.1.0 (145.1) on iPhone 16 showed the same `EXC_BREAKPOINT` in the TCC authorization callback path. Symbolication with the matching 145.1 dSYM located the Swift executor-isolation failure in the `SFSpeechRecognizer.requestAuthorization` continuation inside `AppleOnDeviceASRBackend.load()`. The callback ran on a background queue while its closure inherited `MainActor` isolation. The authorization request now runs through a non-actor async helper so the callback can safely resume its continuation from the queue supplied by Speech.
 
-Docker tests and quality checks do not compile the app target or execute iOS TCC permission callbacks. The macOS Simulator CI verifies compilation and app launch, but not this first-use permission path. Fixed build 0.1.0 (151.1) was uploaded by [TestFlight run 42699366994](https://github.com/Guch1120/english_app/actions/runs/42699366994). Apple processing, tester assignment, and installation are not yet confirmed. Install that build and verify Apple Speech permission grant, denial/retry, and recording start on iPhone before claiming the crash is resolved on device. Crash reports and identifying device data are retained outside the repository.
+Docker tests and quality checks do not compile the app target or execute iOS TCC permission callbacks. The macOS Simulator CI verifies compilation and app launch, but not this first-use permission path. Fixed build 0.1.0 (151.1) was uploaded by [TestFlight run 42699366994](https://github.com/Guch1120/english_app/actions/runs/42699366994). Crash reports and identifying device data are retained outside the repository.
+
+## iPhone 16 follow-up (2026-11-10)
+
+TestFlight 0.1.0 (160.1) is installed on iPhone 16 / iOS 26.4.2. Selecting Apple Speech and starting/stopping a recording kept the app alive; the near-silent input did not produce a transcript, so this does not establish spoken-English quality. While Airplane Mode was on and Wi-Fi was off, a bundled fixed speech sample produced results with both Parakeet 110M and Apple Speech. Parakeet took about 5.35 seconds on first recognition (about 5.28 seconds model load, 392.2 MB process RSS peak); Apple Speech took about 0.81 seconds (180.9 MB process RSS peak). The comparison's WER used an unrelated lesson reference and is not recognition-quality evidence. See [Acceptance.md](Acceptance.md) for the full measurement and cleanup record.
+
+Still unverified on a physical iPhone: English captured through the microphone, Apple Speech permission denial and retry, ASR cancellation/retry with meaningful speech, and restoration of review answers after restart.
