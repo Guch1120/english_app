@@ -32,8 +32,8 @@ Phase 0〜7と、それらのPRで扱った仕様本文の追加機能をmainの
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 実機での値・画面・共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
 | §17 CI/CD | PR #60のrequired checks [run 42734887369](https://github.com/Guch1120/english_app/actions/runs/42734887369)と、TestFlight upload [run 42740151555](https://github.com/Guch1120/english_app/actions/runs/42740151555)が成功 | Apple処理・配布可否はupload成功だけでは確認できない |
-| §18 実機 | iPhone 16/iOS 26.4.2での過去の操作・モデル確認と、151.1への更新完了報告をAcceptance.mdに記録 | 154.1のインストール後にApple Speech、TTS repeat、LLM throughputを確認 |
+| §18 実機 | iPhone 16/iOS 26.4.2で151.1のUSB起動後もprocessが稼働し、設定画面にversion表示されることを確認。Acceptance.md参照 | 154.1は10分のUSB待機後も未適用。利用可能になった後、Apple Speech、TTS repeat、LLM throughputを確認 |
 
 ## 完了判定
 
-自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #60までの実装PRはmainにマージ済み。TestFlight 154.1のupload jobも成功した。2026-11-10のUSB確認では151.1がインストール済みであり、154.1を待つverifierは追加10分間後も151.1のまま終了した。TestFlight画面での提示、Apple処理、tester割り当ては未確認。WDAはautomation mode有効化時にタイムアウトした。Apple Speechクラッシュ修正、繰り返し再生、実測LLM速度、オフライン動作、モデル推論品質、バックグラウンド再生と安定性も未確認であり、アプリ全体の実機受け入れ完了とは扱わない。次の実機操作にはSettings → Developer → Enable UI Automationの確認、および154.1がTestFlightに利用可能になった後のインストールが必要。
+自動CIが通過したコード実装と、物理iPhone上で未確認の受け入れ項目は別である。PR #60までの実装PRはmainにマージ済み。TestFlight 154.1のupload jobも成功した。2026-11-10のUSB起動では151.1の設定画面と起動後のprocess継続を確認したが、154.1を待つverifierは追加10分間後も151.1のまま終了した。TestFlight画面での提示、Apple処理、tester割り当ては未確認。WDAはautomation mode有効化時にタイムアウトした。Apple Speechクラッシュ修正、繰り返し再生、実測LLM速度、オフライン動作、モデル推論品質、バックグラウンド再生と安定性も未確認であり、アプリ全体の実機受け入れ完了とは扱わない。次の実機操作にはSettings → Developer → Enable UI Automationの確認、および154.1がTestFlightに利用可能になった後のインストールが必要。
