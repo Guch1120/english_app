@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-11-11 (JST). The phase implementation is merged in main through Phase 7 and follow-up stabilization. The section-by-section audit began at `fd16acf` (PR #100); main has since advanced through PR #101 to `f46ca47`. Phase completion means the planned implementation and required CI scope was merged; it does not mean all iPhone acceptance checks are complete.
+Updated 2026-11-11 (JST). The phase implementation is merged in main through Phase 7 and follow-up stabilization. The section-by-section audit began at `fd16acf` (PR #100); documentation follow-ups #101 and #102 are also merged, with main at `e6877bf`. Phase completion means the planned implementation and required CI scope was merged; it does not mean all iPhone acceptance checks are complete.
 
 ## Delivery and verification
 
@@ -8,6 +8,7 @@ Updated 2026-11-11 (JST). The phase implementation is merged in main through Pha
 - **Latest full iOS gate:** PR #94 run [42818188522](https://github.com/Guch1120/english_app/actions/runs/42818188522) passed quality, Docker core tests, GitHub macOS package tests, iPhone Simulator build/analyze/UI tests, unsigned distribution archive checks and review-gate. The Simulator UI test grades a review item, verifies history after restart, and verifies deletion cascades to review history.
 - **Recent documentation gates:** PR #100 merged as `fd16acf`; run [42835937937](https://github.com/Guch1120/english_app/actions/runs/42835937937) passed quality and review-gate. Core and iOS were correctly skipped for docs-only changes.
 - **Latest documentation gate:** PR #101 merged as `f46ca47`; run [42837519711](https://github.com/Guch1120/english_app/actions/runs/42837519711) passed quality and review-gate. Core and iOS were correctly skipped for docs-only changes.
+- **Offline review restoration follow-up:** PR #102 merged as `e6877bf`. Its PR workflow [run 42846010844](https://github.com/Guch1120/english_app/actions/runs/42846010844) passed quality/review-gate with Core/iOS skipped for docs-only changes. The full Validate workflow [run 42845728398](https://github.com/Guch1120/english_app/actions/runs/42845728398) was also run against its head and passed Docker Core, GitHub macOS package/UI/archive checks, quality and review-gate.
 - **TestFlight:** run [42825893942](https://github.com/Guch1120/english_app/actions/runs/42825893942) uploaded 0.1.0 (190.1) from code commit `973d388`. Apple processing completed, TestFlight offered the update, and USB installed-app query plus app launch confirmed 190.1 on iPhone 16 / iOS 26.4.2.
 - **Docker:** run `bash Scripts/test.sh` and `bash Scripts/quality.sh` before every PR. iOS builds and UI validation remain GitHub macOS work; Linux/Docker success is not iOS build evidence.
 
@@ -19,7 +20,7 @@ These observations are individual checks. They do not establish broad model accu
 
 ## Remaining acceptance work
 
-See the complete section-by-section source and device audit in [Specification-Audit.md](Specification-Audit.md) and the 18 initial-release conditions in [Acceptance.md](Acceptance.md). Notable open items include additional Parakeet recordings and transcript-level accuracy, RE-USE WER difference, accessibility, Bluetooth, microphone-denial retry, interruption/lock/background behavior, cancellation and error recovery, model download/removal lifecycle, offline upgrade restoration, low-storage behavior, and repeated thermal/memory measurements. Any test that needs user speech, headphones, or permission changes must be requested clearly; do not delete or replace user recordings.
+See the complete section-by-section source and device audit in [Specification-Audit.md](Specification-Audit.md) and the 18 initial-release conditions in [Acceptance.md](Acceptance.md). Notable open items include additional Parakeet recordings and transcript-level accuracy, RE-USE WER difference, accessibility, microphone-denial retry, interruption/lock/background behavior, cancellation and error recovery, model download/removal lifecycle, offline upgrade restoration, low-storage behavior, and repeated thermal/memory measurements. Bluetooth playback routing is untested and deferred at the user's direction; investigate if ordinary use exposes a problem. Any other test that needs user speech or a permission change must be requested clearly; do not delete or replace user recordings.
 
 ## Component documentation
 
