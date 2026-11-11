@@ -2,6 +2,8 @@
 
 仕様書 [Specification-v1.md](Specification-v1.md) §20の18条件を、コード・CIと実機の証拠で確認する。フェーズのコードがマージ済みであることと、実機の受け入れ完了は分けて記録する。
 
+2026-11-11 follow-up：iPhone 16／iOS 26.4.2／TestFlight 208.1で、文字起こしを含まないTTS比較画面からKokoroの生成・再生操作を行い、続けてHomeへ移動した。Home移動後もEnglish Trainerプロセス（PID 4457）は存在したが、音声が継続したかの実聴確認は得られていない。別の試行でTTS操作後にCoreDevice HIDからlockボタンを送信し、コマンドは成功終了した。直後のWDA statusは「Device is password protected」となり、iPhoneはパスコードロック状態、WDA runnerコンテナは稼働中のまま。画面ロック中の音声継続は未確認で、解除後に実機確認を再開する。録音・文字起こし・学習データには触れていない。
+
 2026-11-11 follow-up：PR [#117](https://github.com/Guch1120/english_app/pull/117)をValidate run [42935927652](https://github.com/Guch1120/english_app/actions/runs/42935927652)のquality、Docker Core、GitHub macOS package/build/analyze/startup、16件のSimulator UI test、unsigned archive、review-gate成功後にmainへマージした。追加UI testで診断レポート作成後に共有ボタンと開示文が表示されることを確認し、share sheetは開いていない。実機でのshare sheet表示と共有先選択は未確認で、レポートは送信していない。
 
 2026-11-11 follow-up：iPhone 16／iOS 26.4.2／TestFlight 208.1でWDAを使って診断レポートを作成し、開示文と共有ボタン、iOS share sheetの表示を確認した。共有先は選ばず、share sheetを閉じた。レポートは送信していない。WDA runnerは停止・再起動せず、画面操作で録音や学習データを変更していない。
