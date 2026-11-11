@@ -295,14 +295,18 @@ struct HomeHeroCard: View {
     let streak: Int
     let lessonCount: Int
     let openReview: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("少しずつ、聞こえる英語へ。").font(.title2.bold())
-            ViewThatFits {
-                HStack(spacing: 18) { stats }
-                VStack(alignment: .leading, spacing: 6) { stats }
+            // A fixed layout: ViewThatFits made the list row measure a shorter variant and clip the card.
+            let statsLayout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
+            statsLayout {
+                stat(value: dueCount, unit: "件", label: "今日の復習", systemImage: "arrow.clockwise")
+                stat(value: streak, unit: "日", label: "連続学習", systemImage: "flame.fill")
+                stat(value: lessonCount, unit: "件", label: "教材", systemImage: "books.vertical.fill")
             }
-            .font(.subheadline)
             if dueCount > 0 {
                 Button(action: openReview) {
                     Label("今日の復習を始める", systemImage: "arrow.right.circle.fill")
@@ -325,10 +329,22 @@ struct HomeHeroCard: View {
             in: RoundedRectangle(cornerRadius: 22, style: .continuous)
         )
     }
-    @ViewBuilder private var stats: some View {
-        Label("今日の復習 \(dueCount) 件", systemImage: "arrow.clockwise")
-        Label("連続 \(streak) 日", systemImage: "flame.fill")
-        Label("教材 \(lessonCount) 件", systemImage: "books.vertical.fill")
+    private func stat(value: Int, unit: String, label: String, systemImage: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text("\(value)").font(.title.bold()).monospacedDigit()
+                Text(unit).font(.subheadline.weight(.semibold))
+            }
+            HStack(spacing: 4) {
+                Image(systemName: systemImage).imageScale(.small)
+                Text(label)
+            }
+            .font(.caption.weight(.medium))
+            .opacity(0.9)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label) \(value)\(unit)")
     }
 }
 
@@ -383,7 +399,7 @@ struct AddLessonView: View {
                 }
             }
         }
-        .navigationTitle("自分の英文を保存")
+        .navigationTitle("英文を追加")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("キャンセル") { dismiss() } }
@@ -952,7 +968,7 @@ struct ReviewView: View {
                 if due.isEmpty { ContentUnavailableView("今日の復習は完了です", systemImage: "checkmark.circle", description: Text("聞き取れない表現を教材から登録できます。")) }
             }
             Section("学習の記録") {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 10)], spacing: 10) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 70), spacing: 8)], spacing: 8) {
                     StatTile(value: "\(model.progress.currentStreak)日", label: "連続学習日数", systemImage: "flame.fill", tint: .orange)
                     StatTile(value: "\(model.progress.activeDays)日", label: "学習した日", systemImage: "calendar")
                     StatTile(value: "\(model.progress.totalReviews)回", label: "累計復習", systemImage: "arrow.clockwise", tint: .indigo)
