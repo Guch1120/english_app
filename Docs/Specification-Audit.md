@@ -8,11 +8,11 @@ Phase 0〜7と仕様本文の追加機能をmain app code baseline `22438f4`、U
 |---|---|---|
 | §10.3 フレーズ選択 | PR #54で連続した複数語を復習項目にできる | 実機で操作性を確認 |
 | §14.2 同一録音のASR比較 | PR #58で保存した一つの録音をParakeet/Apple Speechに順番に入力し、比較結果を表示。2026-11-11に保持設定ONでのアプリ再起動後、保存録音3.9秒を再認識し、画面のWERはParakeet 57%／Apple Speech 0%。同じ録音で機内モードON・Wi-Fi OFF中も両方の結果表示を確認。本文は取得・確認していない | WERの文字列レベル検算、別録音での再現性、取消・再試行 |
-| §13.3・§14.2 録音保持 | PR #58で保持を既定とし、無効化時は次回起動時に削除。2026-11-11にiPhone 16／208.1で保持ONのままアプリを再起動後、Speaking画面に保存録音3.9秒が残ることを確認。録音内容にはアクセスせず、変更・削除なし | 保持OFF時の次回起動削除、既存データを含む旧buildからの実機アップグレード |
+| §13.3・§14.2 録音保持 | PR #58で保持を既定とし、無効化時は次回起動時に削除。2026-11-11にiPhone 16／208.1で保持ON時の再起動保持を確認後、利用者承認のもと保持OFFで次回起動削除を確認し、設定をONへ戻した | 既存データを含む旧buildからの実機アップグレード |
 | §15.3 診断情報エクスポート | PR #53で固定項目のみの診断共有を実装。PR #117のValidate run 42935927652でSimulator UIからレポートを作り、共有ボタンと開示文を確認。iPhone 16／208.1でWDAからshare sheet表示・dismissを確認。音声・文字起こしは含めない | 共有先選択・実送信は未確認。レポートは送信していない |
-| §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装。2026-11-11にiPhone 16／iOS 26.4.2／208.1でrepeat ONのKokoro音声がHome遷移後も続いたと利用者が確認。Kokoro repeat再生、Apple（米国英語）お手本、保存3.9秒録音はそれぞれロック後の継続も利用者が確認。録音本文には触れず、再生後WDAで録音待機状態、Kokoro選択・repeat OFFを確認。 | 保存録音のHome遷移、Apple TTSのHome遷移、音声割り込み、音声経路喪失、長時間挙動 |
+| §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装。2026-11-11にiPhone 16／iOS 26.4.2／208.1でrepeat ONのKokoro音声がHome遷移後も続き、Apple US English TTSと保存3.9秒録音もHome遷移後に継続。Kokoro、Apple TTS、保存録音はロック後も継続。別アプリ音声でKokoroが停止し、割り込み終了後は自動再開しなかった。Bluetooth再生中の切断で停止し、スピーカーへ自動切替しなかった。 | 着信・Siriなど他の割り込み、長時間挙動 |
 | Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1で報告されたクラッシュを対象とした。160.1のiPhone 16でApple Speech選択後の録音開始・停止、アプリ継続を確認。指定英文の録音とApple Speech結果表示を後続buildで確認 | 英語実音声の反復精度。権限拒否後の再試行は利用者の希望で試験を見送り、未確認 |
-| §6.3 全TTSの繰り返し再生 | PR #60でApple synthesizerの完了delegateによるrepeat loopを追加。ニューラル音声を含め全engineにtoggleを適用 | 208.1でKokoro repeatを2回聴取し、repeat ONのロック後再生も確認。Apple音声はロック後再生を確認したが、Apple repeatは未確認 |
+| §6.3 全TTSの繰り返し再生 | PR #60でApple synthesizerの完了delegateによるrepeat loopを追加。ニューラル音声を含め全engineにtoggleを適用 | 208.1でKokoro repeatを2回聴取し、repeat ONのロック・Home後再生も確認。Apple US English TTSもrepeat ONでHome後に継続し、利用者はrepeatを聴取した（回数未計測） |
 | §15.1 LLM decode tokens/sec | PR #60でLiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返る場合のみ表示。実験APIを明示opt-in | 160.1でload 1.5秒、TTFT 0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを一回観測。反復性能・熱比較は未確認 |
 
 ## 仕様本文の照合
@@ -47,7 +47,7 @@ Phase 0〜7と仕様本文の追加機能をmain app code baseline `22438f4`、U
 | §3 参照プロジェクト | upstreamコード・SDK・モデルの利用箇所とrevision/licenseをcomponent docsへ記録 | 参照プロジェクトは変更していない。依存追加時はAPIと各モデル重みの条件を再確認 |
 | §4 アーキテクチャ | LearningCore/LearningPersistenceとSpeechCore・各推論backendがSwift Packageで分離され、SwiftUI層から学習スケジューリングを独立 | Package testとmacOS compileで確認。別アプリからの再利用は未検証 |
 | §19 開発フェーズ | Phase 0〜7と安定化の実装PRはmainへマージ済み。mainに未完了PRはない | 実装フェーズ完了と実機受け入れ完了は別。仕様で必要な端末確認は残る |
-| §20 初期版の完了条件 | 18条件を[Acceptance.md](Acceptance.md)の表で個別追跡 | CI、TestFlight、複数の実機フローを確認したが、全条件はまだ受け入れ完了ではない。Bluetoothは利用者の希望により通常利用で問題が出た場合の調査へ延期 |
+| §20 初期版の完了条件 | 18条件を[Acceptance.md](Acceptance.md)の表で個別追跡 | CI、TestFlight、複数の実機フローを確認したが、全条件はまだ受け入れ完了ではない。個人利用の対象範囲と今回選択された確認項目は[Acceptance.md](Acceptance.md)に記録 |
 | §21 対象外 | クラウド推論、同期、リアルタイム会話、ロボット接続、厳密な発音採点、一般公開はv1対象外 | 未実装として扱い、対応済みと表示していない |
 | §22 開発指示 | AGENTS.mdのDocker、GitHub macOS、codex branch/PR、秘匿、license要件に従う | PR #105はフルDocker/macOS Validate成功後にマージ。PR #106〜#108はquality/review-gate成功後にマージ。今後の変更も同じ運用にする |
 | §23 参考資料 | TTS/ASR/RE-USE/LLMのcomponent docsにupstream資料と採用revisionを記録 | upstream情報は変わり得るため、変更時に再確認 |
