@@ -67,7 +67,7 @@ final class EnglishTrainerUITests: XCTestCase {
         scrollTo(seededDiagnostics)
 
         let createExport = app.buttons["共有用の診断情報を作成"]
-        scrollTo(createExport)
+        scrollDownTo(createExport)
         createExport.tap()
 
         let share = app.buttons["診断情報を共有"]
@@ -163,6 +163,14 @@ final class EnglishTrainerUITests: XCTestCase {
         for _ in 0..<8 {
             if element.exists && element.isHittable { return }
             app.swipeDown()
+        }
+        XCTAssertTrue(element.exists && element.isHittable, app.debugDescription)
+    }
+
+    @MainActor private func scrollDownTo(_ element: XCUIElement) {
+        for _ in 0..<48 {
+            if element.exists && element.isHittable { return }
+            app.swipeUp(velocity: .fast)
         }
         XCTAssertTrue(element.exists && element.isHittable, app.debugDescription)
     }
