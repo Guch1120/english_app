@@ -78,10 +78,10 @@ struct StatTile: View {
             Text(value).font(.title3.bold()).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.6)
             Text(label).font(.caption).foregroundStyle(.secondary)
-                .lineLimit(2).minimumScaleFactor(0.8)
+                .lineLimit(2, reservesSpace: true).minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(10)
         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) \(value)")
@@ -98,10 +98,11 @@ struct ActionTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Image(systemName: systemImage).font(.title2).foregroundStyle(tint)
+                .frame(height: 30, alignment: .center)
             Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
             Text(subtitle).font(.caption).foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -134,9 +135,13 @@ struct PrimaryActionLabel: View {
     let systemImage: String
 
     var body: some View {
-        Label(title, systemImage: systemImage)
-            .font(.title3.weight(.semibold))
-            .frame(maxWidth: .infinity, minHeight: 52)
+        // An explicit stack: a prominent button inside a Form drops a Label's icon.
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+            Text(title)
+        }
+        .font(.title3.weight(.semibold))
+        .frame(maxWidth: .infinity, minHeight: 52)
     }
 }
 
