@@ -25,6 +25,24 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["音声とAI"].exists)
     }
 
+    @MainActor func testAccessibilityTextSizeKeepsSpeakingControlsReachable() {
+        app.launchArguments = [
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryAccessibilityXXXL"
+        ]
+        app.launch()
+        openFixture("Could you reschedule the meeting for Thursday?")
+
+        let speakingMode = app.buttons["スピーキング"]
+        XCTAssertTrue(speakingMode.waitForExistence(timeout: 5), app.debugDescription)
+        speakingMode.tap()
+        XCTAssertTrue(app.navigationBars["スピーキング練習"].waitForExistence(timeout: 5))
+
+        let startRecording = app.buttons["録音を開始"]
+        scrollTo(startRecording)
+        XCTAssertTrue(startRecording.isHittable, startRecording.debugDescription)
+    }
+
     @MainActor func testSettingsDeleteAllDataOffersConfirmationAndCanBeCancelled() {
         app.launchArguments = ["--uitest-seed-diagnostics"]
         app.launch()
