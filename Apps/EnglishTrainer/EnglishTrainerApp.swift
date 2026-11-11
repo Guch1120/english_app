@@ -170,8 +170,11 @@ import DeviceDiagnostics
     }
 }
 
+enum AppTab: Hashable { case learn, review, settings }
+
 struct RootView: View {
     @State private var model: AppModel? = nil
+    @State private var tab = AppTab.learn
     @Environment(\.scenePhase) private var scenePhase
     var body: some View {
         Group {
@@ -189,10 +192,13 @@ struct RootView: View {
     }
 
     private func appContent(_ model: AppModel) -> some View {
-        TabView {
-            NavigationStack { HomeView(model: model) }.tabItem { Label("学習", systemImage: "headphones") }
-            NavigationStack { ReviewView(model: model) }.tabItem { Label("復習", systemImage: "arrow.clockwise") }
-            NavigationStack { SettingsView(model: model) }.tabItem { Label("設定", systemImage: "gearshape") }
+        TabView(selection: $tab) {
+            NavigationStack { HomeView(model: model, openReview: { tab = .review }) }
+                .tabItem { Label("学習", systemImage: "headphones") }.tag(AppTab.learn)
+            NavigationStack { ReviewView(model: model) }
+                .tabItem { Label("復習", systemImage: "arrow.clockwise") }.tag(AppTab.review)
+            NavigationStack { SettingsView(model: model) }
+                .tabItem { Label("設定", systemImage: "gearshape") }.tag(AppTab.settings)
         }
         .tint(.teal)
         .alert("処理できませんでした", isPresented: Binding(get: { model.error != nil || model.speech.error != nil || model.speaking.error != nil || model.speaking.reuse.error != nil }, set: { if !$0 { model.error = nil; model.speech.error = nil; model.speaking.error = nil; model.speaking.reuse.error = nil } })) {
@@ -224,56 +230,172 @@ struct RootView: View {
 }
 struct HomeView: View {
     let model: AppModel
+    let openReview: () -> Void
+    @State private var adding = false
+    @State private var generating = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private var dueCount: Int { model.visiblePoints.filter { $0.nextReviewAt <= Date() }.count }
+    var body: some View {
+        List {
+            Section {
+                HomeHeroCard(dueCount: dueCount, streak: model.progress.currentStreak,
+                             lessonCount: model.visibleItems.count, openReview: openReview)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
+            Section {
+                let tiles = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+                tiles {
+                    Button { adding = true } label: {
+                        ActionTile(title: "英文を追加", subtitle: "自分の教材を保存", systemImage: "plus.circle.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("home.addLesson")
+                    .disabled(!model.ready)
+                    Button { generating = true } label: {
+                        ActionTile(title: "AIで教材を生成", subtitle: "端末内のLLMで作成", systemImage: "sparkles", tint: .indigo)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("home.generateLesson")
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            Section {
+                ForEach(model.visibleItems) { item in
+                    NavigationLink { LessonView(model: model, item: item) } label: { LessonRow(item: item) }
+                }
+                if model.visibleItems.isEmpty {
+                    ContentUnavailableView("教材がありません", systemImage: "text.badge.plus",
+                                           description: Text("英文を追加して学習を始めましょう。"))
+                }
+            } header: {
+                Text("リスニング教材")
+            } footer: {
+                if !model.visibleItems.isEmpty { Text("教材を開くと、リスニングとスピーキングを切り替えて練習できます。") }
+            }
+            Section {
+                NavigationLink { LessonLibraryView(model: model) } label: {
+                    Label("教材を探す・管理", systemImage: "magnifyingglass")
+                }
+            }
+        }
+        .navigationTitle("English Trainer")
+        .sheet(isPresented: $adding) { NavigationStack { AddLessonView(model: model) } }
+        .navigationDestination(isPresented: $generating) {
+            LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.persistGenerated)
+        }
+    }
+}
+
+/// Today's summary with a direct path into due reviews.
+struct HomeHeroCard: View {
+    let dueCount: Int
+    let streak: Int
+    let lessonCount: Int
+    let openReview: () -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("少しずつ、聞こえる英語へ。").font(.title2.bold())
+            ViewThatFits {
+                HStack(spacing: 18) { stats }
+                VStack(alignment: .leading, spacing: 6) { stats }
+            }
+            .font(.subheadline)
+            if dueCount > 0 {
+                Button(action: openReview) {
+                    Label("今日の復習を始める", systemImage: "arrow.right.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(Color.teal)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.white)
+                .accessibilityIdentifier("home.startReview")
+            } else {
+                Label("今日の復習は完了です", systemImage: "checkmark.circle.fill").font(.subheadline.weight(.semibold))
+            }
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(
+            LinearGradient(colors: [Color.teal, Color.indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+        )
+    }
+    @ViewBuilder private var stats: some View {
+        Label("今日の復習 \(dueCount) 件", systemImage: "arrow.clockwise")
+        Label("連続 \(streak) 日", systemImage: "flame.fill")
+        Label("教材 \(lessonCount) 件", systemImage: "books.vertical.fill")
+    }
+}
+
+/// Shared lesson summary for the home list and the lesson library.
+struct LessonRow: View {
+    let item: LearningItem
+    var hidden = false
+    var flagged = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FlowLayout(spacing: 6) {
+                Chip(text: item.category.title, systemImage: "waveform")
+                if let difficulty = item.difficulty { Chip(text: "難易度 \(difficulty) / 5", tint: .orange) }
+                if let part = item.toeicPart { Chip(text: "TOEIC Part \(part)", tint: .indigo) }
+                if hidden { Chip(text: "非表示", systemImage: "eye.slash", tint: .gray) }
+                if flagged { Chip(text: "要確認", systemImage: "flag.fill", tint: .red) }
+            }
+            Text(item.text).font(.headline).lineLimit(3)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// Sheet for saving the learner's own sentence, kept off the home list so lessons stay in focus.
+struct AddLessonView: View {
+    let model: AppModel
+    @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @State private var translation = ""
     @State private var category = LearningCategory.sentence
     @State private var difficulty = 0
     @State private var part = 0
     var body: some View {
-        List {
+        Form {
             Section {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("少しずつ、聞こえる英語へ。 ").font(.title2.bold())
-                    Text("今日の復習 \(model.visiblePoints.filter { $0.nextReviewAt <= Date() }.count) 件").foregroundStyle(.secondary)
-                }.padding(.vertical)
-            }
-            Section("リスニング教材") {
-                ForEach(model.visibleItems) { item in
-                    NavigationLink { LessonView(model: model, item: item) } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Label(item.category.title, systemImage: "waveform").font(.caption).foregroundStyle(.teal)
-                            if let difficulty = item.difficulty { Text("難易度 \(difficulty) / 5").font(.caption).foregroundStyle(.secondary) }
-                            if let part = item.toeicPart { Text("TOEIC Part \(part)").font(.caption).foregroundStyle(.secondary) }
-                            Text(item.text).font(.headline)
-                        }.padding(.vertical, 6)
-                    }
-                }
-                if model.visibleItems.isEmpty { Text("英文を追加して学習を始めましょう。") }
-            }
-            Section { NavigationLink("教材を探す・管理") { LessonLibraryView(model: model) } }
-            Section("自分の英文を保存") {
                 TextField("英文", text: $text, axis: .vertical).textInputAutocapitalization(.sentences)
                 TextField("日本語訳（任意）", text: $translation, axis: .vertical)
-                DisclosureGroup("分類・難易度（任意）") {
-                    Picker("カテゴリ", selection: $category) {
-                        ForEach(LearningCategory.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    Picker("難易度", selection: $difficulty) {
-                        Text("未設定").tag(0)
-                        ForEach(1...5, id: \.self) { Text("\($0) / 5").tag($0) }
-                    }
-                    Picker("TOEIC分類", selection: $part) {
-                        Text("指定なし").tag(0)
-                        ForEach(1...4, id: \.self) { Text("Part \($0)").tag($0) }
-                    }
+            } footer: {
+                Text("入力した英文はこの端末内だけに保存します。")
+            }
+            Section("分類・難易度（任意）") {
+                Picker("カテゴリ", selection: $category) {
+                    ForEach(LearningCategory.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                Button("教材を追加", systemImage: "plus.circle") {
+                Picker("難易度", selection: $difficulty) {
+                    Text("未設定").tag(0)
+                    ForEach(1...5, id: \.self) { Text("\($0) / 5").tag($0) }
+                }
+                Picker("TOEIC分類", selection: $part) {
+                    Text("指定なし").tag(0)
+                    ForEach(1...4, id: \.self) { Text("Part \($0)").tag($0) }
+                }
+            }
+        }
+        .navigationTitle("自分の英文を保存")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("キャンセル") { dismiss() } }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("教材を追加") {
                     model.save(text: text, translation: translation, category: category,
                                difficulty: difficulty == 0 ? nil : difficulty, toeicPart: part == 0 ? nil : part)
-                    if model.error == nil { text = ""; translation = "" }
-                }.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.ready)
+                    if model.error == nil { dismiss() }
+                }
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.ready)
             }
-        }.navigationTitle("English Trainer")
+        }
     }
 }
 struct LessonView: View {
@@ -337,20 +459,25 @@ struct LessonView: View {
 
     private var listeningContent: some View {
         Form {
-            Section("まずは聞いてみましょう") {
-                TTSEnginePicker(speech: model.speech)
+            Section {
                 Button { model.speak(item.text, speed: speed, item: item) } label: {
-                    Label("お手本を再生", systemImage: "play.circle.fill").font(.title2).frame(maxWidth: .infinity, minHeight: 70)
+                    PrimaryActionLabel(title: "お手本を再生", systemImage: "play.fill")
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(model.speech.busy)
-                if model.speech.busy { ProgressView(); Text(model.speech.status) }
-                Button(model.speech.busy ? "生成を中断" : "再生を停止", systemImage: "stop.circle") { model.stop() }
-                HStack {
-                    Button("一時停止") { model.speech.pause() }
-                    Spacer()
-                    Button("再開") { model.speech.resume() }
+                .listRowSeparator(.hidden)
+                if model.speech.busy {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text(model.speech.status).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    .listRowSeparator(.hidden)
                 }
-                Toggle("音声を繰り返す", isOn: Binding(get: { model.speech.repeats }, set: { model.speech.repeats = $0 }))
+                HStack(spacing: 10) {
+                    TransportButton(title: "一時停止", systemImage: "pause.fill") { model.speech.pause() }
+                    TransportButton(title: "再開", systemImage: "playpause.fill") { model.speech.resume() }
+                    TransportButton(title: model.speech.busy ? "生成を中断" : "再生を停止", systemImage: "stop.fill") { model.stop() }
+                }
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("読み上げ速度")
@@ -360,6 +487,7 @@ struct LessonView: View {
                             Text("×")
                         }
                         .monospacedDigit()
+                        .foregroundStyle(.secondary)
                     }
                     Slider(value: $speed, in: 0.5...1.5, step: 0.05)
                         .accessibilityLabel("読み上げ速度")
@@ -368,26 +496,40 @@ struct LessonView: View {
                     HStack {
                         Text("0.50×")
                         Spacer()
+                        Button("標準の速度に戻す") { speed = 1.0 }
+                            .buttonStyle(.borderless)
+                            .disabled(speed == 1.0 || model.speech.busy)
+                        Spacer()
                         Text("1.50×")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
                 .onChange(of: speed) { _, value in model.speech.setRate(value) }
+                Toggle("音声を繰り返す", isOn: Binding(get: { model.speech.repeats }, set: { model.speech.repeats = $0 }))
+            } header: {
+                Text("まずは聞いてみましょう")
+            }
+            Section {
                 Toggle("英文を表示", isOn: $showEnglish)
                 if showEnglish { Text(item.text).font(.title3).textSelection(.enabled) }
                 Toggle("日本語訳を表示", isOn: $showTranslation)
-                if showTranslation { Text(item.translation) }
+                if showTranslation {
+                    Text(item.translation.isEmpty ? "日本語訳は登録されていません。" : item.translation)
+                        .foregroundStyle(item.translation.isEmpty ? Color.secondary : Color.primary)
+                }
+            } header: {
+                Text("スクリプト")
             }
             if let lesson = model.generatedLesson(for: item) {
                 LessonQuestionSection(model: model, item: item, lesson: lesson)
                     .id(item.updatedAt)
             }
-            Section("苦手箇所を保存") {
+            Section {
                 if showEnglish {
                     Text("最初と最後の単語を選ぶと、間のフレーズを選択できます。もう一度選ぶと新しい選択になります。")
-                        .font(.caption)
-                    ScrollView(.horizontal) { HStack {
+                        .font(.caption).foregroundStyle(.secondary)
+                    FlowLayout(spacing: 6) {
                         ForEach(Array(LessonTextSelection.words(in: item.text).enumerated()), id: \.offset) { index, word in
                             Button(String(word)) {
                                 if let start = selectionStart, selectionEnd == nil {
@@ -404,7 +546,10 @@ struct LessonView: View {
                             .accessibilityIdentifier("lesson.word.\(index)")
                             .accessibilityValue(isSelectedWord(index) ? "選択中" : "未選択")
                         }
-                    } }
+                    }
+                } else {
+                    Text("「英文を表示」をオンにすると、単語をタップして選べます。")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 TextField("単語・フレーズ（空欄で文章全体）", text: $selected)
                     .onChange(of: selected) { _, value in
@@ -415,15 +560,22 @@ struct LessonView: View {
                         }
                     }
                 Picker("理由", selection: $reason) { ForEach(WeakReason.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
-                Button(saved ? "保存しました" : "復習に登録", systemImage: "bookmark") {
+                Button(saved ? "保存しました" : "復習に登録", systemImage: saved ? "bookmark.fill" : "bookmark") {
                     model.mark(item, text: selected.isEmpty ? item.text : selected, reason: reason)
                     saved = model.error == nil
                 }
+            } header: {
+                Text("苦手箇所を保存")
+            }
+            Section("お手本の音声") {
+                TTSEnginePicker(speech: model.speech)
             }
             if let nextItem {
                 Section {
-                    NavigationLink("次の教材") { LessonView(model: model, item: nextItem) }
-                        .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording)
+                    NavigationLink { LessonView(model: model, item: nextItem) } label: {
+                        Label("次の教材", systemImage: "arrow.right.circle")
+                    }
+                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording)
                 }
             }
         }.onChange(of: item.text) { _, _ in
@@ -444,39 +596,39 @@ struct SpeakingPreview: View {
         ScrollViewReader { proxy in
             Form {
             Section("お手本") {
-                Text(item.text)
+                Text(item.text).font(.title3).textSelection(.enabled)
                 Button("お手本を聞く", systemImage: "play.circle") { appModel.speak(item.text, speed: 1, item: item) }
             }
-            Section("音声認識モデル") {
-                Picker("モデル", selection: $model.selectedEngine) {
-                    ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
-                }.pickerStyle(.menu).disabled(model.busy || model.recording)
-                if model.selectedEngine == .appleSpeech && model.recognitionAvailable {
-                    Text("Apple Speechの英語認識を端末内限定で使います。音声は端末外へ送信しません。")
-                        .font(.caption).foregroundStyle(.secondary)
-                } else if model.selectedEngine == .appleSpeech {
-                    Text("この端末では英語の端末内認識を利用できません。Parakeetを選択してください。")
-                        .font(.caption).foregroundStyle(.orange)
-                }
-                NavigationLink("ASRモデル管理") { ASRModelsView(model: model) }
-                if model.reuse.enabled {
-                    Text("通常の文字起こしにもRE-USEを適用します。事前のモデル取得と端末確認が必要です。")
-                        .font(.caption)
-                }
-            }
-            Section("録音して話す") {
+            Section {
                 if model.recording {
-                    Label("録音中 · 発話後に停止してください", systemImage: "record.circle").foregroundStyle(.red)
-                    Button("録音を停止して文字起こし", systemImage: "stop.circle.fill") { model.stopRecording(autoTranscribe: true) }
-                } else {
-                    Button("録音を開始", systemImage: "mic.circle.fill") {
-                        appModel.stop(); model.startRecording(for: item.id)
+                    Label("録音中 · 発話後に停止してください", systemImage: "record.circle")
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                    Button { model.stopRecording(autoTranscribe: true) } label: {
+                        PrimaryActionLabel(title: "録音を停止して文字起こし", systemImage: "stop.fill")
                     }
-                        .disabled(!model.recognitionAvailable || model.busy)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                } else {
+                    Button {
+                        appModel.stop(); model.startRecording(for: item.id)
+                    } label: {
+                        PrimaryActionLabel(title: "録音を開始", systemImage: "mic.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!model.recognitionAvailable || model.busy)
+                    if !model.recognitionAvailable {
+                        Text("選択中の音声認識を利用できません。下の「音声認識モデル」で準備してください。")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
                 }
                 if model.busy {
-                    Text(model.status).font(.caption)
-                    Button("処理を中断") { model.cancel() }
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text(model.status).font(.caption)
+                    }
+                    Button("処理を中断", systemImage: "xmark.circle") { model.cancel() }
                 }
                 if model.audioDuration > 0 {
                     if model.recordingItemID != item.id {
@@ -494,9 +646,28 @@ struct SpeakingPreview: View {
                     Button("録音を削除", systemImage: "trash", role: .destructive) { model.deleteRecording() }
                         .disabled(model.busy || model.recording)
                 }
-                if !model.status.isEmpty && !model.busy { Text(model.status).font(.caption) }
+                if !model.status.isEmpty && !model.busy { Text(model.status).font(.caption).foregroundStyle(.secondary) }
+            } header: {
+                Text("録音して話す")
             }
             transcriptionResults
+            Section("音声認識モデル") {
+                Picker("モデル", selection: $model.selectedEngine) {
+                    ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
+                }.pickerStyle(.menu).disabled(model.busy || model.recording)
+                if model.selectedEngine == .appleSpeech && model.recognitionAvailable {
+                    Text("Apple Speechの英語認識を端末内限定で使います。音声は端末外へ送信しません。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else if model.selectedEngine == .appleSpeech {
+                    Text("この端末では英語の端末内認識を利用できません。Parakeetを選択してください。")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+                NavigationLink("ASRモデル管理") { ASRModelsView(model: model) }
+                if model.reuse.enabled {
+                    Text("通常の文字起こしにもRE-USEを適用します。事前のモデル取得と端末確認が必要です。")
+                        .font(.caption)
+                }
+            }
             Section("音声強調の比較") {
                 Toggle("RE-USEを使う", isOn: $model.reuse.enabled)
                     .disabled(model.busy || model.recording || model.reuse.busy)
@@ -584,6 +755,18 @@ struct SpeakingPreview: View {
                     .accessibilityIdentifier("speaking.wordErrorRate")
                 Text(model.transcript).textSelection(.enabled)
                     .accessibilityIdentifier("speaking.transcriptionText")
+                FlowLayout(spacing: 6) {
+                    ForEach(Array(result.tokens.enumerated()), id: \.offset) { _, token in
+                        Text(token.expected ?? "＋" + (token.recognized ?? ""))
+                            .font(.subheadline)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background((token.kind == .match ? Color.green : Color.orange).opacity(0.2), in: Capsule())
+                    }
+                }
+                .accessibilityHidden(true)
+                Text("緑：お手本どおりに認識　橙：違い・欠落・余分な語（詳細は「単語ごとの差分」）")
+                    .font(.caption).foregroundStyle(.secondary)
                 Text("文字起こしの一致度です。発音の正確さを採点するものではありません。")
                     .font(.caption)
                 DisclosureGroup("認識時間・発話ペース") {
@@ -735,70 +918,96 @@ struct ReviewView: View {
     var body: some View {
         List {
             let due = model.visiblePoints.filter { $0.nextReviewAt <= Date() }.sorted { $0.nextReviewAt < $1.nextReviewAt }
-            Section("復習の音声") {
-                TTSEnginePicker(speech: model.speech)
-            }
-            Section("学習の記録") {
-                LabeledContent("累計復習", value: "\(model.progress.totalReviews)回")
-                LabeledContent("学習した日", value: "\(model.progress.activeDays)日")
-                LabeledContent("連続学習日数", value: "\(model.progress.currentStreak)日")
-                LabeledContent("定着した項目", value: "\(model.progress.masteredCount)件")
-                LabeledContent("リスニング", value: "\(model.activityHistory.filter { $0.activity == .listening }.count)回")
-                LabeledContent("スピーキング", value: "\(model.activityHistory.filter { $0.activity == .speaking }.count)回")
-                LabeledContent("設問への回答", value: "\(model.quizAttempts.count)回")
-                NavigationLink("復習履歴を表示") { ReviewHistoryView(model: model) }
-            }
             Section("今日の復習・\(due.count)件") {
                 ForEach(due) { point in
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(point.text).font(.headline)
-                        Text(point.reason.rawValue).font(.caption).foregroundStyle(.secondary)
-                        Button("聞く", systemImage: "play.circle") { model.speak(point.text, speed: 1, item: model.item(for: point)) }
-                            .disabled(model.speech.busy)
-                        if let item = model.item(for: point) {
-                            NavigationLink("元の教材とスピーキング練習") { LessonView(model: model, item: item) }
-                            NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(point.text).font(.headline)
+                                Chip(text: point.reason.rawValue, tint: .orange)
+                            }
+                            Spacer(minLength: 0)
+                            Button("聞く", systemImage: "play.circle.fill") { model.speak(point.text, speed: 1, item: model.item(for: point)) }
+                                .labelStyle(.iconOnly)
+                                .font(.largeTitle)
+                                .buttonStyle(.borderless)
+                                .disabled(model.speech.busy)
                         }
+                        Text("どのくらい分かりましたか？").font(.caption).foregroundStyle(.secondary)
                         ViewThatFits {
-                            HStack { grades(point) }
+                            HStack(spacing: 8) { grades(point) }
                             VStack(alignment: .leading) { grades(point) }
                         }
-                    }.padding(.vertical)
+                    }
+                    .padding(.vertical, 6)
+                    .listRowSeparator(.hidden)
+                    if let item = model.item(for: point) {
+                        NavigationLink("元の教材とスピーキング練習") { LessonView(model: model, item: item) }
+                            .font(.subheadline)
+                            .listRowSeparator(.hidden)
+                        NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
+                            .font(.subheadline)
+                    }
                 }
                 if due.isEmpty { ContentUnavailableView("今日の復習は完了です", systemImage: "checkmark.circle", description: Text("聞き取れない表現を教材から登録できます。")) }
             }
+            Section("学習の記録") {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 10)], spacing: 10) {
+                    StatTile(value: "\(model.progress.currentStreak)日", label: "連続学習日数", systemImage: "flame.fill", tint: .orange)
+                    StatTile(value: "\(model.progress.activeDays)日", label: "学習した日", systemImage: "calendar")
+                    StatTile(value: "\(model.progress.totalReviews)回", label: "累計復習", systemImage: "arrow.clockwise", tint: .indigo)
+                    StatTile(value: "\(model.progress.masteredCount)件", label: "定着した項目", systemImage: "checkmark.seal.fill", tint: .green)
+                    StatTile(value: "\(model.activityHistory.filter { $0.activity == .listening }.count)回", label: "リスニング", systemImage: "headphones")
+                    StatTile(value: "\(model.activityHistory.filter { $0.activity == .speaking }.count)回", label: "スピーキング", systemImage: "mic.fill", tint: .pink)
+                    StatTile(value: "\(model.quizAttempts.count)回", label: "設問への回答", systemImage: "questionmark.circle.fill", tint: .purple)
+                }
+                .padding(.vertical, 4)
+                .listRowSeparator(.hidden)
+                NavigationLink("復習履歴を表示") { ReviewHistoryView(model: model) }
+            }
             Section("保存済み・\(model.points.count)件") {
                 ForEach(model.points.sorted { $0.registeredAt > $1.registeredAt }) { point in
-                    VStack(alignment: .leading) {
-                        Text(point.text)
-                        Text("登録日：\(point.registeredAt.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text(point.reason.rawValue + " · 復習\(point.reviews)回 · 成功\(point.successes) / 失敗\(point.failures)")
-                            .font(.caption).foregroundStyle(.secondary)
-                        if let mastery = point.mastery {
-                            ProgressView(value: mastery) { Text("習熟度") }
-                            Text("\(mastery, format: .percent.precision(.fractionLength(0))) · 次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(point.text)
+                            Text("登録日：\(point.registeredAt.formatted(date: .abbreviated, time: .omitted))")
                                 .font(.caption).foregroundStyle(.secondary)
-                        } else {
-                            Text("未復習 · 次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
+                            Text(point.reason.rawValue + " · 復習\(point.reviews)回 · 成功\(point.successes) / 失敗\(point.failures)")
                                 .font(.caption).foregroundStyle(.secondary)
+                            if let mastery = point.mastery {
+                                ProgressView(value: mastery) { Text("習熟度").font(.caption) }
+                                Text("\(mastery, format: .percent.precision(.fractionLength(0))) · 次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else {
+                                Text("未復習 · 次回：\(point.nextReviewAt.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                         }
+                        Spacer(minLength: 0)
+                        Button(role: .destructive) { pointToDelete = point } label: {
+                            Image(systemName: "trash")
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("復習項目を削除")
+                            .accessibilityIdentifier("review.delete.\(point.id.uuidString)")
                     }
                     .padding(.vertical, 5)
                     .listRowSeparator(.hidden)
 
                     if let item = model.item(for: point) {
                         NavigationLink("元の教材を開く") { LessonView(model: model, item: item) }
+                            .font(.subheadline)
                             .listRowSeparator(.hidden)
                         NavigationLink("新しい用例で復習") { ReviewExampleView(model: model, point: point, original: item) }
-                            .listRowSeparator(.hidden)
+                            .font(.subheadline)
                     }
-                    Button("復習項目を削除", systemImage: "trash", role: .destructive) { pointToDelete = point }
-                        .accessibilityIdentifier("review.delete.\(point.id.uuidString)")
-                        .buttonStyle(.borderless)
-                        .listRowSeparator(.hidden)
                 }
                 if model.points.isEmpty { ContentUnavailableView("復習項目はありません", systemImage: "bookmark", description: Text("リスニングやスピーキングから苦手な表現を登録できます。")) }
+            }
+            Section("復習の音声") {
+                TTSEnginePicker(speech: model.speech)
             }
         }
         .navigationTitle("復習")
@@ -818,7 +1027,21 @@ struct ReviewView: View {
     }
     @ViewBuilder func grades(_ point: WeakPoint) -> some View {
         ForEach(ReviewGrade.allCases, id: \.self) { grade in
-            Button(grade.rawValue) { model.review(point, grade: grade) }.buttonStyle(.bordered)
+            Button { model.review(point, grade: grade) } label: {
+                Text(grade.rawValue).font(.subheadline.weight(.semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity, minHeight: 32)
+            }
+            .buttonStyle(.bordered)
+            .tint(gradeTint(grade))
+        }
+    }
+    private func gradeTint(_ grade: ReviewGrade) -> Color {
+        switch grade {
+        case .again: .red
+        case .hard: .orange
+        case .good: .teal
+        case .easy: .green
         }
     }
 }
@@ -931,15 +1154,97 @@ struct OfflineReadinessView: View {
 struct SettingsView: View {
     let model: AppModel
     @State private var confirmDelete = false
-    @State private var diagnosticEvents: [DiagnosticEvent] = []
     @AppStorage(RecordingRetention.preferenceKey) private var retainRecording = true
-    @State private var diagnosticExport: String?
     private var appVersion: String {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "不明"
         let build = info["CFBundleVersion"] as? String ?? "不明"
         return "\(version) (\(build))"
     }
+    var body: some View {
+        Form {
+            Section {
+                NavigationLink { TTSModelsView(speech: model.speech) } label: {
+                    Label("音声モデル管理", systemImage: "speaker.wave.2")
+                }
+                NavigationLink { ASRModelsView(model: model.speaking) } label: {
+                    Label("ASRモデル管理", systemImage: "mic")
+                }
+                NavigationLink {
+                    LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.persistGenerated)
+                } label: {
+                    Label("LLM教材生成・モデル管理", systemImage: "sparkles")
+                }
+                NavigationLink { REUSESettingsView(model: model.speaking.reuse) } label: {
+                    Label("RE-USE音声強調モデル", systemImage: "waveform.badge.mic")
+                }
+            } header: {
+                Text("音声とAI")
+            } footer: {
+                Text("読み上げ：\(NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語") · 認識：\(model.speaking.selectedEngine.title)。Kokoro / Pocket TTS、Parakeet ASR、LiteRT-LM、RE-USEを端末内で使用します。")
+            }
+            Section {
+                NavigationLink { TTSComparisonView(speech: model.speech) } label: {
+                    Label("TTS聴き比べ・性能測定", systemImage: "ear")
+                }
+                NavigationLink { ASRComparisonView(appModel: model) } label: {
+                    Label("ASR聴き取り比較", systemImage: "text.magnifyingglass")
+                }
+                NavigationLink { OfflineReadinessView(model: model) } label: {
+                    Label("オフライン利用の準備", systemImage: "airplane")
+                }
+                NavigationLink { ModelInformationView(model: model) } label: {
+                    Label("AIモデル情報・状態", systemImage: "info.circle")
+                }
+            } header: {
+                Text("モデルの比較と確認")
+            } footer: {
+                Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。")
+            }
+            Section("教材") {
+                NavigationLink { LessonLibraryView(model: model) } label: {
+                    Label("教材を探す・管理", systemImage: "books.vertical")
+                }
+            }
+            Section {
+                Toggle("次回起動後も最新の録音を保持", isOn: $retainRecording)
+                    .accessibilityIdentifier("recording.retainOnRestart")
+                Text("オフの場合、最新録音は次回アプリ起動時に削除します。今回の練習中は再生・再認識でき、新しい録音は前の録音を置き換えます。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("すべての学習データを削除", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    .accessibilityIdentifier("settings.deleteAllData")
+                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
+            } header: {
+                Text("データとプライバシー")
+            } footer: {
+                Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
+            }
+            Section("アプリと端末") {
+                LabeledContent("バージョン", value: appVersion)
+                LabeledContent("OS", value: UIDevice.current.systemVersion)
+                LabeledContent("物理メモリ", value: ByteCountFormatter.string(fromByteCount: Int64(ProcessInfo.processInfo.physicalMemory), countStyle: .memory))
+                LabeledContent("発熱状態", value: ProcessInfo.processInfo.thermalState.localizedTitle)
+                NavigationLink { DiagnosticsView() } label: {
+                    Label("端末内診断", systemImage: "stethoscope")
+                }
+                .accessibilityIdentifier("settings.diagnostics")
+            }
+        }
+        .navigationTitle("設定")
+        .alert("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete) {
+            Button("削除", role: .destructive) { model.deleteAllLearningData() }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この操作は取り消せません。")
+        }
+    }
+}
+
+/// On-device diagnostic history and explicit export, separated from everyday settings.
+struct DiagnosticsView: View {
+    @State private var diagnosticEvents: [DiagnosticEvent] = []
+    @State private var diagnosticExport: String?
+    @State private var confirmClear = false
     private func loadDiagnosticEvents() async -> [DiagnosticEvent] {
         #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("--uitest-seed-diagnostics") {
@@ -955,42 +1260,22 @@ struct SettingsView: View {
         return await DiagnosticEventLog.shared.recentEvents()
     }
     var body: some View {
-        Form {
-            Section("アプリ") {
-                LabeledContent("バージョン", value: appVersion)
-                NavigationLink("教材を探す・管理") { LessonLibraryView(model: model) }
-            }
-            Section("音声とAI") {
-                LabeledContent("TTS", value: NeuralVoice(rawValue: model.speech.selected)?.title ?? "Apple・米国英語")
-                NavigationLink("音声モデル管理") { TTSModelsView(speech: model.speech) }
-                NavigationLink("TTS聴き比べ・性能測定") { TTSComparisonView(speech: model.speech) }
-                NavigationLink("ASRモデル管理") { ASRModelsView(model: model.speaking) }
-                NavigationLink("ASR聴き取り比較") { ASRComparisonView(appModel: model) }
-                NavigationLink("LLM教材生成・モデル管理") {
-                    LLMLessonGenerationView(model: model.llm, lessons: model.visibleGeneratedLessons, save: model.persistGenerated)
-                }
-                NavigationLink("RE-USE音声強調モデル") { REUSESettingsView(model: model.speaking.reuse) }
-                NavigationLink("オフライン利用の準備") { OfflineReadinessView(model: model) }
-                NavigationLink("AIモデル情報・状態") { ModelInformationView(model: model) }
-                Text("Kokoro / Pocket TTS、Parakeet ASR、LiteRT-LM、RE-USEを端末内で使用します。")
-                Text("Apple音声は初回取得が必要な場合があります。機内モードでの再生を実機で確認してください。").font(.caption)
-            }
-            Section("端末") {
-                LabeledContent("OS", value: UIDevice.current.systemVersion)
-                LabeledContent("物理メモリ", value: ByteCountFormatter.string(fromByteCount: Int64(ProcessInfo.processInfo.physicalMemory), countStyle: .memory))
-                LabeledContent("発熱状態", value: String(describing: ProcessInfo.processInfo.thermalState))
-            }
-            Section("データ") {
-                Text("学習データは端末内に保存します。音声録音は端末内の保護領域に保存され、削除できます。録音・学習文はクラウドへ送信しません。")
-                Toggle("次回起動後も最新の録音を保持", isOn: $retainRecording)
-                    .accessibilityIdentifier("recording.retainOnRestart")
-                Text("オフの場合、最新録音は次回アプリ起動時に削除します。今回の練習中は再生・再認識でき、新しい録音は前の録音を置き換えます。")
-                    .font(.caption)
-                Button("すべての学習データを削除", role: .destructive) { confirmDelete = true }
-                    .accessibilityIdentifier("settings.deleteAllData")
-                    .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording || model.llm.busy)
-            }
+        List {
             Section {
+                Button("共有用の診断情報を作成", systemImage: "doc.badge.gearshape") {
+                    Task { diagnosticExport = try? await DiagnosticEventLog.shared.exportJSON() }
+                }
+                if let diagnosticExport {
+                    ShareLink("診断情報を共有", item: diagnosticExport)
+                    Text("共有先は次の画面で選びます。記録時刻と識別子、教材・録音・文字起こしは含めません。処理種別や性能値は含まれます。")
+                        .font(.caption)
+                }
+                Button("診断ログを消去", systemImage: "trash", role: .destructive) { confirmClear = true }
+                    .disabled(diagnosticEvents.isEmpty)
+            } footer: {
+                Text("直近500件を端末内に保存します。教材文、録音、文字起こし、入力内容、エラー文は保存しません。")
+            }
+            Section("記録・\(diagnosticEvents.count)件") {
                 #if DEBUG && targetEnvironment(simulator)
                 if diagnosticEvents.count == 100 {
                     Text("診断行のテスト用データを読み込みました")
@@ -998,7 +1283,7 @@ struct SettingsView: View {
                 }
                 #endif
                 if diagnosticEvents.isEmpty {
-                    Text("記録はありません。")
+                    Text("記録はありません。").foregroundStyle(.secondary)
                 } else {
                     ForEach(diagnosticEvents) { event in
                         VStack(alignment: .leading, spacing: 3) {
@@ -1025,33 +1310,21 @@ struct SettingsView: View {
                         }.padding(.vertical, 3)
                     }
                 }
-                Button("共有用の診断情報を作成") {
-                    Task { diagnosticExport = try? await DiagnosticEventLog.shared.exportJSON() }
-                }
-                if let diagnosticExport {
-                    ShareLink("診断情報を共有", item: diagnosticExport)
-                    Text("共有先は次の画面で選びます。記録時刻と識別子、教材・録音・文字起こしは含めません。処理種別や性能値は含まれます。")
-                        .font(.caption)
-                }
-                Button("診断ログを消去", role: .destructive) {
-                    Task {
-                        await DiagnosticEventLog.shared.clear()
-                        diagnosticEvents = []
-                        diagnosticExport = nil
-                    }
-                }
-            } header: {
-                Text("端末内診断")
-            } footer: {
-                Text("直近500件を端末内に保存します。教材文、録音、文字起こし、入力内容、エラー文は保存しません。")
             }
-        }.task { diagnosticEvents = await loadDiagnosticEvents() }
-        .navigationTitle("設定")
-        .alert("教材・復習・録音・生成音声・測定履歴を削除しますか？", isPresented: $confirmDelete) {
-            Button("削除", role: .destructive) { model.deleteAllLearningData() }
-            Button("キャンセル", role: .cancel) {}
+        }
+        .task { diagnosticEvents = await loadDiagnosticEvents() }
+        .navigationTitle("端末内診断")
+        .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("診断ログを消去しますか？", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("診断ログを消去", role: .destructive) {
+                Task {
+                    await DiagnosticEventLog.shared.clear()
+                    diagnosticEvents = []
+                    diagnosticExport = nil
+                }
+            }
         } message: {
-            Text("この操作は取り消せません。")
+            Text("学習データは消去されません。")
         }
     }
 }

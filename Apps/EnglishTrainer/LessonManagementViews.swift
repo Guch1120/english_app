@@ -236,17 +236,12 @@ struct LessonLibraryView: View {
             Section("教材・\(filtered.count)件") {
                 ForEach(filtered) { item in
                     NavigationLink { LessonView(model: model, item: item) } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(item.text).lineLimit(2)
-                            Text(item.category.title + (item.difficulty.map { " · 難易度\($0)" } ?? "") +
-                                 (item.toeicPart.map { " · Part \($0)" } ?? ""))
-                                .font(.caption).foregroundStyle(.secondary)
-                            if model.lessonPreferences[item.id]?.hidden == true { Label("非表示", systemImage: "eye.slash").font(.caption) }
-                            if !(model.lessonPreferences[item.id]?.issueNote ?? "").isEmpty { Label("要確認", systemImage: "flag").font(.caption) }
-                        }
+                        LessonRow(item: item,
+                                  hidden: model.lessonPreferences[item.id]?.hidden == true,
+                                  flagged: !(model.lessonPreferences[item.id]?.issueNote ?? "").isEmpty)
                     }
                 }
-                if filtered.isEmpty { Text("条件に一致する教材はありません。") }
+                if filtered.isEmpty { ContentUnavailableView.search }
             }
         }
         .navigationTitle("教材を探す・管理")

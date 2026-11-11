@@ -49,18 +49,10 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
         app.tabBars.buttons["設定"].tap()
 
-        let seededDiagnostics = app.descendants(matching: .any)["diagnostics.uiTestSeedLoaded"]
-        for _ in 0..<8 {
-            if seededDiagnostics.waitForExistence(timeout: 0.5) { break }
-            app.swipeUp()
-        }
-        XCTAssertTrue(seededDiagnostics.exists)
-
+        // Diagnostic history lives on its own screen and must not push data controls out of reach.
+        XCTAssertFalse(app.descendants(matching: .any)["diagnostics.uiTestSeedLoaded"].exists)
         let deleteAll = app.buttons["settings.deleteAllData"]
-        for _ in 0..<8 {
-            if deleteAll.isHittable { break }
-            app.swipeDown()
-        }
+        scrollTo(deleteAll)
         XCTAssertTrue(deleteAll.isHittable, deleteAll.debugDescription)
         deleteAll.tap()
 
@@ -81,11 +73,16 @@ final class EnglishTrainerUITests: XCTestCase {
         app.tabBars.buttons["設定"].tap()
         XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
 
+        let diagnostics = app.buttons["settings.diagnostics"]
+        scrollTo(diagnostics)
+        diagnostics.tap()
+        XCTAssertTrue(app.navigationBars["端末内診断"].waitForExistence(timeout: 5))
         let seededDiagnostics = app.descendants(matching: .any)["diagnostics.uiTestSeedLoaded"]
-        scrollTo(seededDiagnostics)
+        XCTAssertTrue(seededDiagnostics.waitForExistence(timeout: 5), app.debugDescription)
 
+        // Export controls stay above the history, however many events are stored.
         let createExport = app.buttons["共有用の診断情報を作成"]
-        scrollDownTo(createExport)
+        XCTAssertTrue(createExport.isHittable, createExport.debugDescription)
         createExport.tap()
 
         let share = app.buttons["診断情報を共有"]
@@ -145,18 +142,20 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
 
         let lesson = "UI test lesson \(UUID().uuidString)"
+        let addLesson = app.buttons["home.addLesson"]
+        scrollTo(addLesson)
+        addLesson.tap()
         let englishField = app.textFields["英文"]
-        scrollTo(englishField)
         XCTAssertTrue(englishField.waitForExistence(timeout: 5))
         englishField.tap()
         englishField.typeText(lesson)
-        app.buttons["教材を追加"].tap()
-        XCTAssertTrue(app.staticTexts[lesson].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["教材を追加"].tap()
+        scrollTo(app.staticTexts[lesson])
 
         app.terminate()
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts[lesson].waitForExistence(timeout: 5))
+        scrollTo(app.staticTexts[lesson])
     }
 
     @MainActor func testListeningSelectsPhrase() {
@@ -181,14 +180,6 @@ final class EnglishTrainerUITests: XCTestCase {
         for _ in 0..<8 {
             if element.exists && element.isHittable { return }
             app.swipeDown()
-        }
-        XCTAssertTrue(element.exists && element.isHittable, app.debugDescription)
-    }
-
-    @MainActor private func scrollDownTo(_ element: XCUIElement) {
-        for _ in 0..<48 {
-            if element.exists && element.isHittable { return }
-            app.swipeUp(velocity: .fast)
         }
         XCTAssertTrue(element.exists && element.isHittable, app.debugDescription)
     }
@@ -301,7 +292,7 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(reviewTab.waitForExistence(timeout: 5))
         reviewTab.tap()
         XCTAssertTrue(app.navigationBars["復習"].waitForExistence(timeout: 5))
-        app.swipeUp()
+        // Due items lead the review tab, so no scrolling is needed to reach them.
         XCTAssertTrue(app.staticTexts["reschedule"].waitForExistence(timeout: 5))
         let grade = app.buttons["普通"].firstMatch
         scrollTo(grade); grade.tap()
@@ -361,10 +352,12 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["リスニング"].waitForExistence(timeout: 5))
         modeSelector.buttons["スピーキング"].tap()
         XCTAssertTrue(app.navigationBars["スピーキング練習"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["音声認識モデル"].exists)
-        XCTAssertTrue(app.buttons["ASRモデル管理"].exists)
-        XCTAssertTrue(app.staticTexts["文字起こし・評価"].exists)
+        // Recording is the primary action and comes before engine settings.
+        XCTAssertTrue(app.buttons["録音を開始"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["録音を開始"].isEnabled)
+        XCTAssertTrue(app.staticTexts["文字起こし・評価"].exists)
+        scrollTo(app.buttons["ASRモデル管理"])
+        XCTAssertTrue(app.staticTexts["音声認識モデル"].exists)
 
         let reuseToggle = app.switches["RE-USEを使う"]
         if !reuseToggle.isHittable { app.swipeUp() }
