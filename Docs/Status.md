@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated 2026-11-11 (JST). The phase implementation is merged in main through Phase 7 and follow-up stabilization. The section-by-section audit began at `fd16acf` (PR #100); follow-ups #101–#114 are merged, with main at `cbcee86` (application code baseline `22438f4`). Phase completion means the planned implementation and required CI scope was merged; it does not mean all iPhone acceptance checks are complete.
+Updated 2026-11-11 (JST). The phase implementation is merged in main through Phase 7 and follow-up stabilization. The section-by-section audit began at `fd16acf` (PR #100); follow-ups #101–#115 are merged, with main at `a9feb3b` (application code baseline `22438f4`). Phase completion means the planned implementation and required CI scope was merged; it does not mean all iPhone acceptance checks are complete.
 
 ## Delivery and verification
 
