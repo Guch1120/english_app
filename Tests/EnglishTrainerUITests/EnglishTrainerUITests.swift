@@ -337,7 +337,7 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["復習履歴はありません"].waitForExistence(timeout: 5))
     }
 
-    func testSpeakingAndReuseScreensExposeOnDeviceSafetyGates() {
+    @MainActor func testSpeakingAndReuseScreensExposeOnDeviceSafetyGates() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
 
