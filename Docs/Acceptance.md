@@ -4,6 +4,8 @@
 
 2026-11-11 follow-up：PR [#117](https://github.com/Guch1120/english_app/pull/117)をValidate run [42935927652](https://github.com/Guch1120/english_app/actions/runs/42935927652)のquality、Docker Core、GitHub macOS package/build/analyze/startup、16件のSimulator UI test、unsigned archive、review-gate成功後にmainへマージした。追加UI testで診断レポート作成後に共有ボタンと開示文が表示されることを確認し、share sheetは開いていない。実機でのshare sheet表示と共有先選択は未確認で、レポートは送信していない。
 
+2026-11-11 follow-up：iPhone 16／iOS 26.4.2／TestFlight 208.1でWDAを使って診断レポートを作成し、開示文と共有ボタン、iOS share sheetの表示を確認した。共有先は選ばず、share sheetを閉じた。レポートは送信していない。WDA runnerは停止・再起動せず、画面操作で録音や学習データを変更していない。
+
 2026-11-11 follow-up：iPhone 16／iOS 26.4.2／TestFlight 0.1.0 (201.1)で設定画面のデータ操作が診断一覧より前にあることを確認。`settings.deleteAllData`を押すと確認alertに「キャンセル」と「削除」が表示された。「キャンセル」を選ぶとalertが閉じ、削除操作は実行されなかった。確認時点のホーム画面は今日の復習0件でサンプル教材が表示されていた。実データ削除は実行していない。WDAのスクリーンショットと要素ログは確認後にrepo外の一時領域ごと削除した。
 
 2026-11-11 follow-up：TestFlight run [42917141650](https://github.com/Guch1120/english_app/actions/runs/42917141650)で0.1.0 (208.1)のmacOS archive、cloud signing、App Store Connect uploadが成功し、dSYM artifactも保持された。TestFlightに208.1が表示された後、利用者の事前許可に基づいてiPhone 16へ更新した。Docker USB queryで208.1を確認し、アプリ起動後も稼働 (PID 4313)、固定fieldのappLaunch診断イベント1件、RSS peak 110,018,560 bytes、thermal nominalを確認した。これは短時間のインストール・起動確認で、全機能や長時間安定性の受け入れではない。
