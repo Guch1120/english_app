@@ -87,7 +87,7 @@
 | 仕様の条件 | 現在の証拠 | 残る実機確認 |
 |---|---|---|
 | iPhone 16で起動 | TestFlight 190.1をiPhone 16 / iOS 26.4.2へ導入し、USB installed-app query、WDA起動、画面表示を確認。レビュー項目・履歴の削除後も起動する | 長時間安定性、バックグラウンド復帰 |
-| 初回取得後オフライン動作 | 160.1を機内モードで起動し、Gemma E2B生成成功を確認。生成直後のSIGKILLと機内モード中の再起動後も保存済みGemma行3件を確認。Wi‑Fi OFF中のKokoro/Pocket純英語生成、利用者録音のParakeet/Apple Speech結果表示、同梱固定音声によるRE‑USE比較も確認。2026-11-11に機内モード中の復習回答・履歴・次回予定のプロセス再起動復元を実機確認。201.1のオフライン準備画面には4機能の準備状態と手動チェックリストが表示された | Gemma生成の意味品質、録音条件を変えた反復認識。今回の表示確認だけではオフライン実推論を証明しない |
+| 初回取得後オフライン動作 | 160.1を機内モードで起動し、Gemma E2B生成成功を確認。生成直後のSIGKILLと機内モード中の再起動後も保存済みGemma行3件を確認。Wi-Fi OFF中のKokoro/Pocket純英語生成、利用者録音のParakeet/Apple Speech結果表示、同梱固定音声によるRE‑USE比較も確認。2026-11-11に機内モード中の復習回答・履歴・次回予定のプロセス再起動復元を実機確認。同日、iPhone 16／208.1で機内モードON・Wi-Fi OFF中に、保持済み3.9秒録音をParakeetとApple Speechで再認識し双方の結果表示を確認。機内モードOFF後にWi-Fiを再接続。201.1のオフライン準備画面には4機能の準備状態と手動チェックリストが表示された | Gemma生成の意味品質、録音条件を変えた反復認識。WER表示はアプリ値であり文字起こし本文は未確認 |
 | 英文保存と学習 | SQLite tests、Simulator教材保存・再起動テスト。160.1で生成Gemma教材の保存・アプリ再起動後の一覧復元を確認。190.1でサンプル教材を開き、英文を表示して復習項目へ登録・回答。機内モード中のSIGKILL・再起動後もレビュー回答履歴を確認 | アップグレード経由での既存教材・学習データ復元 |
 | 録音保持設定 | 208.1実機で保持ONを確認し、アプリ再起動後もSpeaking画面に保存録音3.9秒が残ることを確認。音声・文字起こし本文は取得せず、録音を変更・削除していない | 保持OFF時に次回起動で削除される実機確認 |
 | Kokoro/Pocket切替・生成・比較 | 160.1で両モデルへ同じ純英語固定文を入力し、機内モード・Wi‑Fi OFF中に生成。Kokoro 1.14秒／音声3.32秒／RTF 0.343／RSS 551.6 MB、Pocket 1.48秒／音声2.48秒／RTF 0.599／RSS 751.1 MB。利用者がPocket TTSの動作とKokoroのrepeat再生2回分の聴取を確認 | 音質・発音の専門評価、中断・音声経路変更、長時間安定性 |
@@ -102,6 +102,7 @@
 | モデル時間・メモリ確認 | 160.1 Gemma成功生成で1.5秒model-load、0.8秒TTFT、4.8秒生成、43.1 tokens/sec、572.3 MB RSSを画面で確認。別の成功イベントは診断RSS 567.8 MB | 反復・熱状態比較。RSSはアプリ全体の値として解釈 |
 | 学習履歴の再起動保持 | SQLiteとSimulator再起動テスト。190.1で回答・次回予定・履歴が記録され、機内モードON・Wi‑Fi OFF中のSIGKILL・再起動後も維持された。試験用項目・履歴だけを削除し、保存済み0件、試験イベントなし、既存の学習操作履歴保持を確認 | 過去バージョンから更新した実機データの復元 |
 | エラー後の安定性 | cancellation/coordinator/integrity tests。キャンセル済みleaseをbusy競合より先に判定する回帰testを追加。SpeakingTrainingModelは実行中ASR backendにもcancelを転送。PR #110 Validate run 42907001478でquality、Docker Core、macOS package、Simulator build/analyze/launch/UI、unsigned archive、review gateが成功 | iPhoneのASR中断・復帰。Parakeet TDTのネイティブ推論は即時停止APIがなく、SDK呼び出し終了後に結果を破棄してアンロードする |
+| 大型文字での操作到達性 | PR #124のValidate run 42953378383でAccessibility XXXLを指定してSimulatorを起動し、教材のSpeaking画面へ移動。録音開始コントロールがスクロール後にhittableであることをUI testで確認 | VoiceOver、実機Dynamic Type、片手操作、録音動作はこのSimulator試験の対象外 |
 | GitHub Actionsビルド | PR #105のfull Validate [run 42888324021](https://github.com/Guch1120/english_app/actions/runs/42888324021)でquality/core/macOS package/Simulator UI 15件/unsigned archive/review-gate成功。PR #110のValidate [run 42907001478](https://github.com/Guch1120/english_app/actions/runs/42907001478)でDocker Core、macOS package、Simulator build/analyze/launch/UI、unsigned archive、quality、review-gateすべて成功。TestFlight upload [run 42897334281](https://github.com/Guch1120/english_app/actions/runs/42897334281)で201.1をアップロード
 | 実機インストール | TestFlight 154.1、160.1、190.1をiPhone 16へ導入。さらに201.1をTestFlight画面から更新し、USB installed-app query・アプリ起動・appLaunch診断イベント1件を確認 | 将来の変更buildの再導入 |
 | 学習データ・音声の意図しない送信なし | オンデバイス構成、固定診断fields、ログ・外部送信のコードレビュー | 機内モード動作と、外部送信を追加する変更時の再レビュー |
