@@ -1,6 +1,6 @@
-# 仕様照合と未完了項目（2026-11-11、main cbcee86／app code 22438f4）
+# 仕様照合と未完了項目（2026-11-11、main a9feb3b／app code 22438f4）
 
-Phase 0〜7と仕様本文の追加機能をmain commit `cbcee86`、application code baseline `22438f4`、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #110のValidate run 42907001478ではquality、Docker Core、macOS package、Simulator build/analyze/launch、UI tests、unsigned archive、review-gateがすべて成功した。Docker `bash Scripts/test.sh`は46件、`bash Scripts/quality.sh`は18件のpolicy testとshellcheck/actionlint/Gitleaks/vendor snapshot checksが成功した。PR #111〜#114は記録更新のみでマージ済み。TestFlight run 42917141650は0.1.0 (208.1)をアップロードし、iPhone 16へ導入後の起動確認も成功した。208.1実機でGemma 4 E2Bの2.59 GB候補を取得・SHA-256検証し固定prompt推論に成功後、新規候補だけ削除し既存GPUモデルを保持した。
+Phase 0〜7と仕様本文の追加機能をmain commit `a9feb3b`、application code baseline `22438f4`、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #110のValidate run 42907001478ではquality、Docker Core、macOS package、Simulator build/analyze/launch、UI tests、unsigned archive、review-gateがすべて成功した。Docker `bash Scripts/test.sh`は46件、`bash Scripts/quality.sh`は18件のpolicy testとshellcheck/actionlint/Gitleaks/vendor snapshot checksが成功した。PR #111〜#115は記録更新のみでマージ済み。TestFlight run 42917141650は0.1.0 (208.1)をアップロードし、iPhone 16へ導入後の起動確認も成功した。208.1実機でGemma 4 E2Bの2.59 GB候補を取得・SHA-256検証し固定prompt推論に成功後、新規候補だけ削除し既存GPUモデルを保持した。
 
 ## Phase 0〜7後に追加した仕様項目
 
@@ -27,7 +27,7 @@ Phase 0〜7と仕様本文の追加機能をmain commit `cbcee86`、application 
 | §10 学習画面 | 再生・速度・原文表示切替・復習登録、カテゴリ/難易度/Part検索、フレーズ選択、弱点からの新規用例、教材移動。PR #94で復習項目の削除導線を分離。190.1の実機でサンプル教材からの単語選択・復習登録を確認 | VoiceOver、Dynamic Type、片手操作の実機確認 |
 | §11 スピーキング | お手本再生、録音、文字起こし比較、単語差分/WERと正規化 | 実機での録音中断・機内モード。厳密な音素/発音採点は初期要件外 |
 | §12 復習 | 決定的スケジューラ、履歴、習熟度、教材versionと回答記録。PR #94のSimulator UIテストと190.1実機で履歴保持・削除cascadeを確認。2026-11-10に「普通」で成功1/失敗0、習熟度100%、2日後予定を確認。2026-11-11は機内モードON・Wi‑Fi OFF中に同じ評価を行い、SIGKILL・再起動後も回答イベントと予定が残ることを確認。両試験項目・履歴は削除済み | 他の評価段階、長期予定推移、旧buildからのデータ移行 |
-| §13 保存 | SQLite transaction、保護領域、schema migration、教材と回答履歴 | 古いデータからの実機アップグレード・復元 |
+| §13 保存 | SQLite transaction、保護領域、schema migration、教材と回答履歴。208.1実機の設定画面で録音保持トグルON（値1）を観測。設定状態のみの確認で、再起動後の保持動作は試していない | 古いデータからの実機アップグレード・復元、録音保持設定の再起動後動作 |
 | §14 UI | 学習、復習、設定、モデル管理と診断の各画面。PR #105で設定のデータ領域を診断一覧より上へ移し、明示キャンセル付き確認alertを追加。GitHub macOS Validate run 42888324021で15件のSimulator UI testが成功し、iPhone 16／201.1でもデータ削除導線が診断履歴より上にあり、確認alertのキャンセルで閉じることを確認。208.1のインストール後起動もDocker USB検証済み | 実機操作性・アクセシビリティ。実機での破壊的な全データ削除は未実施 |
 | §15 診断 | 固定fieldの端末内ログ、共有用エクスポート、TTS/ASR/RE-USE計測、LLM TTFT/デコードtokens/sec。RSSはプロセス全体の観測値として表示 | 異なる条件・熱状態での反復測定、診断共有確認。RSSをモデル単体メモリと解釈しない |
 | §16 安全性 | 学習データと音声は端末内。通常ログに音声/文字起こしを出さず、model binaryや署名情報をGitに含めない | 変更ごとの継続的なdiff/secret review |
