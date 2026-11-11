@@ -1,4 +1,4 @@
-# 仕様照合と未完了項目（2026-11-11、main app code 22438f4／latest UI test PR #124 merge 0461132）
+# 仕様照合と未完了項目（2026-11-11、main app code 22438f4／latest UI test PR #124 merge 0461132／latest docs PR #126 merge f1aacf7）
 
 Phase 0〜7と仕様本文の追加機能をmain app code baseline `22438f4`、UI test merge `0461132`、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #117のValidate run 42935927652ではquality、Docker Core、macOS package、Simulator build/analyze/launch、16件のUI tests、unsigned archive、review-gateがすべて成功し、診断エクスポートの共有導線と開示文をSimulatorで確認した（share sheetは開いていない）。PR #124のValidate run 42953378383ではquality、Docker Core、macOS package、Simulator build/analyze/launch、17件のUI tests、unsigned archive/dSYM、review-gateがすべて成功し、大型文字の操作到達性をSimulatorで確認した。Docker `bash Scripts/test.sh`は46件、`bash Scripts/quality.sh`は18件のpolicy testとshellcheck/actionlint/Gitleaks/vendor snapshot checksが成功した。TestFlight run 42917141650は0.1.0 (208.1)をアップロードし、iPhone 16へ導入後の起動確認も成功した。208.1実機でGemma 4 E2Bの2.59 GB候補を取得・SHA-256検証し固定prompt推論に成功後、新規候補だけ削除し既存GPUモデルを保持した。
 
@@ -10,7 +10,7 @@ Phase 0〜7と仕様本文の追加機能をmain app code baseline `22438f4`、U
 | §14.2 同一録音のASR比較 | PR #58で保存した一つの録音をParakeet/Apple Speechに順番に入力し、比較結果を表示。2026-11-11に保持設定ONでのアプリ再起動後、保存録音3.9秒を再認識し、画面のWERはParakeet 57%／Apple Speech 0%。同じ録音で機内モードON・Wi-Fi OFF中も両方の結果表示を確認。本文は取得・確認していない | WERの文字列レベル検算、別録音での再現性、取消・再試行 |
 | §13.3・§14.2 録音保持 | PR #58で保持を既定とし、無効化時は次回起動時に削除。2026-11-11にiPhone 16／208.1で保持ONのままアプリを再起動後、Speaking画面に保存録音3.9秒が残ることを確認。録音内容にはアクセスせず、変更・削除なし | 保持OFF時の次回起動削除、既存データを含む旧buildからの実機アップグレード |
 | §15.3 診断情報エクスポート | PR #53で固定項目のみの診断共有を実装。PR #117のValidate run 42935927652でSimulator UIからレポートを作り、共有ボタンと開示文を確認。iPhone 16／208.1でWDAからshare sheet表示・dismissを確認。音声・文字起こしは含めない | 共有先選択・実送信は未確認。レポートは送信していない |
-| §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装。2026-11-11にHomeからアプリ前面へ戻る短い遷移を確認 | 画面ロック中の再生、音声割り込み、音声経路喪失、バックグラウンド再生の実機確認 |
+| §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装。2026-11-11にKokoroの生成・再生操作後Homeへ移動し、English Trainerプロセス（PID 4457）が残ることを確認。別試行でCoreDevice HIDのlock操作が成功 | Home移動後・画面ロック中の実聴確認、音声割り込み、音声経路喪失。WDA statusはlock直後にdevice password-protectedを報告し、解除待ち |
 | Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1で報告されたクラッシュを対象とした。160.1のiPhone 16でApple Speech選択後の録音開始・停止、アプリ継続を確認。指定英文の録音とApple Speech結果表示を後続buildで確認 | 英語実音声の反復精度。権限拒否後の再試行は利用者の希望で試験を見送り、未確認 |
 | §6.3 全TTSの繰り返し再生 | PR #60でApple synthesizerの完了delegateによるrepeat loopを追加。ニューラル音声を含め全engineにtoggleを適用 | TestFlight 154.1以降でApple/ニューラル双方の繰り返し・停止・画面ロックを確認 |
 | §15.1 LLM decode tokens/sec | PR #60でLiteRT-LM 0.19.1の`Conversation.getBenchmarkInfo()`を用い、実測デコード速度が返る場合のみ表示。実験APIを明示opt-in | 160.1でload 1.5秒、TTFT 0.8秒、生成4.8秒、43.1 tokens/sec、process RSS 572.3 MBを一回観測。反復性能・熱比較は未確認 |
