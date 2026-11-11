@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-docker build -t english-trainer-quality -f Dockerfile.quality .
+# Build on the host network: the default build network on CI runners has failed DNS resolution.
+docker build --network=host -t english-trainer-quality -f Dockerfile.quality .
 git_mount=()
 # A linked worktree's .git file points into the common Git directory by its host
 # path. Mount that metadata read-only at the same path so git-based checks work
