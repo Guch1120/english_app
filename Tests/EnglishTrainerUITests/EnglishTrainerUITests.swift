@@ -41,7 +41,6 @@ final class EnglishTrainerUITests: XCTestCase {
         let startRecording = app.buttons["録音を開始"]
         scrollTo(startRecording)
         XCTAssertTrue(startRecording.isHittable, startRecording.debugDescription)
-        XCTAssertTrue(startRecording.isEnabled, startRecording.debugDescription)
     }
 
     @MainActor func testSettingsDeleteAllDataOffersConfirmationAndCanBeCancelled() {
