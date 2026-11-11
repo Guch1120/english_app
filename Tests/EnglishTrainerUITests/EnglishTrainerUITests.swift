@@ -56,6 +56,26 @@ final class EnglishTrainerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Could you reschedule the meeting for Thursday?"].waitForExistence(timeout: 5))
     }
 
+    @MainActor func testDiagnosticExportRevealsShareActionWithoutOpeningShareSheet() {
+        app.launchArguments = ["--uitest-seed-diagnostics"]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["設定"].tap()
+        XCTAssertTrue(app.navigationBars["設定"].waitForExistence(timeout: 5))
+
+        let seededDiagnostics = app.descendants(matching: .any)["diagnostics.uiTestSeedLoaded"]
+        scrollTo(seededDiagnostics)
+
+        let createExport = app.buttons["共有用の診断情報を作成"]
+        scrollTo(createExport)
+        createExport.tap()
+
+        let share = app.buttons["診断情報を共有"]
+        scrollTo(share)
+        XCTAssertTrue(share.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(app.staticTexts["共有先は次の画面で選びます。記録時刻と識別子、教材・録音・文字起こしは含めません。処理種別や性能値は含まれます。"].exists)
+    }
+
     func testLessonControlsExposeFineSpeechRateAndTranslation() {
         app.launch()
         XCTAssertTrue(app.navigationBars["English Trainer"].waitForExistence(timeout: 10))
