@@ -1,6 +1,6 @@
-# 仕様照合と未完了項目（2026-11-11、main a9feb3b／app code 22438f4）
+# 仕様照合と未完了項目（2026-11-11、main implementation/test 967a2cd／app code 22438f4）
 
-Phase 0〜7と仕様本文の追加機能をmain commit `a9feb3b`、application code baseline `22438f4`、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #110のValidate run 42907001478ではquality、Docker Core、macOS package、Simulator build/analyze/launch、UI tests、unsigned archive、review-gateがすべて成功した。Docker `bash Scripts/test.sh`は46件、`bash Scripts/quality.sh`は18件のpolicy testとshellcheck/actionlint/Gitleaks/vendor snapshot checksが成功した。PR #111〜#115は記録更新のみでマージ済み。TestFlight run 42917141650は0.1.0 (208.1)をアップロードし、iPhone 16へ導入後の起動確認も成功した。208.1実機でGemma 4 E2Bの2.59 GB候補を取得・SHA-256検証し固定prompt推論に成功後、新規候補だけ削除し既存GPUモデルを保持した。
+Phase 0〜7と仕様本文の追加機能をmain implementation/test commit `967a2cd`、application code baseline `22438f4`、PR履歴、CI結果、TestFlight実機証拠と照合した。実装済み、CIで確認した項目、実機未確認を分けて記録する。利用者の実機確認と未確認項目は[Acceptance.md](Acceptance.md)を参照。PR #117のValidate run 42935927652ではquality、Docker Core、macOS package、Simulator build/analyze/launch、16件のUI tests、unsigned archive、review-gateがすべて成功し、診断エクスポートの共有導線と開示文をSimulatorで確認した（share sheetは開いていない）。Docker `bash Scripts/test.sh`は46件、`bash Scripts/quality.sh`は18件のpolicy testとshellcheck/actionlint/Gitleaks/vendor snapshot checksが成功した。TestFlight run 42917141650は0.1.0 (208.1)をアップロードし、iPhone 16へ導入後の起動確認も成功した。208.1実機でGemma 4 E2Bの2.59 GB候補を取得・SHA-256検証し固定prompt推論に成功後、新規候補だけ削除し既存GPUモデルを保持した。
 
 ## Phase 0〜7後に追加した仕様項目
 
@@ -9,7 +9,7 @@ Phase 0〜7と仕様本文の追加機能をmain commit `a9feb3b`、application 
 | §10.3 フレーズ選択 | PR #54で連続した複数語を復習項目にできる | 実機で操作性を確認 |
 | §14.2 同一録音のASR比較 | PR #58で保存した一つの録音をParakeet/Apple Speechに順番に入力し、比較結果を表示 | 実機の認識品質、取消・再試行 |
 | §13.3・§14.2 録音保持 | PR #58で保持を既定とし、無効化時は次回起動時に削除 | 設定変更・再起動後の実機挙動 |
-| §15.3 診断情報エクスポート | PR #53で固定項目のみの診断共有を実装。音声・文字起こしは含めない | 実機で共有シートと出力を確認 |
+| §15.3 診断情報エクスポート | PR #53で固定項目のみの診断共有を実装。PR #117のValidate run 42935927652でSimulator UIからレポートを作り、共有ボタンと開示文を確認。音声・文字起こしは含めない | 実機でshare sheet表示と共有先選択を確認。送信はしていない |
 | §18.2 バックグラウンド再生 | PR #56でシステム音声、ニューラルTTS、保存録音の再生ライフサイクルを実装。2026-11-11にHomeからアプリ前面へ戻る短い遷移を確認 | 画面ロック中の再生、音声割り込み、音声経路喪失、バックグラウンド再生の実機確認 |
 | Apple Speech 録音開始時クラッシュ | PR #57でauthorization callbackをMainActor隔離の外に移動。145.1で報告されたクラッシュを対象とした。160.1のiPhone 16でApple Speech選択後の録音開始・停止、アプリ継続を確認。指定英文の録音とApple Speech結果表示を後続buildで確認 | 英語実音声の反復精度。権限拒否後の再試行は利用者の希望で試験を見送り、未確認 |
 | §6.3 全TTSの繰り返し再生 | PR #60でApple synthesizerの完了delegateによるrepeat loopを追加。ニューラル音声を含め全engineにtoggleを適用 | TestFlight 154.1以降でApple/ニューラル双方の繰り返し・停止・画面ロックを確認 |
