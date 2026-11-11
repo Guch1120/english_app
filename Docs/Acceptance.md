@@ -6,7 +6,7 @@
 
 同日、繰り返し再生をONにしたKokoro比較音声を利用者が聴き、サイドボタンでロックした後も音声が続くことを確認した。利用者が再生を停止して繰り返しをOFFへ戻し、解除後のWDA接続は`ready: true`、スイッチ値0、TTS処理中でないことを確認した。
 
-さらにApple（米国英語）を選んで教材のお手本を再生し、利用者はサイドボタンでロック後も音声が続いたと確認した。試験後にWDAから再生停止を送り、TTSエンジンを試験前のKokoroへ戻し、repeatがOFF（値0）であることを確認した。これはiPhone 16／iOS 26.4.2／TestFlight 208.1でKokoro repeat再生とApple標準音声をそれぞれ一度確認した結果である。保存録音、着信割り込み、出力経路変更、Home遷移後の実聴は未確認。
+さらにApple（米国英語）を選んで教材のお手本を再生し、利用者はサイドボタンでロック後も音声が続いたと確認した。その後、repeat ONのKokoroお手本を再生した状態でHomeへ戻り、利用者はHome画面でも音が続くと確認した。利用者が再生を停止しrepeatをOFFにした。WDAから選択エンジンKokoro、repeat OFF（値0）を確認した。これはiPhone 16／iOS 26.4.2／TestFlight 208.1でKokoro repeat再生のロック・Home遷移とApple標準音声のロックをそれぞれ一度確認した結果である。保存録音、Apple標準音声のHome遷移、着信割り込み、出力経路変更は未確認。
 
 2026-11-11 follow-up：PR [#117](https://github.com/Guch1120/english_app/pull/117)をValidate run [42935927652](https://github.com/Guch1120/english_app/actions/runs/42935927652)のquality、Docker Core、GitHub macOS package/build/analyze/startup、16件のSimulator UI test、unsigned archive、review-gate成功後にmainへマージした。追加UI testで診断レポート作成後に共有ボタンと開示文が表示されることを確認し、share sheetは開いていない。実機でのshare sheet表示と共有先選択は未確認で、レポートは送信していない。
 
