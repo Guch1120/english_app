@@ -442,6 +442,10 @@ struct LessonView: View {
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return items.first }
         return items.count > 1 ? items[(index + 1) % items.count] : nil
     }
+    private var nextAction: (() -> Void)? {
+        guard nextItem != nil else { return nil }
+        return { goNext() }
+    }
     private func goNext() {
         guard let nextItem else { return }
         model.stop()
@@ -463,8 +467,7 @@ struct LessonView: View {
 
             Group {
                 if speakingMode {
-                    SpeakingPreview(item: item, appModel: model, model: model.speaking,
-                                    goNext: nextItem == nil ? nil : goNext)
+                    SpeakingPreview(item: item, appModel: model, model: model.speaking, goNext: nextAction)
                 } else {
                     listeningContent
                 }
@@ -608,7 +611,7 @@ struct LessonView: View {
             Section("お手本の音声") {
                 TTSEnginePicker(speech: model.speech)
             }
-            if let nextItem {
+            if nextItem != nil {
                 Section {
                     Button(action: goNext) {
                         Label("次の文へ", systemImage: "forward.end.fill")
