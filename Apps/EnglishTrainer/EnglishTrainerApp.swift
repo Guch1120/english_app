@@ -509,17 +509,24 @@ struct LessonView: View {
                         .accessibilityLabel("読み上げ速度")
                         .accessibilityValue("\(speed.formatted(.number.precision(.fractionLength(2))))倍")
                         .disabled(model.speech.busy)
-                    HStack {
-                        Text("0.50×")
-                        Spacer()
-                        Button("標準の速度に戻す") { speed = 1.0 }
-                            .buttonStyle(.borderless)
-                            .disabled(speed == 1.0 || model.speech.busy)
-                        Spacer()
-                        Text("1.50×")
+                    // One-tap presets: stepping the slider by 0.05 is slow between listens.
+                    HStack(spacing: 8) {
+                        ForEach([0.75, 0.9, 1.0, 1.25], id: \.self) { preset in
+                            let active = abs(speed - preset) < 0.001
+                            Button { speed = preset } label: {
+                                Text("\(preset.formatted(.number.precision(.fractionLength(2))))×")
+                                    .font(.subheadline.weight(active ? .bold : .regular))
+                                    .monospacedDigit()
+                                    .lineLimit(1).minimumScaleFactor(0.7)
+                                    .frame(maxWidth: .infinity, minHeight: 32)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(active ? .accentColor : .secondary)
+                            .accessibilityLabel("速度\(preset.formatted(.number.precision(.fractionLength(2))))倍")
+                            .accessibilityAddTraits(active ? .isSelected : [])
+                        }
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .disabled(model.speech.busy)
                 }
                 .onChange(of: speed) { _, value in model.speech.setRate(value) }
                 Toggle("音声を繰り返す", isOn: Binding(get: { model.speech.repeats }, set: { model.speech.repeats = $0 }))
@@ -608,12 +615,23 @@ struct SpeakingPreview: View {
     let item: LearningItem
     let appModel: AppModel
     @Bindable var model: SpeakingTrainingModel
+    /// Shared with the listening tab so the model is heard at the speed the learner chose there.
+    @AppStorage("listening-speed") private var speed = 1.0
+    private func playModel() {
+        model.stopRecordingPlayback()
+        appModel.speak(item.text, speed: speed, item: item)
+    }
     var body: some View {
         ScrollViewReader { proxy in
             Form {
-            Section("お手本") {
+            Section {
                 Text(item.text).font(.title3).textSelection(.enabled)
-                Button("お手本を聞く", systemImage: "play.circle") { appModel.speak(item.text, speed: 1, item: item) }
+                Button("お手本を聞く", systemImage: "play.circle") { playModel() }
+                    .disabled(model.recording)
+            } header: {
+                Text("お手本")
+            } footer: {
+                Text("リスニングで選んだ速度（\(speed.formatted(.number.precision(.fractionLength(2))))×）で再生します。")
             }
             Section {
                 if model.recording {
@@ -766,11 +784,34 @@ struct SpeakingPreview: View {
             Section("文字起こし・評価") {
                 Text(model.transcriptUsesREUSE ? "RE-USEで強調した音声を認識" : "元の録音を認識")
                     .font(.caption).foregroundStyle(.secondary)
-                Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
-                    .font(.headline)
-                    .accessibilityIdentifier("speaking.wordErrorRate")
-                Text(model.transcript).textSelection(.enabled)
-                    .accessibilityIdentifier("speaking.transcriptionText")
+                let match = max(0, 1 - result.wordErrorRate)
+                let matchTint: Color = match >= 0.9 ? .green : (match >= 0.6 ? .orange : .red)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("一致度").font(.subheadline).foregroundStyle(.secondary)
+                        Text(match, format: .percent.precision(.fractionLength(0)))
+                            .font(.largeTitle.bold()).monospacedDigit().foregroundStyle(matchTint)
+                        Spacer()
+                        Text("単語誤り率：\(result.wordErrorRate, format: .percent.precision(.fractionLength(0)))")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .accessibilityIdentifier("speaking.wordErrorRate")
+                    }
+                    ProgressView(value: min(1, match)).tint(matchTint)
+                        .accessibilityHidden(true)
+                }
+                .listRowSeparator(.hidden)
+                // Listen to the model and your own take back to back, then try again.
+                HStack(spacing: 10) {
+                    TransportButton(title: "お手本", systemImage: "play.circle") { playModel() }
+                    TransportButton(title: model.playingRecording ? "再生を止める" : "自分の録音", systemImage: model.playingRecording ? "stop.circle" : "person.wave.2") {
+                        if model.playingRecording { model.stopRecordingPlayback() } else { appModel.stop(); model.playRecording() }
+                    }
+                    TransportButton(title: "録り直す", systemImage: "mic") {
+                        appModel.stop(); model.stopRecordingPlayback(); model.startRecording(for: item.id)
+                    }
+                    .disabled(!model.recognitionAvailable)
+                }
+                .disabled(model.busy || model.recording)
                 FlowLayout(spacing: 6) {
                     ForEach(Array(result.tokens.enumerated()), id: \.offset) { _, token in
                         Text(token.expected ?? "＋" + (token.recognized ?? ""))
@@ -783,6 +824,11 @@ struct SpeakingPreview: View {
                 .accessibilityHidden(true)
                 Text("緑：お手本どおりに認識　橙：違い・欠落・余分な語（詳細は「単語ごとの差分」）")
                     .font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("認識された文").font(.caption).foregroundStyle(.secondary)
+                    Text(model.transcript).textSelection(.enabled)
+                        .accessibilityIdentifier("speaking.transcriptionText")
+                }
                 Text("文字起こしの一致度です。発音の正確さを採点するものではありません。")
                     .font(.caption)
                 DisclosureGroup("認識時間・発話ペース") {
@@ -931,6 +977,12 @@ struct ASRModelsView: View {
 struct ReviewView: View {
     let model: AppModel
     @State private var pointToDelete: WeakPoint?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Accessibility text sizes need wider tiles, so every row falls back to two columns.
+    private func statColumns(_ count: Int) -> [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 8), count: dynamicTypeSize.isAccessibilitySize ? 2 : count)
+    }
     var body: some View {
         List {
             let due = model.visiblePoints.filter { $0.nextReviewAt <= Date() }.sorted { $0.nextReviewAt < $1.nextReviewAt }
@@ -968,14 +1020,19 @@ struct ReviewView: View {
                 if due.isEmpty { ContentUnavailableView("今日の復習は完了です", systemImage: "checkmark.circle", description: Text("聞き取れない表現を教材から登録できます。")) }
             }
             Section("学習の記録") {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 70), spacing: 8)], spacing: 8) {
-                    StatTile(value: "\(model.progress.currentStreak)日", label: "連続学習日数", systemImage: "flame.fill", tint: .orange)
-                    StatTile(value: "\(model.progress.activeDays)日", label: "学習した日", systemImage: "calendar")
-                    StatTile(value: "\(model.progress.totalReviews)回", label: "累計復習", systemImage: "arrow.clockwise", tint: .indigo)
-                    StatTile(value: "\(model.progress.masteredCount)件", label: "定着した項目", systemImage: "checkmark.seal.fill", tint: .green)
-                    StatTile(value: "\(model.activityHistory.filter { $0.activity == .listening }.count)回", label: "リスニング", systemImage: "headphones")
-                    StatTile(value: "\(model.activityHistory.filter { $0.activity == .speaking }.count)回", label: "スピーキング", systemImage: "mic.fill", tint: .pink)
-                    StatTile(value: "\(model.quizAttempts.count)回", label: "設問への回答", systemImage: "questionmark.circle.fill", tint: .purple)
+                // Two fixed rows: an adaptive grid left the wider labels wrapping mid-word in a fourth column.
+                VStack(spacing: 8) {
+                    LazyVGrid(columns: statColumns(4), spacing: 8) {
+                        StatTile(value: "\(model.progress.currentStreak)日", label: "連続学習", systemImage: "flame.fill", tint: .orange, spokenLabel: "連続学習日数")
+                        StatTile(value: "\(model.progress.activeDays)日", label: "学習日数", systemImage: "calendar", spokenLabel: "学習した日")
+                        StatTile(value: "\(model.progress.totalReviews)回", label: "累計復習", systemImage: "arrow.clockwise", tint: .indigo)
+                        StatTile(value: "\(model.progress.masteredCount)件", label: "定着項目", systemImage: "checkmark.seal.fill", tint: .green, spokenLabel: "定着した項目")
+                    }
+                    LazyVGrid(columns: statColumns(3), spacing: 8) {
+                        StatTile(value: "\(model.activityHistory.filter { $0.activity == .listening }.count)回", label: "リスニング", systemImage: "headphones")
+                        StatTile(value: "\(model.activityHistory.filter { $0.activity == .speaking }.count)回", label: "スピーキング", systemImage: "mic.fill", tint: .pink)
+                        StatTile(value: "\(model.quizAttempts.count)回", label: "設問への回答", systemImage: "questionmark.circle.fill", tint: .purple)
+                    }
                 }
                 .padding(.vertical, 4)
                 .listRowSeparator(.hidden)
@@ -1287,6 +1344,7 @@ struct DiagnosticsView: View {
                         .font(.caption)
                 }
                 Button("診断ログを消去", systemImage: "trash", role: .destructive) { confirmClear = true }
+                    .tint(.red)
                     .disabled(diagnosticEvents.isEmpty)
             } footer: {
                 Text("直近500件を端末内に保存します。教材文、録音、文字起こし、入力内容、エラー文は保存しません。")
@@ -1322,7 +1380,7 @@ struct DiagnosticsView: View {
                                 Text("キャッシュ \(ByteCountFormatter.string(fromByteCount: Int64(cache), countStyle: .memory))")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
-                            Text("発熱状態 \(event.thermalState.rawValue)").font(.caption).foregroundStyle(.secondary)
+                            Text("発熱状態 \(event.thermalState.localizedTitle)").font(.caption).foregroundStyle(.secondary)
                         }.padding(.vertical, 3)
                     }
                 }
