@@ -273,7 +273,7 @@ struct HomeView: View {
             } header: {
                 Text("リスニング教材")
             } footer: {
-                if !model.visibleItems.isEmpty { Text("教材を開くと、リスニングとスピーキングを切り替えて練習できます。") }
+                if !model.visibleItems.isEmpty { Text("教材を開くと、リスニングとスピーキングを切り替えて練習できます。それぞれ「次の文へ」で、戻らずに別の文へ進めます。") }
             }
             Section {
                 NavigationLink { LessonLibraryView(model: model) } label: {
@@ -417,10 +417,16 @@ struct AddLessonView: View {
 struct LessonView: View {
     let model: AppModel
     private let originalItem: LearningItem
-    private var item: LearningItem { model.items.first { $0.id == originalItem.id } ?? originalItem }
+    /// Listening and speaking each keep their own sentence so moving on in one tab does not
+    /// disturb the other. Both start at the lesson opened from the home list.
+    @State private var listeningID: UUID
+    @State private var speakingID: UUID
+    private func resolve(_ id: UUID) -> LearningItem { model.items.first { $0.id == id } ?? originalItem }
+    private var item: LearningItem { resolve(speakingMode ? speakingID : listeningID) }
     @State private var editing = false
     @State private var reporting = false
-    init(model: AppModel, item: LearningItem) { self.model = model; self.originalItem = item }
+    init(model: AppModel, item: LearningItem) { self.model = model; self.originalItem = item
+        _listeningID = State(initialValue: item.id); _speakingID = State(initialValue: item.id) }
     @State private var speakingMode = false
     @State private var showEnglish = false
     @State private var showTranslation = false
@@ -436,6 +442,14 @@ struct LessonView: View {
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return items.first }
         return items.count > 1 ? items[(index + 1) % items.count] : nil
     }
+    private func goNext() {
+        guard let nextItem else { return }
+        model.stop()
+        if speakingMode { speakingID = nextItem.id } else {
+            listeningID = nextItem.id
+            showEnglish = false; showTranslation = false
+        }
+    }
     var body: some View {
         VStack(spacing: 0) {
             Picker("練習モード", selection: $speakingMode) {
@@ -449,7 +463,8 @@ struct LessonView: View {
 
             Group {
                 if speakingMode {
-                    SpeakingPreview(item: item, appModel: model, model: model.speaking)
+                    SpeakingPreview(item: item, appModel: model, model: model.speaking,
+                                    goNext: nextItem == nil ? nil : goNext)
                 } else {
                     listeningContent
                 }
@@ -595,9 +610,10 @@ struct LessonView: View {
             }
             if let nextItem {
                 Section {
-                    NavigationLink { LessonView(model: model, item: nextItem) } label: {
-                        Label("次の教材", systemImage: "arrow.right.circle")
+                    Button(action: goNext) {
+                        Label("次の文へ", systemImage: "forward.end.fill")
                     }
+                    .accessibilityIdentifier("lesson.listeningNext")
                     .disabled(model.speech.busy || model.speaking.busy || model.speaking.recording)
                 }
             }
@@ -615,6 +631,7 @@ struct SpeakingPreview: View {
     let item: LearningItem
     let appModel: AppModel
     @Bindable var model: SpeakingTrainingModel
+    let goNext: (() -> Void)?
     /// Shared with the listening tab so the model is heard at the speed the learner chose there.
     @AppStorage("listening-speed") private var speed = 1.0
     private func playModel() {
@@ -685,6 +702,13 @@ struct SpeakingPreview: View {
                 Text("録音して話す")
             }
             transcriptionResults
+            if let goNext {
+                Section {
+                    Button(action: goNext) { Label("次の文へ", systemImage: "forward.end.fill") }
+                        .accessibilityIdentifier("lesson.speakingNext")
+                        .disabled(model.busy || model.recording)
+                }
+            }
             Section("音声認識モデル") {
                 Picker("モデル", selection: $model.selectedEngine) {
                     ForEach(ASREngine.allCases) { engine in Text(engine.title).tag(engine) }
