@@ -931,6 +931,12 @@ struct ASRModelsView: View {
 struct ReviewView: View {
     let model: AppModel
     @State private var pointToDelete: WeakPoint?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Accessibility text sizes need wider tiles, so every row falls back to two columns.
+    private func statColumns(_ count: Int) -> [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 8), count: dynamicTypeSize.isAccessibilitySize ? 2 : count)
+    }
     var body: some View {
         List {
             let due = model.visiblePoints.filter { $0.nextReviewAt <= Date() }.sorted { $0.nextReviewAt < $1.nextReviewAt }
@@ -968,14 +974,19 @@ struct ReviewView: View {
                 if due.isEmpty { ContentUnavailableView("今日の復習は完了です", systemImage: "checkmark.circle", description: Text("聞き取れない表現を教材から登録できます。")) }
             }
             Section("学習の記録") {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 70), spacing: 8)], spacing: 8) {
-                    StatTile(value: "\(model.progress.currentStreak)日", label: "連続学習日数", systemImage: "flame.fill", tint: .orange)
-                    StatTile(value: "\(model.progress.activeDays)日", label: "学習した日", systemImage: "calendar")
-                    StatTile(value: "\(model.progress.totalReviews)回", label: "累計復習", systemImage: "arrow.clockwise", tint: .indigo)
-                    StatTile(value: "\(model.progress.masteredCount)件", label: "定着した項目", systemImage: "checkmark.seal.fill", tint: .green)
-                    StatTile(value: "\(model.activityHistory.filter { $0.activity == .listening }.count)回", label: "リスニング", systemImage: "headphones")
-                    StatTile(value: "\(model.activityHistory.filter { $0.activity == .speaking }.count)回", label: "スピーキング", systemImage: "mic.fill", tint: .pink)
-                    StatTile(value: "\(model.quizAttempts.count)回", label: "設問への回答", systemImage: "questionmark.circle.fill", tint: .purple)
+                // Two fixed rows: an adaptive grid left the wider labels wrapping mid-word in a fourth column.
+                VStack(spacing: 8) {
+                    LazyVGrid(columns: statColumns(4), spacing: 8) {
+                        StatTile(value: "\(model.progress.currentStreak)日", label: "連続学習", systemImage: "flame.fill", tint: .orange, spokenLabel: "連続学習日数")
+                        StatTile(value: "\(model.progress.activeDays)日", label: "学習日数", systemImage: "calendar", spokenLabel: "学習した日")
+                        StatTile(value: "\(model.progress.totalReviews)回", label: "累計復習", systemImage: "arrow.clockwise", tint: .indigo)
+                        StatTile(value: "\(model.progress.masteredCount)件", label: "定着項目", systemImage: "checkmark.seal.fill", tint: .green, spokenLabel: "定着した項目")
+                    }
+                    LazyVGrid(columns: statColumns(3), spacing: 8) {
+                        StatTile(value: "\(model.activityHistory.filter { $0.activity == .listening }.count)回", label: "リスニング", systemImage: "headphones")
+                        StatTile(value: "\(model.activityHistory.filter { $0.activity == .speaking }.count)回", label: "スピーキング", systemImage: "mic.fill", tint: .pink)
+                        StatTile(value: "\(model.quizAttempts.count)回", label: "設問への回答", systemImage: "questionmark.circle.fill", tint: .purple)
+                    }
                 }
                 .padding(.vertical, 4)
                 .listRowSeparator(.hidden)
@@ -1287,6 +1298,7 @@ struct DiagnosticsView: View {
                         .font(.caption)
                 }
                 Button("診断ログを消去", systemImage: "trash", role: .destructive) { confirmClear = true }
+                    .tint(.red)
                     .disabled(diagnosticEvents.isEmpty)
             } footer: {
                 Text("直近500件を端末内に保存します。教材文、録音、文字起こし、入力内容、エラー文は保存しません。")
@@ -1322,7 +1334,7 @@ struct DiagnosticsView: View {
                                 Text("キャッシュ \(ByteCountFormatter.string(fromByteCount: Int64(cache), countStyle: .memory))")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
-                            Text("発熱状態 \(event.thermalState.rawValue)").font(.caption).foregroundStyle(.secondary)
+                            Text("発熱状態 \(event.thermalState.localizedTitle)").font(.caption).foregroundStyle(.secondary)
                         }.padding(.vertical, 3)
                     }
                 }

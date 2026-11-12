@@ -1,4 +1,5 @@
 import SwiftUI
+import DeviceDiagnostics
 
 /// Shared visual building blocks. Keep these free of learning or inference logic.
 
@@ -71,6 +72,8 @@ struct StatTile: View {
     let label: String
     let systemImage: String
     var tint: Color = .teal
+    /// Full wording for VoiceOver when the visible caption is abbreviated to fit a narrow tile.
+    var spokenLabel: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -84,7 +87,7 @@ struct StatTile: View {
         .padding(10)
         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label) \(value)")
+        .accessibilityLabel("\(spokenLabel ?? label) \(value)")
     }
 }
 
@@ -154,6 +157,19 @@ extension ProcessInfo.ThermalState {
         case .serious: "高い"
         case .critical: "非常に高い"
         @unknown default: "不明"
+        }
+    }
+}
+
+extension DiagnosticThermalState {
+    /// Same wording as the live thermal state, for stored diagnostic records.
+    var localizedTitle: String {
+        switch self {
+        case .nominal: "通常"
+        case .fair: "やや高い"
+        case .serious: "高い"
+        case .critical: "非常に高い"
+        case .unavailable: "不明"
         }
     }
 }
