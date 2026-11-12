@@ -17,14 +17,19 @@
 - スピーキング：文字起こし結果の下に同じボタン（id `lesson.speakingNext`）。録音中・処理中は無効。録音は教材IDに紐づくので、別の文へ移ると既存の「保存録音をこの教材と比較」の案内が出る（録音は消えない）。
 - ホームのフッター文言を更新。
 
+## 結果（PR [#139](https://github.com/Guch1120/english_app/pull/139)、マージ `3357766`）
+
+- 最初の Validate は ios が失敗：`EnglishTrainerApp.swift` で `ambiguous use of 'toolbar(content:)'` と、`if let nextItem` が未使用になった警告。`goNext` を渡す三項演算子を専用プロパティ `nextAction` に切り出し、`if nextItem != nil` に直して解消（Linux では検出できず、CIで初めて判明）。
+- 再実行の Validate は quality / core / ios（約1時間）/ review-gate すべて成功。リポジトリの自動マージ設定（`allow_auto_merge`）を有効にし、PR に自動マージを設定したため、チェック通過後に自動でマージされた。以後は `gh pr merge <番号> --auto --merge` で同様にできる。
+- `testflight` ラベル付きのため、マージ後に TestFlight アップロードが走る。アップデートはユーザーが手動で行う。
+
 ## 検証状況
 
-- Swift（iOS）はLinux/Dockerでビルドできないため、**この変更のコンパイル・UIは未確認**。型・構文は目視レビューのみ。Docker の `Scripts/test.sh` / `quality.sh` はパッケージ側の確認で、iOS成功の証拠ではない。iOSの確認は GitHub Actions（Validate）に任せる。
+- Swift（iOS）はLinux（※上記のとおりCIでコンパイルエラーを修正済み。以下は PR 作成時点の記述）/Dockerでビルドできないため、**この変更のコンパイル・UIは未確認**。型・構文は目視レビューのみ。Docker の `Scripts/test.sh` / `quality.sh` はパッケージ側の確認で、iOS成功の証拠ではない。iOSの確認は GitHub Actions（Validate）に任せる。
 - UIテストは追加していない（既存テストは「次の教材」を参照していない）。必要なら `lesson.listeningNext` / `lesson.speakingNext` を使うテストを追加する。
 - 実機で未確認：ボタンの位置・押しやすさ、スピーキングで文を移ったときの録音／結果表示の整合、次の文への移動中の再生停止。
 
 ## 次にやること
 
-1. PR の Validate 4チェックを確認し、通ればマージ（`testflight` ラベルを付けると実機確認用ビルドが出る）。
-2. TestFlight ビルドで、リスニング・スピーキング各タブの「次の文へ」を実機確認し、結果を UI-Design.md / Status.md に反映。
-3. [Handoff-2026-11-12.md](Handoff-2026-11-12.md) の「次にやること」（スピーキング結果カードの実機確認など）は未着手のまま残る。
+1. ユーザーが TestFlight を更新したら、そのビルドでリスニング・スピーキング各タブの「次の文へ」を実機確認し、結果を UI-Design.md / Status.md に反映。
+2. [Handoff-2026-11-12.md](Handoff-2026-11-12.md) の「次にやること」（スピーキング結果カードの実機確認など）は未着手のまま残る。
